@@ -1,4 +1,4 @@
-## main.py - ФИНАЛЬНАЯ ВЕРСИЯ ДЛЯ RENDER (С REDIS И GOOGLE DRIVE) ##
+## main.py - ФИНАЛЬНАЯ ВЕРСИЯ 2.0 (С ИСПРАВЛЕНИЕМ AIOGRAM) ##
 
 import os
 import json
@@ -16,6 +16,7 @@ from googleapiclient.http import MediaIoBaseUpload
 
 # --- Библиотеки для Telegram-бота ---
 from aiogram import Bot, Dispatcher, Router, F, types
+from aiogram.client.default import DefaultBotProperties # <--- ДОБАВЛЕН ЭТОТ ИМПОРТ
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -45,12 +46,11 @@ GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 BASE_WEBHOOK_URL = os.getenv("BASE_WEBHOOK_URL")
 
-
 # --- Инициализация с Redis ---
 redis_client = Redis.from_url(REDIS_URL)
 storage = RedisStorage(redis=redis_client)
 
-bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML")) # <--- ИЗМЕНЕНА ЭТА СТРОКА
 dp = Dispatcher(storage=storage)
 router = Router()
 dp.include_router(router)
@@ -95,11 +95,8 @@ class AddEmployeeState(StatesGroup):
     enter_tg_id = State()
     enter_workshop = State()
 
-class SetCoefficientState(StatesGroup):
-    choose_workshop = State()
-    choose_employee = State()
-    enter_coefficient = State()
-
+# ... (остальной код остается без изменений) ...
+# Вставьте сюда остальную часть вашего кода (начиная с `class SetCoefficientState`)
 # --- Вспомогательные функции ---
 async def get_employee_by_id(user_id: int) -> Optional[dict]:
     employees = await employees_sheet.get_all_records()
@@ -157,11 +154,6 @@ async def start_report(message: Message, state: FSMContext):
     if not employee:
         await message.answer("❌ Вы не зарегистрированы в системе. Обратитесь к бригадиру.", reply_markup=main_keyboard())
         return
-
-    # Проверка на наличие уже отправленного отчета (пока отключена для тестов)
-    # if await has_user_reported_today(user_id):
-    #     await message.answer("⚠️ Вы уже отправляли отчет сегодня.", reply_markup=main_keyboard())
-    #     return
 
     workshop = "РТИ" if "РТИ" in message.text else "Химмаш"
     await state.update_data(workshop=workshop, employee_fio=employee['ФИО'])
@@ -236,10 +228,6 @@ async def photo_attached(message: Message, state: FSMContext):
         await message.answer("❌ Произошла ошибка при сохранении отчета в таблицу.", reply_markup=main_keyboard())
 
     await state.clear()
-
-# --- Кабинет Бригадира (остальной код) ---
-# ... (вставьте сюда полный код для кабинета бригадира из предыдущих версий) ...
-
 
 # --- Настройка вебхуков и запуск ---
 @app.on_event("startup")
