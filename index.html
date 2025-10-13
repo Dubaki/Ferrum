@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Конфигуратор Печи</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Стили, чтобы приложение выглядело аккуратно и "родным" для Telegram */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 15px;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-hint-color);
+            font-size: 16px;
+            box-sizing: border-box;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        .dimension-group {
+            display: flex;
+            gap: 10px;
+        }
+        h3, h4 {
+            color: var(--tg-theme-text-color);
+        }
+    </style>
+</head>
+<body>
+
+    <h3>Конфигуратор Печи Полимеризации</h3>
+
+    <div class="form-group">
+        <label for="oven_type">Тип печи:</label>
+        <select id="oven_type">
+            <option value="electric">Электрическая</option>
+            <option value="gas">Газовая</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="oven_config">Конфигурация:</label>
+        <select id="oven_config">
+            <option value="dead_end">Тупикового типа (2 двери)</option>
+            <option value="through">Сквозного типа (4 двери)</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="partition">Перегородка:</label>
+        <select id="partition">
+            <option value="no">Без перегородки</option>
+            <option value="yes">С перегородкой (+2 двери)</option>
+        </select>
+    </div>
+
+    <h4>Внутренние размеры (метры):</h4>
+    <div class="form-group dimension-group">
+        <div>
+            <label for="internal_width">Ширина</label>
+            <input type="number" id="internal_width" class="data-input" placeholder="_._" inputmode="decimal">
+        </div>
+        <div>
+            <label for="internal_depth">Глубина</label>
+            <input type="number" id="internal_depth" class="data-input" placeholder="_._" inputmode="decimal">
+        </div>
+        <div>
+            <label for="internal_height">Высота</label>
+            <input type="number" id="internal_height" class="data-input" placeholder="_._" inputmode="decimal">
+        </div>
+    </div>
+    
+    <h4>Размеры одной створки двери (метры):</h4>
+    <div class="form-group dimension-group">
+         <div>
+            <label for="door_width">Ширина</label>
+            <input type="number" id="door_width" class="data-input" placeholder="_._" inputmode="decimal">
+        </div>
+        <div>
+            <label for="door_height">Высота</label>
+            <input type="number" id="door_height" class="data-input" placeholder="_._" inputmode="decimal">
+        </div>
+    </div>
+
+    <script>
+        // Инициализируем API Telegram
+        const tg = window.Telegram.WebApp;
+        tg.ready(); // Сообщаем, что приложение готово
+        tg.expand(); // Раскрываем приложение на весь экран для удобства
+
+        // Настраиваем главную кнопку Telegram, которая будет отправлять данные
+        tg.MainButton.text = "Сформировать и отправить заказ";
+        tg.MainButton.color = '#31b545'; // Зеленый цвет для кнопки
+
+        // Функция для проверки, что все поля ввода заполнены
+        function validateForm() {
+            let allFilled = true;
+            document.querySelectorAll('.data-input').forEach(input => {
+                if (input.value === '') {
+                    allFilled = false;
+                }
+            });
+            return allFilled;
+        }
+
+        // Следим за вводом данных в полях
+        document.querySelectorAll('.data-input').forEach(input => {
+            input.addEventListener('input', () => {
+                // Если все поля заполнены - показываем кнопку, иначе - прячем
+                if (validateForm()) {
+                    tg.MainButton.show();
+                } else {
+                    tg.MainButton.hide();
+                }
+            });
+        });
+
+        // САМОЕ ГЛАВНОЕ: Что происходит при нажатии на главную кнопку
+        tg.MainButton.onClick(() => {
+            // 1. Собираем все данные из формы в один объект
+            const orderData = {
+                // Параметры из выпадающих списков
+                oven_type: document.getElementById('oven_type').value,
+                oven_config: document.getElementById('oven_config').value,
+                partition: document.getElementById('partition').value,
+                // Размеры (конвертируем текст в число)
+                internal_dims: {
+                    width: parseFloat(document.getElementById('internal_width').value),
+                    depth: parseFloat(document.getElementById('internal_depth').value),
+                    height: parseFloat(document.getElementById('internal_height').value),
+                },
+                door_dims: {
+                    width: parseFloat(document.getElementById('door_width').value),
+                    height: parseFloat(document.getElementById('door_height').value),
+                },
+                // Добавляем информацию о менеджере, который заполнил форму
+                manager_id: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'unknown',
+                manager_username: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.username : 'unknown',
+                order_date: new Date().toISOString()
+            };
+
+            // 2. Отправляем этот объект боту в формате JSON.
+            // Именно это событие "поймает" триггер в n8n!
+            tg.sendData(JSON.stringify(orderData));
+            
+            // 3. Закрываем Mini App после успешной отправки
+            tg.close();
+        });
+    </script>
+
+</body>
+</html>
