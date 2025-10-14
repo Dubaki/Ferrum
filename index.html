@@ -2,163 +2,595 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Конфигуратор Печи</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конфигуратор Печей</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Стили, чтобы приложение выглядело аккуратно и "родным" для Telegram */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 15px;
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
+            background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+        
+        .header-icon {
+            display: inline-block;
+            background: white;
+            padding: 15px;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+            margin-bottom: 15px;
+        }
+        
+        .header-icon svg {
+            width: 40px;
+            height: 40px;
+            stroke: #6366F1;
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            color: #6B7280;
+        }
+        
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .card:hover {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+            transform: scale(1.02);
+        }
+        
+        .card-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        
+        .card-icon {
+            background: #EEF2FF;
+            padding: 12px;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+        
+        .card-icon svg {
+            width: 32px;
+            height: 32px;
+            stroke: #6366F1;
+        }
+        
+        .card-text {
+            flex: 1;
+        }
+        
+        .card-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #1F2937;
+            margin-bottom: 4px;
+        }
+        
+        .card-desc {
+            font-size: 14px;
+            color: #6B7280;
+        }
+        
+        .card-arrow {
+            margin-top: 8px;
+        }
+        
+        .card-arrow svg {
+            width: 24px;
+            height: 24px;
+            stroke: #9CA3AF;
+        }
+        
+        .form-card {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        .back-btn {
+            color: #6366F1;
+            font-weight: 600;
+            font-size: 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            margin-bottom: 20px;
+            padding: 0;
+        }
+        
+        .form-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1F2937;
+            margin-bottom: 24px;
+        }
+        
         .form-group {
             margin-bottom: 20px;
         }
+        
+        .form-group-gradient {
+            background: linear-gradient(135deg, #EEF2FF 0%, #DBEAFE 100%);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        
         label {
             display: block;
-            margin-bottom: 5px;
             font-weight: bold;
+            font-size: 14px;
+            color: #374151;
+            margin-bottom: 8px;
         }
+        
         select, input {
             width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid var(--tg-theme-hint-color);
+            padding: 12px;
+            border: 2px solid #E0E7FF;
+            border-radius: 12px;
             font-size: 16px;
-            box-sizing: border-box;
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
+            background: white;
+            transition: border 0.3s;
         }
-        .dimension-group {
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #6366F1;
+        }
+        
+        .size-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .size-inputs input {
+            text-align: center;
+        }
+        
+        .power-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .power-btn {
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #E5E7EB;
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .power-btn:hover {
+            border-color: #C7D2FE;
+        }
+        
+        .power-btn.active {
+            background: #6366F1;
+            color: white;
+            border-color: #6366F1;
+        }
+        
+        .power-options {
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            gap: 8px;
         }
-        h3, h4 {
-            color: var(--tg-theme-text-color);
+        
+        .power-option {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #E5E7EB;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .power-option:hover {
+            border-color: #C7D2FE;
+        }
+        
+        .power-option.active {
+            background: #6366F1;
+            color: white;
+            border-color: #6366F1;
+        }
+        
+        .power-option-title {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .power-option-desc {
+            font-size: 12px;
+            opacity: 0.75;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #6366F1 0%, #3B82F6 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        
+        .submit-btn:hover {
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+            transform: scale(1.02);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .mounting-item {
+            background: #F9FAFB;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .mounting-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .mounting-name {
+            font-weight: 600;
+            color: #1F2937;
+        }
+        
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .qty-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 2px solid #E5E7EB;
+            background: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .qty-btn:hover {
+            border-color: #6366F1;
+            color: #6366F1;
+        }
+        
+        .qty-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1F2937;
+            min-width: 30px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <!-- Главный экран -->
+        <div id="mainScreen">
+            <div class="header">
+                <div class="header-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <h1>Конфигуратор</h1>
+                <p class="subtitle">Автоматизация закупок</p>
+            </div>
 
-    <h3>Конфигуратор Печи Полимеризации</h3>
+            <div class="card" onclick="showScreen('ovenScreen')">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <div class="card-text">
+                        <div class="card-title">Линии полимеризации</div>
+                        <div class="card-desc">Печь + Камера + Транспорт</div>
+                    </div>
+                    <div class="card-arrow">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
 
-    <div class="form-group">
-        <label for="oven_type">Тип печи:</label>
-        <select id="oven_type">
-            <option value="electric">Электрическая</option>
-            <option value="gas">Газовая</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="oven_config">Конфигурация:</label>
-        <select id="oven_config">
-            <option value="dead_end">Тупикового типа (2 двери)</option>
-            <option value="through">Сквозного типа (4 двери)</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label for="partition">Перегородка:</label>
-        <select id="partition">
-            <option value="no">Без перегородки</option>
-            <option value="yes">С перегородкой (+2 двери)</option>
-        </select>
-    </div>
+            <div class="card" onclick="showScreen('ovenScreen')">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path>
+                        </svg>
+                    </div>
+                    <div class="card-text">
+                        <div class="card-title">Печи</div>
+                        <div class="card-desc">Печи полимеризации</div>
+                    </div>
+                    <div class="card-arrow">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
 
-    <h4>Внутренние размеры (метры):</h4>
-    <div class="form-group dimension-group">
-        <div>
-            <label for="internal_width">Ширина</label>
-            <input type="number" id="internal_width" class="data-input" placeholder="_._" inputmode="decimal">
+            <div class="card" onclick="showScreen('mountingScreen')">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
+                        </svg>
+                    </div>
+                    <div class="card-text">
+                        <div class="card-title">Монтажные приспособления</div>
+                        <div class="card-desc">Скобы, зазорники, шайбы</div>
+                    </div>
+                    <div class="card-arrow">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div>
-            <label for="internal_depth">Глубина</label>
-            <input type="number" id="internal_depth" class="data-input" placeholder="_._" inputmode="decimal">
+
+        <!-- Экран параметров печи -->
+        <div id="ovenScreen" class="hidden">
+            <div class="form-card">
+                <button class="back-btn" onclick="showScreen('mainScreen')">← Назад</button>
+                <h2 class="form-title">Параметры печи</h2>
+
+                <div class="form-group-gradient">
+                    <label>Тип питания</label>
+                    <select id="powerType" onchange="updatePowerOptions()">
+                        <option value="">Выберите...</option>
+                        <option value="gas">Газовая</option>
+                        <option value="electric">Электрическая</option>
+                    </select>
+                </div>
+
+                <div id="gasOptions" class="hidden">
+                    <div class="form-group">
+                        <label>Горелки</label>
+                        <input type="number" id="burners" placeholder="Количество">
+                    </div>
+                    <div class="form-group">
+                        <label>Мощность</label>
+                        <div class="power-buttons">
+                            <button class="power-btn" onclick="selectPower('5.8')">5.8 кВт</button>
+                            <button class="power-btn" onclick="selectPower('6.2')">6.2 кВт</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="electricOptions" class="hidden">
+                    <div class="form-group">
+                        <label>Мощность</label>
+                        <div class="power-options">
+                            <button class="power-option" onclick="selectElectricPower('30')">
+                                <div class="power-option-title">30 кВт</div>
+                                <div class="power-option-desc">10 ТЭНов × 3 кВт</div>
+                            </button>
+                            <button class="power-option" onclick="selectElectricPower('45')">
+                                <div class="power-option-title">45 кВт</div>
+                                <div class="power-option-desc">15 ТЭНов × 3 кВт</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Размеры (мм)</label>
+                    <div class="size-inputs">
+                        <input type="number" id="width" placeholder="Ш">
+                        <input type="number" id="depth" placeholder="Г">
+                        <input type="number" id="height" placeholder="В">
+                    </div>
+                </div>
+
+                <button class="submit-btn" onclick="submitOvenOrder()">Отправить заказ</button>
+            </div>
         </div>
-        <div>
-            <label for="internal_height">Высота</label>
-            <input type="number" id="internal_height" class="data-input" placeholder="_._" inputmode="decimal">
-        </div>
-    </div>
-    
-    <h4>Размеры одной створки двери (метры):</h4>
-    <div class="form-group dimension-group">
-         <div>
-            <label for="door_width">Ширина</label>
-            <input type="number" id="door_width" class="data-input" placeholder="_._" inputmode="decimal">
-        </div>
-        <div>
-            <label for="door_height">Высота</label>
-            <input type="number" id="door_height" class="data-input" placeholder="_._" inputmode="decimal">
+
+        <!-- Экран монтажных приспособлений -->
+        <div id="mountingScreen" class="hidden">
+            <div class="form-card">
+                <button class="back-btn" onclick="showScreen('mainScreen')">← Назад</button>
+                <h2 class="form-title">Монтажные приспособления</h2>
+
+                <div class="mounting-item">
+                    <div class="mounting-header">
+                        <span class="mounting-name">Зазорник</span>
+                        <div class="quantity-control">
+                            <button class="qty-btn" onclick="changeQty('zazornik', -1)">−</button>
+                            <span class="qty-display" id="qty-zazornik">0</span>
+                            <button class="qty-btn" onclick="changeQty('zazornik', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mounting-item">
+                    <div class="mounting-header">
+                        <span class="mounting-name">Шайба Ш-1</span>
+                        <div class="quantity-control">
+                            <button class="qty-btn" onclick="changeQty('washer', -1)">−</button>
+                            <span class="qty-display" id="qty-washer">0</span>
+                            <button class="qty-btn" onclick="changeQty('washer', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mounting-item">
+                    <div class="mounting-header">
+                        <span class="mounting-name">Скоба монтажная С-1</span>
+                        <div class="quantity-control">
+                            <button class="qty-btn" onclick="changeQty('bracket', -1)">−</button>
+                            <span class="qty-display" id="qty-bracket">0</span>
+                            <button class="qty-btn" onclick="changeQty('bracket', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="submit-btn" onclick="submitMountingOrder()">Отправить заказ</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Инициализируем API Telegram
         const tg = window.Telegram.WebApp;
-        tg.ready(); // Сообщаем, что приложение готово
-        tg.expand(); // Раскрываем приложение на весь экран для удобства
+        tg.ready();
+        tg.expand();
 
-        // Настраиваем главную кнопку Telegram, которая будет отправлять данные
-        tg.MainButton.text = "Сформировать и отправить заказ";
-        tg.MainButton.color = '#31b545'; // Зеленый цвет для кнопки
+        let selectedBurnerPower = '';
+        let selectedElectricPower = '';
+        let quantities = {
+            zazornik: 0,
+            washer: 0,
+            bracket: 0
+        };
 
-        // Функция для проверки, что все поля ввода заполнены
-        function validateForm() {
-            let allFilled = true;
-            document.querySelectorAll('.data-input').forEach(input => {
-                if (input.value === '') {
-                    allFilled = false;
-                }
-            });
-            return allFilled;
+        function showScreen(screenId) {
+            document.getElementById('mainScreen').classList.add('hidden');
+            document.getElementById('ovenScreen').classList.add('hidden');
+            document.getElementById('mountingScreen').classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
         }
 
-        // Следим за вводом данных в полях
-        document.querySelectorAll('.data-input').forEach(input => {
-            input.addEventListener('input', () => {
-                // Если все поля заполнены - показываем кнопку, иначе - прячем
-                if (validateForm()) {
-                    tg.MainButton.show();
-                } else {
-                    tg.MainButton.hide();
-                }
-            });
-        });
+        function updatePowerOptions() {
+            const powerType = document.getElementById('powerType').value;
+            document.getElementById('gasOptions').classList.add('hidden');
+            document.getElementById('electricOptions').classList.add('hidden');
+            
+            if (powerType === 'gas') {
+                document.getElementById('gasOptions').classList.remove('hidden');
+            } else if (powerType === 'electric') {
+                document.getElementById('electricOptions').classList.remove('hidden');
+            }
+        }
 
-        // САМОЕ ГЛАВНОЕ: Что происходит при нажатии на главную кнопку
-        tg.MainButton.onClick(() => {
-            // 1. Собираем все данные из формы в один объект
+        function selectPower(power) {
+            selectedBurnerPower = power;
+            document.querySelectorAll('.power-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function selectElectricPower(power) {
+            selectedElectricPower = power;
+            document.querySelectorAll('.power-option').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function changeQty(item, delta) {
+            quantities[item] = Math.max(0, quantities[item] + delta);
+            document.getElementById('qty-' + item).textContent = quantities[item];
+        }
+
+        function submitOvenOrder() {
             const orderData = {
-                // Параметры из выпадающих списков
-                oven_type: document.getElementById('oven_type').value,
-                oven_config: document.getElementById('oven_config').value,
-                partition: document.getElementById('partition').value,
-                // Размеры (конвертируем текст в число)
-                internal_dims: {
-                    width: parseFloat(document.getElementById('internal_width').value),
-                    depth: parseFloat(document.getElementById('internal_depth').value),
-                    height: parseFloat(document.getElementById('internal_height').value),
+                type: 'oven',
+                powerType: document.getElementById('powerType').value,
+                burners: document.getElementById('burners').value,
+                burnerPower: selectedBurnerPower,
+                electricPower: selectedElectricPower,
+                dimensions: {
+                    width: document.getElementById('width').value,
+                    depth: document.getElementById('depth').value,
+                    height: document.getElementById('height').value
                 },
-                door_dims: {
-                    width: parseFloat(document.getElementById('door_width').value),
-                    height: parseFloat(document.getElementById('door_height').value),
-                },
-                // Добавляем информацию о менеджере, который заполнил форму
-                manager_id: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'unknown',
-                manager_username: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.username : 'unknown',
-                order_date: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                user: tg.initDataUnsafe.user
             };
 
-            // 2. Отправляем этот объект боту в формате JSON.
-            // Именно это событие "поймает" триггер в n8n!
             tg.sendData(JSON.stringify(orderData));
-            
-            // 3. Закрываем Mini App после успешной отправки
             tg.close();
-        });
-    </script>
+        }
 
+        function submitMountingOrder() {
+            const orderData = {
+                type: 'mounting',
+                items: [
+                    { name: 'Зазорник', quantity: quantities.zazornik },
+                    { name: 'Шайба Ш-1', quantity: quantities.washer },
+                    { name: 'Скоба монтажная С-1', quantity: quantities.bracket }
+                ].filter(item => item.quantity > 0),
+                timestamp: new Date().toISOString(),
+                user: tg.initDataUnsafe.user
+            };
+
+            tg.sendData(JSON.stringify(orderData));
+            tg.close();
+        }
+    </script>
 </body>
 </html>
