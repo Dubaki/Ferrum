@@ -504,10 +504,18 @@
     </div>
 
     <script>
+        // ===== ИНИЦИАЛИЗАЦИЯ TELEGRAM WEB APP =====
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
 
+        // ===== КОНФИГУРАЦИЯ N8N =====
+        const N8N_CONFIG = {
+            webhookUrl: 'https://ваш-n8n-домен.com/webhook/ferrum-order',
+            // ВАЖНО: Замените на ваш реальный URL из n8n
+        };
+
+        // ===== ПЕРЕМЕННЫЕ СОСТОЯНИЯ =====
         let selectedBurnerPower = '';
         let selectedElectricPower = '';
         let quantities = {
@@ -516,6 +524,7 @@
             bracket: 0
         };
 
+        // ===== ФУНКЦИИ НАВИГАЦИИ =====
         function showScreen(screenId) {
             document.getElementById('mainScreen').classList.add('hidden');
             document.getElementById('ovenScreen').classList.add('hidden');
@@ -556,41 +565,178 @@
             document.getElementById('qty-' + item).textContent = quantities[item];
         }
 
+        // ===== ФУНКЦИЯ ОТПРАВКИ В N8N =====
+        async function sendToN8N(orderData) {
+            try {
+                // Показываем индикатор загрузки
+                tg.MainButton.showProgress();
+                tg.HapticFeedback.impactOccurred('medium');
+
+                // Подготавливаем данные для отправки
+                const payload = {
+                    // Тип заказа
+                    orderType: orderData.type,
+                    
+                    // Данные пользователя из Telegram
+                    user: {
+                        id: tg.initDataUnsafe?.user?.id,
+                        username: tg.initDataUnsafe?.user?.username,
+                        firstName: tg.initDataUnsafe?.user?.first_name,
+                        lastName: tg.initDataUnsafe?.user?.last_name,
+                        languageCode: tg.initDataUnsafe?.user?.language_code,
+                    },
+                    
+                    // Данные заказа
+                    order: orderData,
+                    
+                    // Метаданные
+                    meta: {
+                        timestamp: new Date().toISOString(),
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        platform: tg.platform,
+                        version: tg.version,
+                        chatId: tg.initDataUnsafe?.chat?.id,
+                    },
+                    
+                    // Для проверки подлинности
+                    auth: {
+                        initData: tg.initData,
+                    }
+                };
+
+                console.log('Отправка данных в n8n:', payload);
+
+                // Отправляем POST запрос в n8n
+                const response = await fetch(N8N_CONFIG.webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ошибка! Статус: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Ответ от n8n:', result);
+
+                // Успешная отправка
+                tg.MainButton.hideProgress();
+                tg.HapticFeedback.notificationOccurred('success');
+                
+                // Показываем сообщение об успехе
+                tg.showAlert('✅ Заказ успешно отправлен!', () => {
+                    tg.close();
+                });
+
+                return { success: true, data: result };
+
+            } catch (error) {
+                console.error('Ошибка при отправке в n8n:', error);
+                
+                tg.MainButton.hideProgress();
+                tg.HapticFeedback.notificationOccurred('error');
+                
+                tg.showAlert(`❌ Ошибка отправки: ${error.message}\n\nПопробуйте еще раз или обратитесь к администратору.`);
+                
+                return { success: false, error: error.message };
+            }
+        }
+
+        // ===== ФУНКЦИИ ОТПРАВКИ ЗАКАЗОВ =====
         function submitOvenOrder() {
+            const powerType = document.getElementById('powerType').value;
+            const width = document.getElementById('width').value;
+            const depth = document.getElementById('depth').value;
+            const height = document.getElementById('height').value;
+
+            // Валидация
+            if (!powerType) {
+                tg.showAlert('⚠️ Выберите тип питания');
+                return;
+            }
+
+            if (!width || !depth || !height) {
+                tg.showAlert('⚠️ Укажите все размеры печи');
+                return;
+            }
+
+            if (powerType === 'gas') {
+                const burners = document.getElementById('burners').value;
+                if (!burners) {
+                    tg.showAlert('⚠️ Укажите количество горелок');
+                    return;
+                }
+                if (!selectedBurnerPower) {
+                    tg.showAlert('⚠️ Выберите мощность горелок');
+                    return;
+                }
+            }
+
+            if (powerType === 'electric' && !selectedElectricPower) {
+                tg.showAlert('⚠️ Выберите мощность ТЭНов');
+                return;
+            }
+
+            // Формируем данные заказа
             const orderData = {
                 type: 'oven',
-                powerType: document.getElementById('powerType').value,
-                burners: document.getElementById('burners').value,
-                burnerPower: selectedBurnerPower,
-                electricPower: selectedElectricPower,
+                category: 'Печи полимеризации',
+                powerType: powerType,
+                powerTypeLabel: powerType === 'gas' ? 'Газовая' : 'Электрическая',
+                
+                // Данные для газовой печи
+                ...(powerType === 'gas' && {
+                    burners: parseInt(document.getElementById('burners').value),
+                    burnerPower: selectedBurnerPower + ' кВт',
+                    totalPower: (parseInt(document.getElementById('burners').value) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
+                }),
+                
+                // Данные для электрической печи
+                ...(powerType === 'electric' && {
+                    electricPower: selectedElectricPower + ' кВт',
+                    tens: selectedElectricPower === '30' ? '10 ТЭНов × 3 кВт' : '15 ТЭНов × 3 кВт'
+                }),
+                
+                // Размеры
                 dimensions: {
-                    width: document.getElementById('width').value,
-                    depth: document.getElementById('depth').value,
-                    height: document.getElementById('height').value
+                    width: parseInt(width),
+                    depth: parseInt(depth),
+                    height: parseInt(height),
+                    formatted: `${width} × ${depth} × ${height} мм`
                 },
-                timestamp: new Date().toISOString(),
-                user: tg.initDataUnsafe.user
+                
+                timestamp: new Date().toISOString()
             };
 
-            tg.sendData(JSON.stringify(orderData));
-            tg.close();
+            // Отправляем в n8n
+            sendToN8N(orderData);
         }
 
         function submitMountingOrder() {
+            // Проверяем, что выбрано хотя бы одно изделие
+            const hasItems = quantities.zazornik > 0 || 
+                             quantities.washer > 0 || 
+                             quantities.bracket > 0;
+
+            if (!hasItems) {
+                tg.showAlert('⚠️ Выберите хотя бы одно изделие');
+                return;
+            }
+
+            // Формируем данные заказа
             const orderData = {
                 type: 'mounting',
+                category: 'Монтажные приспособления',
                 items: [
-                    { name: 'Зазорник', quantity: quantities.zazornik },
-                    { name: 'Шайба Ш-1', quantity: quantities.washer },
-                    { name: 'Скоба монтажная С-1', quantity: quantities.bracket }
-                ].filter(item => item.quantity > 0),
-                timestamp: new Date().toISOString(),
-                user: tg.initDataUnsafe.user
-            };
-
-            tg.sendData(JSON.stringify(orderData));
-            tg.close();
-        }
-    </script>
-</body>
-</html>
+                    {
+                        id: 'zazornik',
+                        name: 'Зазорник',
+                        quantity: quantities.zazornik,
+                        unit: 'шт'
+                    },
+                    {
+                        id: 'washer',
+                        name:
