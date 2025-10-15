@@ -342,7 +342,7 @@
                 <p class="subtitle">Автоматизация закупок</p>
             </div>
 
-            <div class="card" onclick="showScreen('ovenScreen')">
+            <div class="card" data-screen="ovenScreen">
                 <div class="card-content">
                     <div class="card-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,7 +361,7 @@
                 </div>
             </div>
 
-            <div class="card" onclick="showScreen('ovenScreen')">
+            <div class="card" data-screen="ovenScreen">
                 <div class="card-content">
                     <div class="card-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,7 +381,7 @@
                 </div>
             </div>
 
-            <div class="card" onclick="showScreen('mountingScreen')">
+            <div class="card" data-screen="mountingScreen">
                 <div class="card-content">
                     <div class="card-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,12 +404,12 @@
         <!-- Экран параметров печи -->
         <div id="ovenScreen" class="hidden">
             <div class="form-card">
-                <button class="back-btn" onclick="showScreen('mainScreen')">← Назад</button>
+                <button class="back-btn" data-back="mainScreen">← Назад</button>
                 <h2 class="form-title">Параметры печи</h2>
 
                 <div class="form-group-gradient">
                     <label>Тип питания</label>
-                    <select id="powerType" onchange="updatePowerOptions()">
+                    <select id="powerType">
                         <option value="">Выберите...</option>
                         <option value="gas">Газовая</option>
                         <option value="electric">Электрическая</option>
@@ -424,8 +424,8 @@
                     <div class="form-group">
                         <label>Мощность</label>
                         <div class="power-buttons">
-                            <button class="power-btn" onclick="selectPower('5.8')">5.8 кВт</button>
-                            <button class="power-btn" onclick="selectPower('6.2')">6.2 кВт</button>
+                            <button class="power-btn" data-power="5.8">5.8 кВт</button>
+                            <button class="power-btn" data-power="6.2">6.2 кВт</button>
                         </div>
                     </div>
                 </div>
@@ -434,11 +434,11 @@
                     <div class="form-group">
                         <label>Мощность</label>
                         <div class="power-options">
-                            <button class="power-option" onclick="selectElectricPower('30')">
+                            <button class="power-option" data-electric-power="30">
                                 <div class="power-option-title">30 кВт</div>
                                 <div class="power-option-desc">10 ТЭНов × 3 кВт</div>
                             </button>
-                            <button class="power-option" onclick="selectElectricPower('45')">
+                            <button class="power-option" data-electric-power="45">
                                 <div class="power-option-title">45 кВт</div>
                                 <div class="power-option-desc">15 ТЭНов × 3 кВт</div>
                             </button>
@@ -455,23 +455,23 @@
                     </div>
                 </div>
 
-                <button class="submit-btn" onclick="submitOvenOrder()">Отправить заказ</button>
+                <button class="submit-btn" id="submitOvenBtn">Отправить заказ</button>
             </div>
         </div>
 
         <!-- Экран монтажных приспособлений -->
         <div id="mountingScreen" class="hidden">
             <div class="form-card">
-                <button class="back-btn" onclick="showScreen('mainScreen')">← Назад</button>
+                <button class="back-btn" data-back="mainScreen">← Назад</button>
                 <h2 class="form-title">Монтажные приспособления</h2>
 
                 <div class="mounting-item">
                     <div class="mounting-header">
                         <span class="mounting-name">Зазорник</span>
                         <div class="quantity-control">
-                            <button class="qty-btn" onclick="changeQty('zazornik', -1)">−</button>
+                            <button class="qty-btn" data-item="zazornik" data-action="minus">−</button>
                             <span class="qty-display" id="qty-zazornik">0</span>
-                            <button class="qty-btn" onclick="changeQty('zazornik', 1)">+</button>
+                            <button class="qty-btn" data-item="zazornik" data-action="plus">+</button>
                         </div>
                     </div>
                 </div>
@@ -480,9 +480,9 @@
                     <div class="mounting-header">
                         <span class="mounting-name">Шайба Ш-1</span>
                         <div class="quantity-control">
-                            <button class="qty-btn" onclick="changeQty('washer', -1)">−</button>
+                            <button class="qty-btn" data-item="washer" data-action="minus">−</button>
                             <span class="qty-display" id="qty-washer">0</span>
-                            <button class="qty-btn" onclick="changeQty('washer', 1)">+</button>
+                            <button class="qty-btn" data-item="washer" data-action="plus">+</button>
                         </div>
                     </div>
                 </div>
@@ -491,14 +491,14 @@
                     <div class="mounting-header">
                         <span class="mounting-name">Скоба монтажная С-1</span>
                         <div class="quantity-control">
-                            <button class="qty-btn" onclick="changeQty('bracket', -1)">−</button>
+                            <button class="qty-btn" data-item="bracket" data-action="minus">−</button>
                             <span class="qty-display" id="qty-bracket">0</span>
-                            <button class="qty-btn" onclick="changeQty('bracket', 1)">+</button>
+                            <button class="qty-btn" data-item="bracket" data-action="plus">+</button>
                         </div>
                     </div>
                 </div>
 
-                <button class="submit-btn" onclick="submitMountingOrder()">Отправить заказ</button>
+                <button class="submit-btn" id="submitMountingBtn">Отправить заказ</button>
             </div>
         </div>
     </div>
@@ -739,4 +739,99 @@
                     },
                     {
                         id: 'washer',
-                        name:
+                        name: 'Шайба Ш-1',
+                        quantity: quantities.washer,
+                        unit: 'шт'
+                    },
+                    {
+                        id: 'bracket',
+                        name: 'Скоба монтажная С-1',
+                        quantity: quantities.bracket,
+                        unit: 'шт'
+                    }
+                ].filter(item => item.quantity > 0), // Только выбранные позиции
+                
+                // Общее количество
+                totalQuantity: quantities.zazornik + quantities.washer + quantities.bracket,
+                
+                timestamp: new Date().toISOString()
+            };
+
+            // Отправляем в n8n
+            sendToN8N(orderData);
+        }
+
+        // ===== ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ =====
+        function testN8NConnection() {
+            const testData = {
+                type: 'test',
+                message: 'Тестовое сообщение',
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('Отправка тестовых данных...');
+            sendToN8N(testData);
+        }
+
+        // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработчик для карточек главного экрана
+            document.querySelectorAll('.card[data-screen]').forEach(card => {
+                card.addEventListener('click', function() {
+                    const screenId = this.getAttribute('data-screen');
+                    showScreen(screenId);
+                });
+            });
+
+            // Обработчик для кнопок "Назад"
+            document.querySelectorAll('.back-btn[data-back]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const screenId = this.getAttribute('data-back');
+                    showScreen(screenId);
+                });
+            });
+
+            // Обработчик для изменения типа питания
+            document.getElementById('powerType').addEventListener('change', updatePowerOptions);
+
+            // Обработчик для кнопок мощности газовой печи
+            document.querySelectorAll('.power-btn[data-power]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const power = this.getAttribute('data-power');
+                    selectPower(power);
+                });
+            });
+
+            // Обработчик для кнопок мощности электрической печи
+            document.querySelectorAll('.power-option[data-electric-power]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const power = this.getAttribute('data-electric-power');
+                    selectElectricPower(power);
+                });
+            });
+
+            // Обработчик для кнопок количества
+            document.querySelectorAll('.qty-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const item = this.getAttribute('data-item');
+                    const action = this.getAttribute('data-action');
+                    const delta = action === 'plus' ? 1 : -1;
+                    changeQty(item, delta);
+                });
+            });
+
+            // Обработчик для кнопки отправки заказа печи
+            document.getElementById('submitOvenBtn').addEventListener('click', submitOvenOrder);
+
+            // Обработчик для кнопки отправки заказа монтажа
+            document.getElementById('submitMountingBtn').addEventListener('click', submitMountingOrder);
+
+            // Логирование инициализации
+            console.log('✅ Ferrum App загружен');
+            console.log('n8n Webhook URL:', N8N_CONFIG.webhookUrl);
+            console.log('Пользователь:', tg.initDataUnsafe?.user);
+            console.log('Для тестирования используйте: testN8NConnection()');
+        });
+    </script>
+</body>
+</html>
