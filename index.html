@@ -511,7 +511,7 @@
 
         // ===== КОНФИГУРАЦИЯ N8N =====
         const N8N_CONFIG = {
-            webhookUrl: 'https://abidmumetoy.beget.app/webhook/ferrum-order',
+            webhookUrl: 'https://ваш-n8n-домен.com/webhook/ferrum-order',
             // ВАЖНО: Замените на ваш реальный URL из n8n
         };
 
@@ -624,12 +624,20 @@
 
                 // Успешная отправка
                 tg.MainButton.hideProgress();
-                tg.HapticFeedback.notificationOccurred('success');
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
                 
                 // Показываем сообщение об успехе
-                tg.showAlert('✅ Заказ успешно отправлен!', () => {
+                if (tg.showAlert) {
+                    tg.showAlert('✅ Заказ успешно отправлен!', () => {
+                        tg.close();
+                    });
+                } else {
+                    // Fallback для старых версий Telegram
+                    alert('✅ Заказ успешно отправлен!');
                     tg.close();
-                });
+                }
 
                 return { success: true, data: result };
 
@@ -637,9 +645,18 @@
                 console.error('Ошибка при отправке в n8n:', error);
                 
                 tg.MainButton.hideProgress();
-                tg.HapticFeedback.notificationOccurred('error');
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
                 
-                tg.showAlert(`❌ Ошибка отправки: ${error.message}\n\nПопробуйте еще раз или обратитесь к администратору.`);
+                // Показываем сообщение об ошибке
+                const errorMsg = `❌ Ошибка отправки: ${error.message}\n\nПопробуйте еще раз или обратитесь к администратору.`;
+                
+                if (tg.showAlert) {
+                    tg.showAlert(errorMsg);
+                } else {
+                    alert(errorMsg);
+                }
                 
                 return { success: false, error: error.message };
             }
@@ -835,4 +852,3 @@
     </script>
 </body>
 </html>
-
