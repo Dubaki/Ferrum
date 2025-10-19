@@ -262,11 +262,115 @@
             box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
             transition: all 0.3s;
             margin-top: 20px;
+            position: relative;
         }
         
         .submit-btn:hover {
             box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
             transform: scale(1.02);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .submit-btn.loading {
+            background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%);
+        }
+        
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .success-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        .success-icon {
+            width: 60px;
+            height: 60px;
+            background: #10B981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            animation: scaleIn 0.5s ease-out 0.2s both;
+        }
+        
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        
+        .success-icon svg {
+            width: 35px;
+            height: 35px;
+            stroke: white;
+            stroke-width: 3;
+        }
+        
+        .success-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1F2937;
+            margin-bottom: 10px;
+        }
+        
+        .success-text {
+            font-size: 16px;
+            color: #6B7280;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         .hidden {
@@ -623,40 +727,38 @@
                 console.log('Ответ от n8n:', result);
 
                 // Успешная отправка
-                tg.MainButton.hideProgress();
-                if (tg.HapticFeedback) {
+                if (tg.MainButton && tg.MainButton.hideProgress) {
+                    tg.MainButton.hideProgress();
+                }
+                if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
                     tg.HapticFeedback.notificationOccurred('success');
                 }
                 
                 // Показываем сообщение об успехе
-                if (tg.showAlert) {
-                    tg.showAlert('✅ Заказ успешно отправлен!', () => {
+                console.log('✅ Заказ успешно отправлен!');
+                
+                // Закрываем приложение через 1 секунду
+                setTimeout(() => {
+                    if (tg.close) {
                         tg.close();
-                    });
-                } else {
-                    // Fallback для старых версий Telegram
-                    alert('✅ Заказ успешно отправлен!');
-                    tg.close();
-                }
+                    }
+                }, 1000);
 
                 return { success: true, data: result };
 
             } catch (error) {
                 console.error('Ошибка при отправке в n8n:', error);
                 
-                tg.MainButton.hideProgress();
-                if (tg.HapticFeedback) {
+                if (tg.MainButton && tg.MainButton.hideProgress) {
+                    tg.MainButton.hideProgress();
+                }
+                if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
                     tg.HapticFeedback.notificationOccurred('error');
                 }
                 
                 // Показываем сообщение об ошибке
-                const errorMsg = `❌ Ошибка отправки: ${error.message}\n\nПопробуйте еще раз или обратитесь к администратору.`;
-                
-                if (tg.showAlert) {
-                    tg.showAlert(errorMsg);
-                } else {
-                    alert(errorMsg);
-                }
+                const errorMsg = `❌ Ошибка отправки: ${error.message}`;
+                console.error(errorMsg);
                 
                 return { success: false, error: error.message };
             }
