@@ -308,6 +308,8 @@
             text-align: center;
             z-index: 1000;
             animation: slideIn 0.3s ease-out;
+            width: calc(100% - 40px);
+            max-width: 400px;
         }
         
         @keyframes slideIn {
@@ -433,7 +435,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Главный экран -->
         <div id="mainScreen">
             <div class="header">
                 <div class="header-icon">
@@ -505,7 +506,6 @@
             </div>
         </div>
 
-        <!-- Экран параметров печи -->
         <div id="ovenScreen" class="hidden">
             <div class="form-card">
                 <button class="back-btn" data-back="mainScreen">← Назад</button>
@@ -519,7 +519,15 @@
                         <option value="electric">Электрическая</option>
                     </select>
                 </div>
-
+                
+                <div class="form-group-gradient">
+                    <label>Тип печи</label>
+                    <select id="ovenType">
+                        <option value="">Выберите...</option>
+                        <option value="dead-end">Тупиковая (1 дверь)</option>
+                        <option value="through">Сквозная (2 двери)</option>
+                    </select>
+                </div>
                 <div id="gasOptions" class="hidden">
                     <div class="form-group">
                         <label>Горелки</label>
@@ -551,11 +559,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Размеры (мм)</label>
+                    <label>Внутренние размеры (мм)</label>
                     <div class="size-inputs">
-                        <input type="number" id="width" placeholder="Ш">
-                        <input type="number" id="depth" placeholder="Г">
-                        <input type="number" id="height" placeholder="В">
+                        <input type="number" id="depth" placeholder="Глубина (Г)">
+                        <input type="number" id="width" placeholder="Ширина (Ш)">
+                        <input type="number" id="height" placeholder="Высота (В)">
                     </div>
                 </div>
 
@@ -563,7 +571,6 @@
             </div>
         </div>
 
-        <!-- Экран монтажных приспособлений -->
         <div id="mountingScreen" class="hidden">
             <div class="form-card">
                 <button class="back-btn" data-back="mainScreen">← Назад</button>
@@ -605,13 +612,22 @@
                 <button class="submit-btn" id="submitMountingBtn">Отправить заказ</button>
             </div>
         </div>
+    </div> <div id="successOverlay" class="overlay hidden"></div>
+    <div id="successMessage" class="success-message hidden">
+        <div class="success-icon">
+            <svg fill="none" stroke-width="3" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        <div class="success-title">Заказ отправлен!</div>
+        <div class="success-text">Ваш заказ успешно отправлен Агенту на расчет.</div>
     </div>
-
     <script>
         // ===== ИНИЦИАЛИЗАЦИЯ TELEGRAM WEB APP =====
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
+        tg.MainButton.setText('Отправка...'); // Текст для кнопки загрузки
 
         // ===== КОНФИГУРАЦИЯ N8N =====
         const N8N_CONFIG = {
@@ -653,7 +669,10 @@
             document.querySelectorAll('.power-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            // Используем event.currentTarget, чтобы избежать ошибок
+            if(event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
         }
 
         function selectElectricPower(power) {
@@ -661,7 +680,9 @@
             document.querySelectorAll('.power-option').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if(event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
         }
 
         function changeQty(item, delta) {
@@ -669,8 +690,23 @@
             document.getElementById('qty-' + item).textContent = quantities[item];
         }
 
-        // ===== ФУНКЦИЯ ОТПРАВКИ В N8N =====
+        // ===== НОВАЯ ФУНКЦИЯ ДЛЯ POPUP УСПЕХА =====
+        function showSuccessMessage() {
+            document.getElementById('successOverlay').classList.remove('hidden');
+            document.getElementById('successMessage').classList.remove('hidden');
+            
+            // Вибрация Taptic
+            if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+                tg.HapticFeedback.notificationOccurred('success');
+            }
+        }
+
+        // ===== ФУНКЦИЯ ОТПРАВКИ В N8N (ОБНОВЛЕНА) =====
         async function sendToN8N(orderData) {
+            // Блокируем кнопки, чтобы избежать двойного нажатия
+            document.getElementById('submitOvenBtn').disabled = true;
+            document.getElementById('submitMountingBtn').disabled = true;
+
             try {
                 // Показываем индикатор загрузки
                 tg.MainButton.showProgress();
@@ -678,10 +714,7 @@
 
                 // Подготавливаем данные для отправки
                 const payload = {
-                    // Тип заказа
                     orderType: orderData.type,
-                    
-                    // Данные пользователя из Telegram
                     user: {
                         id: tg.initDataUnsafe?.user?.id,
                         username: tg.initDataUnsafe?.user?.username,
@@ -689,11 +722,7 @@
                         lastName: tg.initDataUnsafe?.user?.last_name,
                         languageCode: tg.initDataUnsafe?.user?.language_code,
                     },
-                    
-                    // Данные заказа
                     order: orderData,
-                    
-                    // Метаданные
                     meta: {
                         timestamp: new Date().toISOString(),
                         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -701,8 +730,6 @@
                         version: tg.version,
                         chatId: tg.initDataUnsafe?.chat?.id,
                     },
-                    
-                    // Для проверки подлинности
                     auth: {
                         initData: tg.initData,
                     }
@@ -710,7 +737,6 @@
 
                 console.log('Отправка данных в n8n:', payload);
 
-                // Отправляем POST запрос в n8n
                 const response = await fetch(N8N_CONFIG.webhookUrl, {
                     method: 'POST',
                     headers: {
@@ -720,53 +746,53 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ошибка! Статус: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ошибка! Статус: ${response.status}. ${errorText}`);
                 }
 
                 const result = await response.json();
                 console.log('Ответ от n8n:', result);
 
                 // Успешная отправка
-                if (tg.MainButton && tg.MainButton.hideProgress) {
-                    tg.MainButton.hideProgress();
-                }
-                if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
+                tg.MainButton.hideProgress();
                 
-                // Показываем сообщение об успехе
-                console.log('✅ Заказ успешно отправлен!');
+                // ===== ПОКАЗЫВАЕМ POPUP УСПЕХА =====
+                showSuccessMessage();
                 
-                // Закрываем приложение через 1 секунду
+                // Закрываем приложение через 2 секунды (даем менеджеру время прочитать)
                 setTimeout(() => {
                     if (tg.close) {
                         tg.close();
                     }
-                }, 1000);
+                }, 2000);
 
                 return { success: true, data: result };
 
             } catch (error) {
                 console.error('Ошибка при отправке в n8n:', error);
                 
-                if (tg.MainButton && tg.MainButton.hideProgress) {
-                    tg.MainButton.hideProgress();
-                }
+                tg.MainButton.hideProgress();
                 if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
                     tg.HapticFeedback.notificationOccurred('error');
                 }
                 
-                // Показываем сообщение об ошибке
+                // ===== ПОКАЗЫВАЕМ ОШИБКУ МЕНЕДЖЕРУ =====
                 const errorMsg = `❌ Ошибка отправки: ${error.message}`;
                 console.error(errorMsg);
+                tg.showAlert(`Произошла ошибка при отправке заказа Агенту.\n\n${error.message}`);
+                
+                // Разблокируем кнопки в случае ошибки
+                document.getElementById('submitOvenBtn').disabled = false;
+                document.getElementById('submitMountingBtn').disabled = false;
                 
                 return { success: false, error: error.message };
             }
         }
 
-        // ===== ФУНКЦИИ ОТПРАВКИ ЗАКАЗОВ =====
+        // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА ПЕЧИ (ОБНОВЛЕНА) =====
         function submitOvenOrder() {
             const powerType = document.getElementById('powerType').value;
+            const ovenType = document.getElementById('ovenType').value; // <-- НОВОЕ
             const width = document.getElementById('width').value;
             const depth = document.getElementById('depth').value;
             const height = document.getElementById('height').value;
@@ -777,8 +803,14 @@
                 return;
             }
 
+            // <-- НОВАЯ ВАЛИДАЦИЯ
+            if (!ovenType) {
+                tg.showAlert('⚠️ Выберите тип печи (Тупиковая/Сквозная)');
+                return;
+            }
+
             if (!width || !depth || !height) {
-                tg.showAlert('⚠️ Укажите все размеры печи');
+                tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
                 return;
             }
 
@@ -803,14 +835,19 @@
             const orderData = {
                 type: 'oven',
                 category: 'Печи полимеризации',
+                
+                // <-- НОВЫЕ ПОЛЯ
+                ovenType: ovenType,
+                ovenTypeLabel: ovenType === 'dead-end' ? 'Тупиковая' : 'Сквозная',
+                
                 powerType: powerType,
                 powerTypeLabel: powerType === 'gas' ? 'Газовая' : 'Электрическая',
                 
                 // Данные для газовой печи
                 ...(powerType === 'gas' && {
-                    burners: parseInt(document.getElementById('burners').value),
+                    burners: parseInt(burners),
                     burnerPower: selectedBurnerPower + ' кВт',
-                    totalPower: (parseInt(document.getElementById('burners').value) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
+                    totalPower: (parseInt(burners) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
                 }),
                 
                 // Данные для электрической печи
@@ -819,12 +856,12 @@
                     tens: selectedElectricPower === '30' ? '10 ТЭНов × 3 кВт' : '15 ТЭНов × 3 кВт'
                 }),
                 
-                // Размеры
+                // Размеры (L, W, H)
                 dimensions: {
-                    width: parseInt(width),
-                    depth: parseInt(depth),
-                    height: parseInt(height),
-                    formatted: `${width} × ${depth} × ${height} мм`
+                    width: parseInt(width),     // Ширина (Ш)
+                    depth: parseInt(depth),     // Глубина (Г)
+                    height: parseInt(height),   // Высота (В)
+                    formatted: `${depth}(Г) × ${width}(Ш) × ${height}(В) мм`
                 },
                 
                 timestamp: new Date().toISOString()
@@ -834,8 +871,8 @@
             sendToN8N(orderData);
         }
 
+        // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА МОНТАЖА (БЕЗ ИЗМЕНЕНИЙ) =====
         function submitMountingOrder() {
-            // Проверяем, что выбрано хотя бы одно изделие
             const hasItems = quantities.zazornik > 0 || 
                              quantities.washer > 0 || 
                              quantities.bracket > 0;
@@ -845,7 +882,6 @@
                 return;
             }
 
-            // Формируем данные заказа
             const orderData = {
                 type: 'mounting',
                 category: 'Монтажные приспособления',
@@ -868,15 +904,12 @@
                         quantity: quantities.bracket,
                         unit: 'шт'
                     }
-                ].filter(item => item.quantity > 0), // Только выбранные позиции
+                ].filter(item => item.quantity > 0),
                 
-                // Общее количество
                 totalQuantity: quantities.zazornik + quantities.washer + quantities.bracket,
-                
                 timestamp: new Date().toISOString()
             };
 
-            // Отправляем в n8n
             sendToN8N(orderData);
         }
 
@@ -915,16 +948,16 @@
 
             // Обработчик для кнопок мощности газовой печи
             document.querySelectorAll('.power-btn[data-power]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const power = this.getAttribute('data-power');
+                btn.addEventListener('click', function(e) {
+                    const power = e.currentTarget.getAttribute('data-power');
                     selectPower(power);
                 });
             });
 
             // Обработчик для кнопок мощности электрической печи
             document.querySelectorAll('.power-option[data-electric-power]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const power = this.getAttribute('data-electric-power');
+                btn.addEventListener('click', function(e) {
+                    const power = e.currentTarget.getAttribute('data-electric-power');
                     selectElectricPower(power);
                 });
             });
@@ -946,7 +979,7 @@
             document.getElementById('submitMountingBtn').addEventListener('click', submitMountingOrder);
 
             // Логирование инициализации
-            console.log('✅ Ferrum App загружен');
+            console.log('✅ Ferrum App загружен (v2.0 - с Pop-up)');
             console.log('n8n Webhook URL:', N8N_CONFIG.webhookUrl);
             console.log('Пользователь:', tg.initDataUnsafe?.user);
             console.log('Для тестирования используйте: testN8NConnection()');
@@ -954,4 +987,3 @@
     </script>
 </body>
 </html>
-
