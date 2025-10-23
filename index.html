@@ -5,9 +5,10 @@
         tg.expand();
         tg.MainButton.setText('Отправка...'); // Текст для кнопки загрузки
 
-        // ===== КОНФИГУРАЦИЯ N8N (УБЕДИТЕСЬ, ЧТО ЗДЕСЬ TEST URL ДЛЯ ТЕСТА) =====
+        // ===== КОНФИГУРАЦИЯ N8N (УБЕДИТЕСЬ, ЧТО ЗДЕСЬ СТОИТ PRODUCTION URL ПОСЛЕ ТЕСТОВ) =====
         const N8N_CONFIG = {
-            webhookUrl: 'https://abidmumetoy.beget.app/webhook-test/ferrum-order', // <-- УБЕДИТЕСЬ, ЧТО ЗДЕСЬ TEST URL
+             webhookUrl: 'https://abidmumetoy.beget.app/webhook/ferrum-order', // <-- УБЕДИТЕСЬ, ЧТО ЗДЕСЬ СНОВА PROD URL
+            // webhookUrl: 'https://abidmumetoy.beget.app/webhook-test/ferrum-order', // <-- Или TEST URL для теста Шага 1
         };
 
         // ===== ПЕРЕМЕННЫЕ СОСТОЯНИЯ =====
@@ -24,7 +25,13 @@
             document.getElementById('mainScreen').classList.add('hidden');
             document.getElementById('ovenScreen').classList.add('hidden');
             document.getElementById('mountingScreen').classList.add('hidden');
-            document.getElementById(screenId).classList.remove('hidden');
+            // Убедимся, что элемент существует перед удалением класса
+            const screenElement = document.getElementById(screenId);
+            if (screenElement) {
+                screenElement.classList.remove('hidden');
+            } else {
+                console.error("Элемент экрана не найден:", screenId);
+            }
         }
 
         function updatePowerOptions() {
@@ -39,44 +46,66 @@
             }
         }
 
-        function selectPower(power) {
+        // ИСПРАВЛЕНО: Принимаем event как аргумент
+        function selectPower(power, event) {
             selectedBurnerPower = power;
             document.querySelectorAll('.power-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
+            // Используем event.currentTarget
             if(event && event.currentTarget) {
                 event.currentTarget.classList.add('active');
+            } else {
+                 console.warn("Не удалось найти кнопку для selectPower");
             }
         }
 
-        function selectElectricPower(power) {
+        // ИСПРАВЛЕНО: Принимаем event как аргумент
+        function selectElectricPower(power, event) {
             selectedElectricPower = power;
             document.querySelectorAll('.power-option').forEach(btn => {
                 btn.classList.remove('active');
             });
-            if(event && event.currentTarget) {
+             if(event && event.currentTarget) {
                 event.currentTarget.classList.add('active');
+            } else {
+                 console.warn("Не удалось найти кнопку для selectElectricPower");
             }
         }
 
+
         function changeQty(item, delta) {
             quantities[item] = Math.max(0, quantities[item] + delta);
-            document.getElementById('qty-' + item).textContent = quantities[item];
+             const displayElement = document.getElementById('qty-' + item);
+             if (displayElement) {
+                displayElement.textContent = quantities[item];
+             } else {
+                 console.error("Элемент для отображения количества не найден:", 'qty-' + item);
+             }
         }
 
-        // ===== ФУНКЦИЯ POPUP УСПЕХА (НЕ ИСПОЛЬЗУЕТСЯ В ЭТОМ ТЕСТЕ) =====
+        // ===== ФУНКЦИЯ POPUP УСПЕХА =====
         function showSuccessMessage() {
-            // ... (код остался прежним) ...
+            document.getElementById('successOverlay').classList.remove('hidden');
+            document.getElementById('successMessage').classList.remove('hidden');
+
+            if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+                tg.HapticFeedback.notificationOccurred('success');
+            }
         }
 
-        // ===== ФУНКЦИЯ ОТПРАВКИ В N8N (ДИАГНОСТИЧЕСКАЯ ВЕРСИЯ) =====
+        // ===== ФУНКЦИЯ ОТПРАВКИ В N8N =====
         async function sendToN8N(orderData) {
-            // Блокируем кнопки
-            document.getElementById('submitOvenBtn').disabled = true;
-            document.getElementById('submitMountingBtn').disabled = true;
+            const submitOvenBtn = document.getElementById('submitOvenBtn');
+            const submitMountingBtn = document.getElementById('submitMountingBtn');
+             if(submitOvenBtn) submitOvenBtn.disabled = true;
+             if(submitMountingBtn) submitMountingBtn.disabled = true;
+
 
             try {
-                // Подготавливаем данные для отправки (остается для лога)
+                if (tg.MainButton && tg.MainButton.showProgress) tg.MainButton.showProgress();
+                if (tg.HapticFeedback && tg.HapticFeedback.impactOccurred) tg.HapticFeedback.impactOccurred('medium');
+
                 const payload = {
                     orderType: orderData.type,
                     user: {
@@ -99,103 +128,128 @@
                     }
                 };
 
-                console.log('Подготовлены данные:', payload);
-                console.log('Попытка отправки на URL:', N8N_CONFIG.webhookUrl); // Лог URL
+                console.log('Отправка данных в n8n:', payload);
+                console.log('URL:', N8N_CONFIG.webhookUrl); // Добавим лог URL
 
-                // ===== ДИАГНОСТИКА: Показываем URL перед "отправкой" =====
-                // Проверяем, поддерживает ли клиент showAlert
-                if (tg.showAlert) {
-                   tg.showAlert(`Сейчас я попробую отправить данные на:\n\n${N8N_CONFIG.webhookUrl}`);
-                } else {
-                   // Если showAlert не поддерживается, выводим в консоль и закрываем
-                   console.warn("showAlert не поддерживается. URL для отправки:", N8N_CONFIG.webhookUrl);
-                   alert(`URL для отправки (showAlert не поддерживается):\n${N8N_CONFIG.webhookUrl}`); // Обычный alert как запасной вариант
+                const response = await fetch(N8N_CONFIG.webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                 console.log('Статус ответа:', response.status); // Добавим лог статуса
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                     console.error('Текст ошибки от сервера:', errorText); // Лог текста ошибки
+                    throw new Error(`HTTP ошибка! Статус: ${response.status}. ${errorText || 'Нет текста ошибки'}`);
                 }
-                // =======================================================
 
-                // // Отправляем POST запрос в n8n - ЗАКОММЕНТИРОВАНО ДЛЯ ТЕСТА
-                // const response = await fetch(N8N_CONFIG.webhookUrl, {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify(payload)
-                // });
-                //
-                // if (!response.ok) {
-                //     const errorText = await response.text();
-                //     throw new Error(`HTTP ошибка! Статус: ${response.status}. ${errorText}`);
-                // }
-                // const result = await response.json();
-                // console.log('Ответ от n8n:', result);
-                //
-                // showSuccessMessage();
-                // setTimeout(() => { if (tg.close) tg.close(); }, 2000);
-                // return { success: true, data: result };
-
-                // ===== ПРОСТО ЗАКРЫВАЕМ ДЛЯ ТЕСТА =====
-                // Даем немного времени на показ showAlert перед закрытием
-                setTimeout(() => {
-                    if (tg.close) {
-                        tg.close();
-                    } else {
-                        console.log("tg.close не доступен.");
+                // Попытаемся прочитать JSON, но будем готовы к пустому ответу от Test URL
+                let result = {};
+                try {
+                     const responseText = await response.text(); // Сначала читаем как текст
+                     console.log('Текст ответа от n8n:', responseText); // Лог текста ответа
+                     if (responseText) { // Только если ответ не пустой, пытаемся парсить JSON
+                         result = JSON.parse(responseText);
+                         console.log('Ответ от n8n (JSON):', result);
+                     } else {
+                         console.log('Ответ от n8n пустой (возможно, Test URL?).');
+                         // Для Test URL это нормально, считаем успехом
+                         if (N8N_CONFIG.webhookUrl.includes('-test')) {
+                              // Не показываем success popup для теста, чтобы не запутать
+                              console.log('Тестовый URL использован, закрываем без popup.');
+                              if (tg.close) tg.close();
+                              return { success: true, data: {} }; // Успех для теста
+                         } else {
+                              throw new Error("Сервер вернул пустой ответ, хотя ожидался JSON.");
+                         }
+                     }
+                } catch (jsonError) {
+                    console.error('Ошибка парсинга JSON ответа:', jsonError);
+                    // Если не удалось распарсить JSON, но статус был ОК, покажем базовый успех
+                    if (response.ok && !N8N_CONFIG.webhookUrl.includes('-test')) {
+                         showSuccessMessage();
+                         setTimeout(() => { if (tg.close) tg.close(); }, 2000);
+                         return { success: true, data: { message: "Ответ не JSON, но статус ОК" } };
                     }
-                }, 1000); // Закрываем через 1 секунду
-                // ======================================
+                    throw jsonError; // Перебрасываем ошибку парсинга
+                }
 
+
+                // Успешная отправка (только для Production URL)
+                 if (!N8N_CONFIG.webhookUrl.includes('-test')) {
+                    if (tg.MainButton && tg.MainButton.hideProgress) tg.MainButton.hideProgress();
+                    showSuccessMessage();
+                    setTimeout(() => { if (tg.close) tg.close(); }, 2000);
+                }
+
+                return { success: true, data: result };
 
             } catch (error) {
-                // Этот блок не должен сработать, т.к. fetch закомментирован
-                console.error('Ошибка в блоке try (не должна возникнуть при диагностике):', error);
+                console.error('Ошибка при отправке в n8n:', error);
 
-                 // Разблокируем кнопки в случае непредвиденной ошибки
-                 document.getElementById('submitOvenBtn').disabled = false;
-                 document.getElementById('submitMountingBtn').disabled = false;
+                if (tg.MainButton && tg.MainButton.hideProgress) tg.MainButton.hideProgress();
+                if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) tg.HapticFeedback.notificationOccurred('error');
 
-                // Попытаемся показать ошибку через showAlert, если он доступен
-                if (tg.showAlert) {
-                   tg.showAlert(`Произошла неожиданная ошибка:\n\n${error.message}`);
-                } else {
-                   console.error("showAlert не поддерживается. Ошибка:", error.message);
-                   alert(`Ошибка (showAlert не поддерживается):\n${error.message}`);
+                const errorMsg = `❌ Ошибка отправки: ${error.message}`;
+                console.error(errorMsg);
+                // Используем try/catch для showAlert на случай, если он не поддерживается
+                try {
+                    if (tg.showAlert) {
+                        tg.showAlert(`Произошла ошибка при отправке заказа Агенту.\n\n${error.message}`);
+                    } else {
+                        alert(`Произошла ошибка при отправке заказа Агенту.\n\n${error.message}`);
+                    }
+                } catch (alertError) {
+                    console.error("Не удалось показать ошибку пользователю:", alertError);
                 }
+
+
+                if(submitOvenBtn) submitOvenBtn.disabled = false;
+                if(submitMountingBtn) submitMountingBtn.disabled = false;
 
                 return { success: false, error: error.message };
             }
         }
 
-        // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА ПЕЧИ (ОСТАЛАСЬ ПРЕЖНЕЙ) =====
+        // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА ПЕЧИ (ИСПРАВЛЕНА ОШИБКА С BURNERS) =====
         function submitOvenOrder() {
             const powerType = document.getElementById('powerType').value;
             const ovenType = document.getElementById('ovenType').value;
-            const width = document.getElementById('width').value;
-            const depth = document.getElementById('depth').value;
-            const height = document.getElementById('height').value;
+            const widthInput = document.getElementById('width');
+            const depthInput = document.getElementById('depth');
+            const heightInput = document.getElementById('height');
+            const burnersInput = document.getElementById('burners'); // Получаем элемент горелок
 
-            // Валидация (осталась прежней)
-            if (!powerType) { tg.showAlert('⚠️ Выберите тип питания'); return; }
-            if (!ovenType) { tg.showAlert('⚠️ Выберите тип печи (Тупиковая/Сквозная)'); return; }
-            if (!width || !depth || !height) { tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)'); return; }
-            // ... (остальная валидация для gas/electric) ...
+            const width = widthInput ? widthInput.value : null;
+            const depth = depthInput ? depthInput.value : null;
+            const height = heightInput ? heightInput.value : null;
+
+            // Валидация
+            if (!powerType) { if (tg.showAlert) tg.showAlert('⚠️ Выберите тип питания'); return; }
+            if (!ovenType) { if (tg.showAlert) tg.showAlert('⚠️ Выберите тип печи (Тупиковая/Сквозная)'); return; }
+            if (!width || !depth || !height) { if (tg.showAlert) tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)'); return; }
+
+             let burnersValue = null; // Объявляем переменную здесь
              if (powerType === 'gas') {
-                 const burnersInput = document.getElementById('burners');
-                 const burners = burnersInput ? burnersInput.value : null;
-                 if (!burners) {
-                     tg.showAlert('⚠️ Укажите количество горелок');
+                 burnersValue = burnersInput ? burnersInput.value : null; // Присваиваем значение
+                 if (!burnersValue) {
+                     if (tg.showAlert) tg.showAlert('⚠️ Укажите количество горелок');
                      return;
                  }
                  if (!selectedBurnerPower) {
-                     tg.showAlert('⚠️ Выберите мощность горелок');
+                     if (tg.showAlert) tg.showAlert('⚠️ Выберите мощность горелок');
                      return;
                  }
              }
 
              if (powerType === 'electric' && !selectedElectricPower) {
-                 tg.showAlert('⚠️ Выберите мощность ТЭНов');
+                 if (tg.showAlert) tg.showAlert('⚠️ Выберите мощность ТЭНов');
                  return;
              }
 
-
-            // Формируем данные заказа (остались прежними)
+            // Формируем данные заказа
             const orderData = {
                 type: 'oven',
                 category: 'Печи полимеризации',
@@ -203,15 +257,21 @@
                 ovenTypeLabel: ovenType === 'dead-end' ? 'Тупиковая' : 'Сквозная',
                 powerType: powerType,
                 powerTypeLabel: powerType === 'gas' ? 'Газовая' : 'Электрическая',
-                 ...(powerType === 'gas' && {
-                     burners: parseInt(document.getElementById('burners').value), // Убедитесь что burners существует
-                     burnerPower: selectedBurnerPower + ' кВт',
-                     totalPower: (parseInt(document.getElementById('burners').value) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
-                 }),
-                 ...(powerType === 'electric' && {
-                     electricPower: selectedElectricPower + ' кВт',
-                     tens: selectedElectricPower === '30' ? '10 ТЭНов × 3 кВт' : '15 ТЭНов × 3 кВт'
-                 }),
+
+                // Данные для газовой печи (ИСПРАВЛЕНО: используем burnersValue)
+                ...(powerType === 'gas' && burnersValue && {
+                    burners: parseInt(burnersValue),
+                    burnerPower: selectedBurnerPower + ' кВт',
+                    totalPower: (parseInt(burnersValue) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
+                }),
+
+                // Данные для электрической печи
+                ...(powerType === 'electric' && {
+                    electricPower: selectedElectricPower + ' кВт',
+                    tens: selectedElectricPower === '30' ? '10 ТЭНов × 3 кВт' : '15 ТЭНов × 3 кВт'
+                }),
+
+                // Размеры (L, W, H)
                 dimensions: {
                     width: parseInt(width),
                     depth: parseInt(depth),
@@ -221,42 +281,105 @@
                 timestamp: new Date().toISOString()
             };
 
-            // "Отправляем" (на самом деле покажем URL)
             sendToN8N(orderData);
         }
 
-        // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА МОНТАЖА (ОСТАЛАСЬ ПРЕЖНЕЙ) =====
+        // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА МОНТАЖА =====
         function submitMountingOrder() {
             const hasItems = quantities.zazornik > 0 || quantities.washer > 0 || quantities.bracket > 0;
-            if (!hasItems) { tg.showAlert('⚠️ Выберите хотя бы одно изделие'); return; }
+            if (!hasItems) { if(tg.showAlert) tg.showAlert('⚠️ Выберите хотя бы одно изделие'); return; }
             const orderData = {
                 type: 'mounting',
                 category: 'Монтажные приспособления',
-                items: [ /* ... ваш код ... */ ].filter(item => item.quantity > 0),
+                items: [
+                     { id: 'zazornik', name: 'Зазорник', quantity: quantities.zazornik, unit: 'шт' },
+                     { id: 'washer', name: 'Шайба Ш-1', quantity: quantities.washer, unit: 'шт' },
+                     { id: 'bracket', name: 'Скоба монтажная С-1', quantity: quantities.bracket, unit: 'шт' }
+                ].filter(item => item.quantity > 0),
                 totalQuantity: quantities.zazornik + quantities.washer + quantities.bracket,
                 timestamp: new Date().toISOString()
             };
             sendToN8N(orderData);
         }
 
-        // ===== ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ (ОСТАЛАСЬ ПРЕЖНЕЙ) =====
+        // ===== ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ =====
         function testN8NConnection() {
-            // ... (ваш код) ...
+            const testData = {
+                type: 'test',
+                message: 'Тестовое сообщение',
+                timestamp: new Date().toISOString()
+            };
+            console.log('Отправка тестовых данных...');
+            sendToN8N(testData);
         }
 
-        // ===== ОБРАБОТЧИКИ СОБЫТИЙ (ОСТАЛИСЬ ПРЕЖНИМИ) =====
+        // ===== ОБРАБОТЧИКИ СОБЫТИЙ (ИСПРАВЛЕНА ПЕРЕДАЧА EVENT) =====
         document.addEventListener('DOMContentLoaded', function() {
-            // ... (ваш код) ...
+            // Обработчик для карточек главного экрана
+            document.querySelectorAll('.card[data-screen]').forEach(card => {
+                card.addEventListener('click', function() {
+                    const screenId = this.getAttribute('data-screen');
+                    showScreen(screenId);
+                });
+            });
 
-             // Обработчик для кнопки отправки заказа печи
-             document.getElementById('submitOvenBtn').addEventListener('click', submitOvenOrder);
+            // Обработчик для кнопок "Назад"
+            document.querySelectorAll('.back-btn[data-back]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const screenId = this.getAttribute('data-back');
+                    showScreen(screenId);
+                });
+            });
 
-             // Обработчик для кнопки отправки заказа монтажа
-             document.getElementById('submitMountingBtn').addEventListener('click', submitMountingOrder);
+            // Обработчик для изменения типа питания
+            const powerTypeSelect = document.getElementById('powerType');
+             if (powerTypeSelect) {
+                 powerTypeSelect.addEventListener('change', updatePowerOptions);
+             }
 
 
-            console.log('✅ Ferrum App загружен (ДИАГНОСТИЧЕСКАЯ ВЕРСИЯ)');
+            // Обработчик для кнопок мощности газовой печи (ИСПРАВЛЕНО: передаем event)
+            document.querySelectorAll('.power-btn[data-power]').forEach(btn => {
+                btn.addEventListener('click', function(e) { // Добавлен 'e'
+                    const power = e.currentTarget.getAttribute('data-power');
+                    selectPower(power, e); // Передаем 'e'
+                });
+            });
+
+            // Обработчик для кнопок мощности электрической печи (ИСПРАВЛЕНО: передаем event)
+            document.querySelectorAll('.power-option[data-electric-power]').forEach(btn => {
+                btn.addEventListener('click', function(e) { // Добавлен 'e'
+                    const power = e.currentTarget.getAttribute('data-electric-power');
+                    selectElectricPower(power, e); // Передаем 'e'
+                });
+            });
+
+            // Обработчик для кнопок количества
+            document.querySelectorAll('.qty-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const item = this.getAttribute('data-item');
+                    const action = this.getAttribute('data-action');
+                    const delta = action === 'plus' ? 1 : -1;
+                    changeQty(item, delta);
+                });
+            });
+
+            // Обработчик для кнопки отправки заказа печи
+             const submitOvenBtn = document.getElementById('submitOvenBtn');
+             if (submitOvenBtn) {
+                 submitOvenBtn.addEventListener('click', submitOvenOrder);
+             }
+
+
+            // Обработчик для кнопки отправки заказа монтажа
+             const submitMountingBtn = document.getElementById('submitMountingBtn');
+             if (submitMountingBtn) {
+                 submitMountingBtn.addEventListener('click', submitMountingOrder);
+             }
+
+
+            console.log('✅ Ferrum App загружен (v2.1 - исправлены ошибки)');
             console.log('Текущий n8n Webhook URL:', N8N_CONFIG.webhookUrl);
-            console.log('Пользователь:', tg.initDataUnsafe?.user);
+            console.log('Пользователь:', tg.initDataUnsafe?.user); // Может быть undefined при запуске в браузере
         });
     </script>
