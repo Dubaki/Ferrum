@@ -792,12 +792,18 @@
         }
 
         // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА ПЕЧИ (ОБНОВЛЕНА) =====
+        function toIntOrNull(el) {
+            const v = el?.value?.trim();
+            if (!v) return null;
+            const n = parseInt(v, 10);
+            return Number.isNaN(n) ? null : n;
+        }
         function submitOvenOrder() {
             const powerType = document.getElementById('powerType').value;
             const ovenType = document.getElementById('ovenType').value; // <-- НОВОЕ
-            const width = document.getElementById('width').value;
-            const depth = document.getElementById('depth').value;
-            const height = document.getElementById('height').value;
+            const width = toIntOrNull(document.getElementById('width'));
+            const depth = toIntOrNull(document.getElementById('depth'));
+            const height = toIntOrNull(document.getElementById('height'));
 
             // Валидация
             if (!powerType) {
@@ -811,14 +817,14 @@
                 return;
             }
 
-            if (!width || !depth || !height) {
+            if (width === null || depth === null || height === null) {
                 tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
                 return;
             }
 
             if (powerType === 'gas') {
-                const burners = document.getElementById('burners').value;
-                if (!burners) {
+                const burners = toIntOrNull(document.getElementById('burners'));
+                if (burners === null) {
                     tg.showAlert('⚠️ Укажите количество горелок');
                     return;
                 }
@@ -847,9 +853,9 @@
                 
                 // Данные для газовой печи
                 ...(powerType === 'gas' && {
-                    burners: parseInt(burners),
+                    burners: burners,
                     burnerPower: selectedBurnerPower + ' кВт',
-                    totalPower: (parseInt(burners) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
+                    totalPower: (burners * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
                 }),
                 
                 // Данные для электрической печи
@@ -860,9 +866,9 @@
                 
                 // Размеры (L, W, H)
                 dimensions: {
-                    width: parseInt(width),     // Ширина (Ш)
-                    depth: parseInt(depth),     // Глубина (Г)
-                    height: parseInt(height),   // Высота (В)
+                    width: width,     // Ширина (Ш)
+                    depth: depth,     // Глубина (Г)
+                    height: height,   // Высота (В)
                     formatted: `${depth}(Г) × ${width}(Ш) × ${height}(В) мм`
                 },
                 
