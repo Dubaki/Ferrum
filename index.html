@@ -799,9 +799,9 @@
         function submitOvenOrder() {
             const powerType = document.getElementById('powerType').value;
             const ovenType = document.getElementById('ovenType').value; // <-- НОВОЕ
-            const width = document.getElementById('width').value;
-            const depth = document.getElementById('depth').value;
-            const height = document.getElementById('height').value;
+            const depth = parseFloat(document.getElementById('depth').value) || 0;
+            const width = parseFloat(document.getElementById('width').value) || 0;
+            const height = parseFloat(document.getElementById('height').value) || 0;
             let burners = null;
 
             // Валидация
