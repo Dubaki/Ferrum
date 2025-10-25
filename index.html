@@ -796,12 +796,12 @@
             const n = parseInt(v, 10);
             return Number.isNaN(n) ? null : n;
         }
-        function submitOvenOrder() {
+        async function submitOvenOrder() {
             const powerType = document.getElementById('powerType').value;
             const ovenType = document.getElementById('ovenType').value; // <-- НОВОЕ
-            const depth = parseFloat(document.getElementById('depth').value) || 0;
-            const width = parseFloat(document.getElementById('width').value) || 0;
-            const height = parseFloat(document.getElementById('height').value) || 0;
+            const L = parseFloat(document.getElementById('depth').value) || 0;
+            const W = parseFloat(document.getElementById('width').value) || 0;
+            const H = parseFloat(document.getElementById('height').value) || 0;
             let burners = null;
 
             // Валидация
@@ -816,12 +816,12 @@
                 return;
             }
 
-            if (!width || !depth || !height) {
+            if (!W || !L || !H) {
                 tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
                 return;
             }
-            if (depth <= 0 || width <= 0 || height <= 0) {
-                tg.showAlert('⚠️ Укажите корректные размеры печи (в миллиметрах)');
+            if (L <= 0 || W <= 0 || H <= 0) {
+                tg.showAlert('⚠️ Укажите корректные размеры (в миллиметрах)');
                 return;
             }
 
@@ -846,13 +846,8 @@
             const orderData = {
                 type: 'oven',
                 category: 'Печи полимеризации',
-                
-                // <-- НОВЫЕ ПОЛЯ
                 ovenType: ovenType,
-                ovenTypeLabel: ovenType === 'dead-end' ? 'Тупиковая' : 'Сквозная',
-                
                 powerType: powerType,
-                powerTypeLabel: powerType === 'gas' ? 'Газовая' : 'Электрическая',
                 
                 // Данные для газовой печи
                 ...(powerType === 'gas' && {
@@ -869,17 +864,21 @@
                 
                 // Размеры (L, W, H)
                 dimensions: {
-                    length: Number(depth) || 0,   // Длина
-                    width: Number(width) || 0,    // Ширина
-                    height: Number(height) || 0,  // Высота
-                    formatted: `${depth}(Д) × ${width}(Ш) × ${height}(В) мм`
+                    length: L,
+                    width: W,
+                    height: H,
+                    formatted: `${L}(Д) × ${W}(Ш) × ${H}(В) мм`
                 },
                 
                 timestamp: new Date().toISOString()
             };
 
-            // Отправляем в n8n
-            sendToN8N(orderData);
+            const n8nWebhookUrl = N8N_CONFIG.webhookUrl;
+            await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderType: 'oven', order: orderData })
+            });
         }
 
         // ===== ФУНКЦИЯ ОТПРАВКИ ЗАКАЗА МОНТАЖА (БЕЗ ИЗМЕНЕНИЙ) =====
