@@ -804,6 +804,7 @@
             const width = toIntOrNull(document.getElementById('width'));
             const depth = toIntOrNull(document.getElementById('depth'));
             const height = toIntOrNull(document.getElementById('height'));
+            let burners = null;
 
             // Валидация
             if (!powerType) {
@@ -823,7 +824,7 @@
             }
 
             if (powerType === 'gas') {
-                const burners = toIntOrNull(document.getElementById('burners'));
+                burners = toIntOrNull(document.getElementById('burners'));
                 if (burners === null) {
                     tg.showAlert('⚠️ Укажите количество горелок');
                     return;
