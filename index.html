@@ -867,10 +867,10 @@
                 
                 // Размеры (L, W, H)
                 dimensions: {
-                    width: width,     // Ширина (Ш)
-                    depth: depth,     // Глубина (Г)
-                    height: height,   // Высота (В)
-                    formatted: `${depth}(Г) × ${width}(Ш) × ${height}(В) мм`
+                    length: Number(depth) || 0,   // Длина
+                    width: Number(width) || 0,    // Ширина
+                    height: Number(height) || 0,  // Высота
+                    formatted: `${depth}(Д) × ${width}(Ш) × ${height}(В) мм`
                 },
                 
                 timestamp: new Date().toISOString()
