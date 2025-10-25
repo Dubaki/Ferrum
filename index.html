@@ -799,9 +799,9 @@
         function submitOvenOrder() {
             const powerType = document.getElementById('powerType').value;
             const ovenType = document.getElementById('ovenType').value; // <-- НОВОЕ
-            const width = toIntOrNull(document.getElementById('width'));
-            const depth = toIntOrNull(document.getElementById('depth'));
-            const height = toIntOrNull(document.getElementById('height'));
+            const width = document.getElementById('width').value;
+            const depth = document.getElementById('depth').value;
+            const height = document.getElementById('height').value;
             let burners = null;
 
             // Валидация
@@ -816,14 +816,14 @@
                 return;
             }
 
-            if (width === null || depth === null || height === null) {
+            if (!width || !depth || !height) {
                 tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
                 return;
             }
 
             if (powerType === 'gas') {
-                burners = toIntOrNull(document.getElementById('burners'));
-                if (burners === null) {
+                burners = document.getElementById('burners').value;
+                if (!burners) {
                     tg.showAlert('⚠️ Укажите количество горелок');
                     return;
                 }
