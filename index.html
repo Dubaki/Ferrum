@@ -820,6 +820,10 @@
                 tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
                 return;
             }
+            if (depth <= 0 || width <= 0 || height <= 0) {
+                tg.showAlert('⚠️ Укажите корректные размеры печи (в миллиметрах)');
+                return;
+            }
 
             if (powerType === 'gas') {
                 burners = document.getElementById('burners').value;
