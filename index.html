@@ -698,7 +698,15 @@
 
             try {
                 tg.MainButton.showProgress();
-                tg.HapticFeedback.impactOccurred('medium');
+                
+                // Вибрация (если поддерживается)
+                try {
+                    if (tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+                        tg.HapticFeedback.impactOccurred('medium');
+                    }
+                } catch (e) {
+                    console.log('HapticFeedback не поддерживается');
+                }
 
                 const payload = {
                     orderType: orderData.type,
@@ -737,7 +745,16 @@
                     throw new Error(`HTTP ошибка! Статус: ${response.status}. ${errorText}`);
                 }
 
-                const result = await response.json();
+                // Пытаемся получить JSON, если не получается - просто текст
+                let result;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    result = await response.json();
+                } else {
+                    const text = await response.text();
+                    result = { success: true, message: text || 'OK' };
+                }
+                
                 console.log('Ответ от n8n:', result);
 
                 tg.MainButton.hideProgress();
@@ -763,8 +780,14 @@
                 console.error('Ошибка при отправке в n8n:', error);
                 
                 tg.MainButton.hideProgress();
-                if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
-                    tg.HapticFeedback.notificationOccurred('error');
+                
+                // Вибрация ошибки (если поддерживается)
+                try {
+                    if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+                        tg.HapticFeedback.notificationOccurred('error');
+                    }
+                } catch (e) {
+                    console.log('HapticFeedback не поддерживается');
                 }
                 
                 // Восстанавливаем кнопку
@@ -772,7 +795,8 @@
                 submitBtn.classList.remove('loading');
                 submitBtn.style.background = '';
                 
-                tg.showAlert(`Произошла ошибка при отправке заказа Агенту.\n\n${error.message}`);
+                // Используем нативный alert вместо tg.showAlert
+                alert(`Произошла ошибка при отправке заказа:\n\n${error.message}`);
                 
                 // Разблокируем кнопки
                 document.getElementById('submitOvenBtn').disabled = false;
@@ -792,43 +816,43 @@
             let burners = null;
 
             if (!orderNumber) {
-                tg.showAlert('⚠️ Укажите номер заказа');
+                alert('⚠️ Укажите номер заказа');
                 return;
             }
 
             if (!powerType) {
-                tg.showAlert('⚠️ Выберите тип питания');
+                alert('⚠️ Выберите тип питания');
                 return;
             }
 
             if (!ovenType) {
-                tg.showAlert('⚠️ Выберите тип печи (Тупиковая/Сквозная)');
+                alert('⚠️ Выберите тип печи (Тупиковая/Сквозная)');
                 return;
             }
 
             if (!W || !L || !H) {
-                tg.showAlert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
+                alert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
                 return;
             }
             if (L <= 0 || W <= 0 || H <= 0) {
-                tg.showAlert('⚠️ Укажите корректные размеры (в миллиметрах)');
+                alert('⚠️ Укажите корректные размеры (в миллиметрах)');
                 return;
             }
 
             if (powerType === 'gas') {
                 burners = parseInt(document.getElementById('burners').value) || 0;
                 if (!burners || burners <= 0) {
-                    tg.showAlert('⚠️ Укажите количество горелок');
+                    alert('⚠️ Укажите количество горелок');
                     return;
                 }
                 if (!selectedBurnerPower) {
-                    tg.showAlert('⚠️ Выберите мощность горелок');
+                    alert('⚠️ Выберите мощность горелок');
                     return;
                 }
             }
 
             if (powerType === 'electric' && !selectedElectricPower) {
-                tg.showAlert('⚠️ Выберите мощность ТЭНов');
+                alert('⚠️ Выберите мощность ТЭНов');
                 return;
             }
 
@@ -883,7 +907,7 @@
                              quantities.bracket > 0;
 
             if (!hasItems) {
-                tg.showAlert('⚠️ Выберите хотя бы одно изделие');
+                alert('⚠️ Выберите хотя бы одно изделие');
                 return;
             }
 
