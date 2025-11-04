@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Конфигуратор Печей</title>
+    <title>Конфигуратор Печей - ИПП Феррум</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -262,7 +262,6 @@
             box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
             transition: all 0.3s;
             margin-top: 20px;
-            position: relative;
         }
         
         .submit-btn:hover {
@@ -274,6 +273,129 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+
+        /* PDF Upload Styles */
+        .upload-area {
+            border: 2px dashed #C7D2FE;
+            border-radius: 12px;
+            padding: 32px 24px;
+            text-align: center;
+            background: #F9FAFB;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #6366F1;
+            background: #EEF2FF;
+        }
+
+        .upload-area.dragover {
+            border-color: #6366F1;
+            background: #DBEAFE;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            background: #EEF2FF;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: #6366F1;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #6B7280;
+        }
+
+        .file-preview {
+            background: white;
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-preview.active {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            background: #FEE2E2;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .file-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: #DC2626;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #1F2937;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #6B7280;
+        }
+
+        .remove-file {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #FEE2E2;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .remove-file:hover {
+            background: #FCA5A5;
+        }
+
+        .remove-file svg {
+            width: 16px;
+            height: 16px;
+            stroke: #DC2626;
         }
         
         .success-message {
@@ -337,6 +459,7 @@
         .success-text {
             font-size: 16px;
             color: #6B7280;
+            line-height: 1.5;
         }
         
         .overlay {
@@ -358,74 +481,50 @@
         .hidden {
             display: none;
         }
-        
-        .mounting-item {
-            background: #F9FAFB;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 12px;
-        }
-        
-        .mounting-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        
-        .mounting-name {
-            font-weight: 600;
-            color: #1F2937;
-        }
-        
-        .quantity-control {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .qty-btn {
-            width: 36px;
-            height: 36px;
+
+        .info-box {
+            background: #DBEAFE;
+            border-left: 4px solid #3B82F6;
             border-radius: 8px;
-            border: 2px solid #E5E7EB;
-            background: white;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        
-        .qty-btn:hover {
-            border-color: #6366F1;
-            color: #6366F1;
-        }
-        
-        .qty-display {
-            font-size: 18px;
-            font-weight: bold;
-            color: #1F2937;
-            min-width: 30px;
-            text-align: center;
+            padding: 16px;
+            margin-bottom: 20px;
         }
 
-        .order-number-badge {
-            background: linear-gradient(135deg, #6366F1 0%, #3B82F6 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            display: inline-block;
+        .info-box-title {
+            font-weight: bold;
+            color: #1E40AF;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-box-text {
+            font-size: 13px;
+            color: #1E40AF;
+            line-height: 1.6;
+        }
+
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #E5E7EB, transparent);
+            margin: 24px 0;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #6366F1;
             margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- ГЛАВНОЕ МЕНЮ -->
         <div id="mainScreen">
             <div class="header">
                 <div class="header-icon">
@@ -435,7 +534,7 @@
                     </svg>
                 </div>
                 <h1>Конфигуратор</h1>
-                <p class="subtitle">Автоматизация закупок</p>
+                <p class="subtitle">Автоматизация закупок ИПП Феррум</p>
             </div>
 
             <div class="card" data-screen="ovenScreen">
@@ -447,8 +546,8 @@
                         </svg>
                     </div>
                     <div class="card-text">
-                        <div class="card-title">Печи</div>
-                        <div class="card-desc">Печи полимеризации</div>
+                        <div class="card-title">Заказ печи</div>
+                        <div class="card-desc">Полная конфигурация печи полимеризации</div>
                     </div>
                     <div class="card-arrow">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,16 +557,16 @@
                 </div>
             </div>
 
-            <div class="card" data-screen="mountingScreen">
+            <div class="card" data-screen="metalScreen">
                 <div class="card-content">
                     <div class="card-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
                     <div class="card-text">
-                        <div class="card-title">Монтажные приспособления</div>
-                        <div class="card-desc">Скобы, зазорники, шайбы</div>
+                        <div class="card-title">Расчёт металла</div>
+                        <div class="card-desc">Загрузить PDF спецификацию</div>
                     </div>
                     <div class="card-arrow">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -478,11 +577,26 @@
             </div>
         </div>
 
+        <!-- ЭКРАН: ЗАКАЗ ПЕЧИ (объединённый) -->
         <div id="ovenScreen" class="hidden">
             <div class="form-card">
                 <button class="back-btn" data-back="mainScreen">← Назад</button>
-                <h2 class="form-title">Параметры печи</h2>
+                <h2 class="form-title">Конфигурация печи</h2>
 
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>🤖</span>
+                        <span>AI-агент автоматически рассчитает:</span>
+                    </div>
+                    <div class="info-box-text">
+                        • Сэндвич-панели (2 варианта раскроя)<br>
+                        • Комплектующие (уголки, зазорники и т.д.)<br>
+                        • Проверку остатков на складе<br>
+                        • Список закупки для снабженца
+                    </div>
+                </div>
+
+                <!-- ОСНОВНЫЕ ПАРАМЕТРЫ -->
                 <div class="form-group-gradient">
                     <label>Номер заказа</label>
                     <input type="text" id="orderNumber" placeholder="Например: 19550">
@@ -506,13 +620,20 @@
                     </select>
                 </div>
 
+                <!-- ПАРАМЕТРЫ ГАЗОВОЙ ПЕЧИ -->
                 <div id="gasOptions" class="hidden">
+                    <div class="section-divider"></div>
+                    <div class="section-title">
+                        <span>🔥</span>
+                        <span>Параметры газовой печи</span>
+                    </div>
+                    
                     <div class="form-group">
-                        <label>Горелки</label>
-                        <input type="number" id="burners" placeholder="Количество">
+                        <label>Количество горелок</label>
+                        <input type="number" id="burners" placeholder="Например: 4" min="1">
                     </div>
                     <div class="form-group">
-                        <label>Мощность</label>
+                        <label>Мощность одной горелки</label>
                         <div class="power-buttons">
                             <button class="power-btn" data-power="5.8">5.8 кВт</button>
                             <button class="power-btn" data-power="6.2">6.2 кВт</button>
@@ -520,7 +641,14 @@
                     </div>
                 </div>
 
+                <!-- ПАРАМЕТРЫ ЭЛЕКТРИЧЕСКОЙ ПЕЧИ -->
                 <div id="electricOptions" class="hidden">
+                    <div class="section-divider"></div>
+                    <div class="section-title">
+                        <span>⚡</span>
+                        <span>Параметры электрической печи</span>
+                    </div>
+                    
                     <div class="form-group">
                         <label>Мощность</label>
                         <div class="power-options">
@@ -536,62 +664,91 @@
                     </div>
                 </div>
 
+                <!-- РАЗМЕРЫ ПЕЧИ -->
+                <div class="section-divider"></div>
+                <div class="section-title">
+                    <span>📏</span>
+                    <span>Внутренние размеры печи</span>
+                </div>
+
                 <div class="form-group">
-                    <label>Внутренние размеры (мм)</label>
+                    <label>Размеры (мм)</label>
                     <div class="size-inputs">
-                        <input type="number" id="depth" placeholder="Глубина (Д)">
-                        <input type="number" id="width" placeholder="Ширина (Ш)">
-                        <input type="number" id="height" placeholder="Высота (В)">
+                        <input type="number" id="length" placeholder="Длина (Д)" min="100">
+                        <input type="number" id="width" placeholder="Ширина (Ш)" min="100">
+                        <input type="number" id="height" placeholder="Высота (В)" min="100">
+                    </div>
+                    <div style="font-size: 12px; color: #6B7280; margin-top: 8px; text-align: center;">
+                        Внутренние размеры печи
                     </div>
                 </div>
 
-                <button class="submit-btn" id="submitOvenBtn">Отправить заказ</button>
+                <button class="submit-btn" id="submitOvenBtn">Отправить заказ на расчёт</button>
             </div>
         </div>
 
-        <div id="mountingScreen" class="hidden">
+        <!-- ЭКРАН: РАСЧЁТ МЕТАЛЛА ИЗ PDF -->
+        <div id="metalScreen" class="hidden">
             <div class="form-card">
                 <button class="back-btn" data-back="mainScreen">← Назад</button>
-                <h2 class="form-title">Монтажные приспособления</h2>
+                <h2 class="form-title">Расчёт металлопроката</h2>
 
-                <div class="mounting-item">
-                    <div class="mounting-header">
-                        <span class="mounting-name">Зазорник</span>
-                        <div class="quantity-control">
-                            <button class="qty-btn" data-item="zazornik" data-action="minus">−</button>
-                            <span class="qty-display" id="qty-zazornik">0</span>
-                            <button class="qty-btn" data-item="zazornik" data-action="plus">+</button>
-                        </div>
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>🤖</span>
+                        <span>AI-агент выполнит:</span>
+                    </div>
+                    <div class="info-box-text">
+                        • Распознавание PDF спецификации<br>
+                        • Группировку деталей по профилям<br>
+                        • Оптимальный раскрой металла<br>
+                        • Расчёт листового металла и профилей<br>
+                        • Формирование закупочной спецификации
                     </div>
                 </div>
 
-                <div class="mounting-item">
-                    <div class="mounting-header">
-                        <span class="mounting-name">Шайба Ш-1</span>
-                        <div class="quantity-control">
-                            <button class="qty-btn" data-item="washer" data-action="minus">−</button>
-                            <span class="qty-display" id="qty-washer">0</span>
-                            <button class="qty-btn" data-item="washer" data-action="plus">+</button>
-                        </div>
-                    </div>
+                <div class="form-group-gradient">
+                    <label>Номер заказа</label>
+                    <input type="text" id="metalOrderNumber" placeholder="Например: 19550">
                 </div>
 
-                <div class="mounting-item">
-                    <div class="mounting-header">
-                        <span class="mounting-name">Скоба монтажная С-1</span>
-                        <div class="quantity-control">
-                            <button class="qty-btn" data-item="bracket" data-action="minus">−</button>
-                            <span class="qty-display" id="qty-bracket">0</span>
-                            <button class="qty-btn" data-item="bracket" data-action="plus">+</button>
+                <div class="form-group">
+                    <label>PDF спецификация конструкции</label>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
                         </div>
+                        <div class="upload-text">Загрузить PDF</div>
+                        <div class="upload-hint">Нажмите или перетащите файл сюда</div>
                     </div>
+                    <input type="file" id="pdfInput" accept=".pdf" style="display: none;">
                 </div>
 
-                <button class="submit-btn" id="submitMountingBtn">Отправить заказ</button>
+                <div class="file-preview" id="filePreview">
+                    <div class="file-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="file-info">
+                        <div class="file-name" id="fileName">document.pdf</div>
+                        <div class="file-size" id="fileSize">2.3 MB</div>
+                    </div>
+                    <button class="remove-file" id="removeFileBtn">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <button class="submit-btn" id="submitMetalBtn" disabled>Отправить на расчёт металла</button>
             </div>
         </div>
     </div>
 
+    <!-- SUCCESS OVERLAY -->
     <div id="successOverlay" class="overlay hidden"></div>
     <div id="successMessage" class="success-message hidden">
         <div class="success-icon">
@@ -600,7 +757,7 @@
             </svg>
         </div>
         <div class="success-title">✓ Заказ отправлен!</div>
-        <div class="success-text">Данные успешно переданы AI-агенту на расчет. Результат появится в чате через несколько секунд.</div>
+        <div class="success-text">Данные успешно переданы AI-агенту на расчёт.<br>Результат появится в чате через несколько секунд.</div>
         <div style="margin-top: 16px; padding: 12px; background: #F3F4F6; border-radius: 8px; font-size: 13px; color: #6B7280;">
             <strong>Статус:</strong> Обработка...
         </div>
@@ -611,25 +768,29 @@
         tg.ready();
         tg.expand();
 
+        // Конфигурация N8N
         const N8N_CONFIG = {
             webhookUrl: 'https://abidmumetoy.beget.app/webhook/ferrum-order',
         };
 
+        // Глобальные переменные
+        let uploadedPdfFile = null;
         let selectedBurnerPower = '';
         let selectedElectricPower = '';
-        let quantities = {
-            zazornik: 0,
-            washer: 0,
-            bracket: 0
-        };
 
+        // ============================================
+        // НАВИГАЦИЯ МЕЖДУ ЭКРАНАМИ
+        // ============================================
         function showScreen(screenId) {
             document.getElementById('mainScreen').classList.add('hidden');
             document.getElementById('ovenScreen').classList.add('hidden');
-            document.getElementById('mountingScreen').classList.add('hidden');
+            document.getElementById('metalScreen').classList.add('hidden');
             document.getElementById(screenId).classList.remove('hidden');
         }
 
+        // ============================================
+        // ОБРАБОТКА ФОРМЫ ПЕЧИ
+        // ============================================
         function updatePowerOptions() {
             const powerType = document.getElementById('powerType').value;
             document.getElementById('gasOptions').classList.add('hidden');
@@ -642,14 +803,12 @@
             }
         }
 
-        function selectPower(power) {
+        function selectBurnerPower(power) {
             selectedBurnerPower = power;
             document.querySelectorAll('.power-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            if(event && event.currentTarget) {
-                event.currentTarget.classList.add('active');
-            }
+            event.currentTarget.classList.add('active');
         }
 
         function selectElectricPower(power) {
@@ -657,55 +816,254 @@
             document.querySelectorAll('.power-option').forEach(btn => {
                 btn.classList.remove('active');
             });
-            if(event && event.currentTarget) {
-                event.currentTarget.classList.add('active');
-            }
+            event.currentTarget.classList.add('active');
         }
 
-        function changeQty(item, delta) {
-            quantities[item] = Math.max(0, quantities[item] + delta);
-            document.getElementById('qty-' + item).textContent = quantities[item];
-        }
+        async function submitOvenOrder() {
+            const orderNumber = document.getElementById('orderNumber').value.trim();
+            const powerType = document.getElementById('powerType').value;
+            const ovenType = document.getElementById('ovenType').value;
+            const L = parseInt(document.getElementById('length').value) || 0;
+            const W = parseInt(document.getElementById('width').value) || 0;
+            const H = parseInt(document.getElementById('height').value) || 0;
 
-        function showSuccessMessage() {
-            document.getElementById('successOverlay').classList.remove('hidden');
-            document.getElementById('successMessage').classList.remove('hidden');
-            
-            // Тройная вибрация для успеха
-            if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
-                tg.HapticFeedback.notificationOccurred('success');
-                setTimeout(() => tg.HapticFeedback.notificationOccurred('success'), 100);
-                setTimeout(() => tg.HapticFeedback.notificationOccurred('success'), 200);
+            // Валидация основных параметров
+            if (!orderNumber) {
+                alert('⚠️ Укажите номер заказа');
+                return;
             }
 
-            // Анимация конфетти (визуальный эффект)
-            console.log('🎉 Заказ успешно отправлен!');
+            if (!powerType) {
+                alert('⚠️ Выберите тип питания (Газовая/Электрическая)');
+                return;
+            }
+
+            if (!ovenType) {
+                alert('⚠️ Выберите тип печи (Тупиковая/Сквозная)');
+                return;
+            }
+
+            if (!L || !W || !H) {
+                alert('⚠️ Укажите все размеры печи (Длина, Ширина, Высота)');
+                return;
+            }
+
+            if (L <= 0 || W <= 0 || H <= 0) {
+                alert('⚠️ Размеры должны быть больше нуля');
+                return;
+            }
+
+            // Валидация для газовой печи
+            if (powerType === 'gas') {
+                const burners = parseInt(document.getElementById('burners').value) || 0;
+                if (!burners || burners <= 0) {
+                    alert('⚠️ Укажите количество горелок');
+                    return;
+                }
+                if (!selectedBurnerPower) {
+                    alert('⚠️ Выберите мощность горелок (5.8 или 6.2 кВт)');
+                    return;
+                }
+            }
+
+            // Валидация для электрической печи
+            if (powerType === 'electric' && !selectedElectricPower) {
+                alert('⚠️ Выберите мощность ТЭНов (30 или 45 кВт)');
+                return;
+            }
+
+            // Формирование данных заказа
+            const powerTypeLabel = powerType === 'gas' ? 'Газовая' : 'Электрическая';
+            const ovenTypeLabel = ovenType === 'dead-end' ? 'Тупиковая (1 дверь)' : 'Сквозная (2 двери)';
+
+            const orderData = {
+                type: 'oven',
+                category: 'Печи полимеризации',
+                orderNumber: orderNumber,
+                ovenType: ovenType,
+                ovenTypeLabel: ovenTypeLabel,
+                powerType: powerType,
+                powerTypeLabel: powerTypeLabel,
+                
+                // Размеры печи
+                dimensions: {
+                    length: L,
+                    width: W,
+                    height: H,
+                    formatted: `${L}×${W}×${H} мм`
+                },
+                
+                // Параметры газовой печи
+                ...(powerType === 'gas' && {
+                    burners: parseInt(document.getElementById('burners').value),
+                    burnerPower: selectedBurnerPower + ' кВт',
+                    totalPower: (parseInt(document.getElementById('burners').value) * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
+                }),
+                
+                // Параметры электрической печи
+                ...(powerType === 'electric' && {
+                    electricPower: selectedElectricPower + ' кВт',
+                    tens: selectedElectricPower === '30' ? '10 ТЭНов × 3 кВт' : '15 ТЭНов × 3 кВт'
+                }),
+                
+                // Расчёт панелей (выполняется на стороне AI-агента)
+                panelsCalculation: {
+                    floorCeilingSize: `${L + 200}×${W + 200}`,
+                    wallSize: `${H}×${L}`,
+                    backDoorSize: `${H}×${W}`
+                },
+                
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('📤 Отправка заказа печи:', orderData);
+            await sendToN8N(orderData, 'submitOvenBtn');
         }
 
-        async function sendToN8N(orderData) {
-            const submitBtn = orderData.type === 'oven' ? 
-                document.getElementById('submitOvenBtn') : 
-                document.getElementById('submitMountingBtn');
-            
-            // Блокируем обе кнопки
-            document.getElementById('submitOvenBtn').disabled = true;
-            document.getElementById('submitMountingBtn').disabled = true;
+        // ============================================
+        // ОБРАБОТКА PDF ДЛЯ МЕТАЛЛА
+        // ============================================
+        function setupPdfUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const pdfInput = document.getElementById('pdfInput');
+            const filePreview = document.getElementById('filePreview');
+            const submitBtn = document.getElementById('submitMetalBtn');
 
-            // Меняем текст кнопки на "Отправка..."
+            // Клик по области загрузки
+            uploadArea.addEventListener('click', () => pdfInput.click());
+
+            // Выбор файла
+            pdfInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) handleFileSelect(file);
+            });
+
+            // Drag & Drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') {
+                    handleFileSelect(file);
+                } else {
+                    alert('⚠️ Пожалуйста, загрузите PDF файл');
+                }
+            });
+
+            // Удаление файла
+            document.getElementById('removeFileBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                uploadedPdfFile = null;
+                filePreview.classList.remove('active');
+                pdfInput.value = '';
+                submitBtn.disabled = true;
+            });
+        }
+
+        function handleFileSelect(file) {
+            if (file.type !== 'application/pdf') {
+                alert('⚠️ Можно загружать только PDF файлы');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                alert('⚠️ Размер файла не должен превышать 10 МБ');
+                return;
+            }
+
+            uploadedPdfFile = file;
+
+            // Отображение информации о файле
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('filePreview').classList.add('active');
+            document.getElementById('submitMetalBtn').disabled = false;
+
+            // Вибрация
+            if (tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+
+            console.log('📄 PDF файл загружен:', file.name, formatFileSize(file.size));
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        async function submitMetal() {
+            const orderNumber = document.getElementById('metalOrderNumber').value.trim();
+
+            if (!orderNumber) {
+                alert('⚠️ Укажите номер заказа');
+                return;
+            }
+
+            if (!uploadedPdfFile) {
+                alert('⚠️ Загрузите PDF спецификацию');
+                return;
+            }
+
+            // Конвертация PDF в Base64
+            const base64Pdf = await fileToBase64(uploadedPdfFile);
+
+            const orderData = {
+                type: 'metal',
+                category: 'Расчёт металлопроката',
+                orderNumber: orderNumber,
+                fileName: uploadedPdfFile.name,
+                fileSize: uploadedPdfFile.size,
+                fileSizeFormatted: formatFileSize(uploadedPdfFile.size),
+                pdfBase64: base64Pdf,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('📤 Отправка PDF на расчёт металла:', {
+                orderNumber,
+                fileName: uploadedPdfFile.name,
+                size: formatFileSize(uploadedPdfFile.size)
+            });
+
+            await sendToN8N(orderData, 'submitMetalBtn');
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ============================================
+        // ОТПРАВКА ДАННЫХ В N8N
+        // ============================================
+        async function sendToN8N(orderData, buttonId) {
+            const submitBtn = document.getElementById(buttonId);
             const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="loader"></span>Отправка...';
-            submitBtn.classList.add('loading');
+
+            // Блокируем все кнопки отправки
+            document.querySelectorAll('.submit-btn').forEach(btn => btn.disabled = true);
+            submitBtn.innerHTML = '⏳ Отправка данных...';
 
             try {
-                tg.MainButton.showProgress();
-                
-                // Вибрация (если поддерживается)
-                try {
-                    if (tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
-                        tg.HapticFeedback.impactOccurred('medium');
-                    }
-                } catch (e) {
-                    console.log('HapticFeedback не поддерживается');
+                if (tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+                    tg.HapticFeedback.impactOccurred('medium');
                 }
 
                 const payload = {
@@ -730,7 +1088,7 @@
                     }
                 };
 
-                console.log('Отправка данных в n8n:', payload);
+                console.log('📤 Отправка данных в n8n:', payload);
 
                 const response = await fetch(N8N_CONFIG.webhookUrl, {
                     method: 'POST',
@@ -745,7 +1103,6 @@
                     throw new Error(`HTTP ошибка! Статус: ${response.status}. ${errorText}`);
                 }
 
-                // Пытаемся получить JSON, если не получается - просто текст
                 let result;
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
@@ -754,195 +1111,58 @@
                     const text = await response.text();
                     result = { success: true, message: text || 'OK' };
                 }
-                
-                console.log('Ответ от n8n:', result);
 
-                tg.MainButton.hideProgress();
-                
-                // Меняем текст кнопки на "✓ Отправлено!"
+                console.log('✅ Ответ от n8n:', result);
+
+                // Успех
                 submitBtn.innerHTML = '✓ Отправлено!';
-                submitBtn.classList.remove('loading');
                 submitBtn.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
-                
-                // Показываем popup успеха
+
                 showSuccessMessage();
-                
+
                 // Закрываем приложение через 3 секунды
                 setTimeout(() => {
-                    if (tg.close) {
-                        tg.close();
-                    }
+                    if (tg.close) tg.close();
                 }, 3000);
 
                 return { success: true, data: result };
 
             } catch (error) {
-                console.error('Ошибка при отправке в n8n:', error);
-                
-                tg.MainButton.hideProgress();
-                
-                // Вибрация ошибки (если поддерживается)
-                try {
-                    if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
-                        tg.HapticFeedback.notificationOccurred('error');
-                    }
-                } catch (e) {
-                    console.log('HapticFeedback не поддерживается');
+                console.error('❌ Ошибка при отправке в n8n:', error);
+
+                if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+                    tg.HapticFeedback.notificationOccurred('error');
                 }
-                
-                // Восстанавливаем кнопку
+
                 submitBtn.innerHTML = originalText;
-                submitBtn.classList.remove('loading');
                 submitBtn.style.background = '';
-                
-                // Используем нативный alert вместо tg.showAlert
+
                 alert(`Произошла ошибка при отправке заказа:\n\n${error.message}`);
-                
-                // Разблокируем кнопки
-                document.getElementById('submitOvenBtn').disabled = false;
-                document.getElementById('submitMountingBtn').disabled = false;
-                
+
+                document.querySelectorAll('.submit-btn').forEach(btn => btn.disabled = false);
+
                 return { success: false, error: error.message };
             }
         }
 
-        async function submitOvenOrder() {
-            const orderNumber = document.getElementById('orderNumber').value.trim();
-            const powerType = document.getElementById('powerType').value;
-            const ovenType = document.getElementById('ovenType').value;
-            const L = parseFloat(document.getElementById('depth').value) || 0;
-            const W = parseFloat(document.getElementById('width').value) || 0;
-            const H = parseFloat(document.getElementById('height').value) || 0;
-            let burners = null;
+        function showSuccessMessage() {
+            document.getElementById('successOverlay').classList.remove('hidden');
+            document.getElementById('successMessage').classList.remove('hidden');
 
-            if (!orderNumber) {
-                alert('⚠️ Укажите номер заказа');
-                return;
+            if (tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+                tg.HapticFeedback.notificationOccurred('success');
+                setTimeout(() => tg.HapticFeedback.notificationOccurred('success'), 100);
+                setTimeout(() => tg.HapticFeedback.notificationOccurred('success'), 200);
             }
 
-            if (!powerType) {
-                alert('⚠️ Выберите тип питания');
-                return;
-            }
-
-            if (!ovenType) {
-                alert('⚠️ Выберите тип печи (Тупиковая/Сквозная)');
-                return;
-            }
-
-            if (!W || !L || !H) {
-                alert('⚠️ Укажите все размеры печи (Глубина, Ширина, Высота)');
-                return;
-            }
-            if (L <= 0 || W <= 0 || H <= 0) {
-                alert('⚠️ Укажите корректные размеры (в миллиметрах)');
-                return;
-            }
-
-            if (powerType === 'gas') {
-                burners = parseInt(document.getElementById('burners').value) || 0;
-                if (!burners || burners <= 0) {
-                    alert('⚠️ Укажите количество горелок');
-                    return;
-                }
-                if (!selectedBurnerPower) {
-                    alert('⚠️ Выберите мощность горелок');
-                    return;
-                }
-            }
-
-            if (powerType === 'electric' && !selectedElectricPower) {
-                alert('⚠️ Выберите мощность ТЭНов');
-                return;
-            }
-
-            const powerTypeLabel = powerType === 'gas' ? 'Газовая' : 'Электрическая';
-            const ovenTypeLabel = ovenType === 'dead-end' ? 'Тупиковая' : 'Сквозная';
-
-            const orderData = {
-                type: 'oven',
-                category: 'Печи полимеризации',
-                orderNumber: orderNumber,
-                ovenType: ovenType,
-                ovenTypeLabel: ovenTypeLabel,
-                powerType: powerType,
-                powerTypeLabel: powerTypeLabel,
-                
-                ...(powerType === 'gas' && {
-                    burners: burners,
-                    burnerPower: selectedBurnerPower + ' кВт',
-                    totalPower: (burners * parseFloat(selectedBurnerPower)).toFixed(1) + ' кВт'
-                }),
-                
-                ...(powerType === 'electric' && {
-                    electricPower: selectedElectricPower + ' кВт',
-                    tens: selectedElectricPower === '30' ? '10 ТЭНов × 3 кВт' : '15 ТЭНов × 3 кВт'
-                }),
-                
-                length: L,
-                width: W,
-                height: H,
-                dimensions: {
-                    length: L,
-                    width: W,
-                    height: H,
-                    formatted: `${L}×${W}×${H}`
-                },
-                
-                timestamp: new Date().toISOString()
-            };
-
-            console.log('=== ОТПРАВКА ДАННЫХ В N8N ===');
-            console.log('Номер заказа:', orderNumber);
-            console.log('Размеры:', { length: L, width: W, height: H });
-            console.log('Тип печи:', ovenType);
-            console.log('Полные данные:', JSON.stringify(orderData, null, 2));
-
-            await sendToN8N(orderData);
+            console.log('🎉 Заказ успешно отправлен!');
         }
 
-        function submitMountingOrder() {
-            const hasItems = quantities.zazornik > 0 || 
-                             quantities.washer > 0 || 
-                             quantities.bracket > 0;
-
-            if (!hasItems) {
-                alert('⚠️ Выберите хотя бы одно изделие');
-                return;
-            }
-
-            const orderData = {
-                type: 'mounting',
-                category: 'Монтажные приспособления',
-                items: [
-                    {
-                        id: 'zazornik',
-                        name: 'Зазорник',
-                        quantity: quantities.zazornik,
-                        unit: 'шт'
-                    },
-                    {
-                        id: 'washer',
-                        name: 'Шайба Ш-1',
-                        quantity: quantities.washer,
-                        unit: 'шт'
-                    },
-                    {
-                        id: 'bracket',
-                        name: 'Скоба монтажная С-1',
-                        quantity: quantities.bracket,
-                        unit: 'шт'
-                    }
-                ].filter(item => item.quantity > 0),
-                
-                totalQuantity: quantities.zazornik + quantities.washer + quantities.bracket,
-                timestamp: new Date().toISOString()
-            };
-
-            sendToN8N(orderData);
-        }
-
+        // ============================================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ============================================
         document.addEventListener('DOMContentLoaded', function() {
+            // Навигация между экранами
             document.querySelectorAll('.card[data-screen]').forEach(card => {
                 card.addEventListener('click', function() {
                     const screenId = this.getAttribute('data-screen');
@@ -957,12 +1177,13 @@
                 });
             });
 
+            // Обработка формы печи
             document.getElementById('powerType').addEventListener('change', updatePowerOptions);
 
             document.querySelectorAll('.power-btn[data-power]').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     const power = e.currentTarget.getAttribute('data-power');
-                    selectPower(power);
+                    selectBurnerPower(power);
                 });
             });
 
@@ -973,27 +1194,25 @@
                 });
             });
 
-            document.querySelectorAll('.qty-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const item = this.getAttribute('data-item');
-                    const action = this.getAttribute('data-action');
-                    const delta = action === 'plus' ? 1 : -1;
-                    changeQty(item, delta);
-                });
-            });
-
             document.getElementById('submitOvenBtn').addEventListener('click', submitOvenOrder);
-            document.getElementById('submitMountingBtn').addEventListener('click', submitMountingOrder);
 
-            // Закрытие popup при клике на оверлей
+            // Обработка PDF для металла
+            setupPdfUpload();
+            document.getElementById('submitMetalBtn').addEventListener('click', submitMetal);
+
+            // Закрытие popup
             document.getElementById('successOverlay').addEventListener('click', function() {
                 document.getElementById('successOverlay').classList.add('hidden');
                 document.getElementById('successMessage').classList.add('hidden');
             });
 
-            console.log('✅ Ferrum App загружен (v3.0 - с номером заказа)');
-            console.log('n8n Webhook URL:', N8N_CONFIG.webhookUrl);
-            console.log('Пользователь:', tg.initDataUnsafe?.user);
+            console.log('✅ Ferrum TWA v5.0 загружен (Объединённая версия)');
+            console.log('📍 n8n Webhook:', N8N_CONFIG.webhookUrl);
+            console.log('👤 Пользователь:', tg.initDataUnsafe?.user);
+            console.log('');
+            console.log('📋 Доступные процессы:');
+            console.log('  1. Заказ печи → автоматический расчёт панелей + комплектующих + проверка склада');
+            console.log('  2. Расчёт металла → загрузка PDF + AI обработка');
         });
     </script>
 </body>
