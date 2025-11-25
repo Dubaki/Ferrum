@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from logic import MetalCalculator, SpecParser
 
 # --- НАСТРОЙКИ ---
-TOKEN = "8213431221:AAFsJvz2J-EaL0H4ztmY_Wjg5Dl2Bt8A_O8"
+TOKEN = "тут будет токен"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
