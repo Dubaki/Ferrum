@@ -3,115 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ferrum.AI Glass</title>
+    <title>Ferrum.AI</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        /* Базовые настройки */
-        body { 
-            background: #000;
-            color: #fff;
-            font-family: 'Inter', -apple-system, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-            overflow-x: hidden;
-        }
-
-        /* Живой фон (Градиентные пятна) */
-        .ambient-light {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: -1;
-            background: 
-                radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.4) 0%, transparent 40%),
-                radial-gradient(circle at 90% 60%, rgba(236, 72, 153, 0.25) 0%, transparent 40%),
-                radial-gradient(circle at 50% 90%, rgba(59, 130, 246, 0.3) 0%, transparent 50%);
-            filter: blur(60px);
-        }
-
-        /* Эффект стекла (Glassmorphism) */
-        .glass {
-            background: rgba(255, 255, 255, 0.07);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Аккордеон (Детали) */
-        details > summary { list-style: none; outline: none; cursor: pointer; transition: 0.3s; }
-        details > summary::-webkit-details-marker { display: none; }
-        
-        /* Анимация стрелки */
-        details summary .arrow { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        details[open] summary .arrow { transform: rotate(180deg); }
-
-        /* Внутренние карточки */
-        .item-card {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: transform 0.2s;
-        }
-        .item-card:active { transform: scale(0.98); }
-
-        /* Лоадер */
-        .spinner {
-            width: 44px; height: 44px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-left-color: #60a5fa;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .ambient-light { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 10% 20%, rgba(79,70,229,0.3), transparent 40%), radial-gradient(circle at 90% 80%, rgba(236,72,153,0.2), transparent 40%); filter: blur(60px); }
+        .glass { background: rgba(255,255,255,0.07); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); }
+        details summary { list-style: none; outline: none; cursor: pointer; }
+        details summary::-webkit-details-marker { display: none; }
+        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-left-color: #60a5fa; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* Кнопка Excel */
-        .btn-glass-primary {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-            background-image: linear-gradient(135deg, rgba(59, 130, 246, 0.4) 0%, rgba(147, 51, 234, 0.4) 100%);
-        }
-        .btn-glass-primary:active { transform: scale(0.96); opacity: 0.9; }
-
+        .btn-glass { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); background-image: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(147,51,234,0.4)); }
     </style>
 </head>
 <body class="p-5 pb-32 min-h-screen">
-
     <div class="ambient-light"></div>
 
-    <header class="flex justify-between items-center mb-10 mt-4">
+    <header class="flex justify-between items-center mb-8 mt-4">
         <div>
             <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Ferrum</h1>
-            <p class="text-xs text-blue-200 opacity-70 tracking-wider uppercase font-semibold">Premium Calc</p>
+            <p class="text-xs text-blue-200 opacity-70 tracking-wider uppercase font-semibold">Система Расчета</p>
         </div>
-        <div class="glass w-10 h-10 rounded-full flex items-center justify-center">
-            <span class="text-lg">💎</span>
-        </div>
+        <div class="glass w-10 h-10 rounded-full flex items-center justify-center text-lg">💎</div>
     </header>
 
-    <div id="uploadZone" class="glass rounded-3xl h-60 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group transition-all duration-300 active:scale-95">
-        <div class="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        
+    <div id="uploadZone" class="glass rounded-3xl h-60 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden active:scale-95 transition-all">
         <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4 border border-white/10 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
             <svg class="w-8 h-8 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
         </div>
-        <h3 class="text-lg font-semibold text-white">Tap to Upload</h3>
-        <p class="text-sm text-slate-400 mt-1">PDF Specification</p>
+        <h3 class="text-lg font-semibold text-white">Загрузить файл</h3>
+        <p class="text-sm text-slate-400 mt-1">PDF Спецификация</p>
         <input type="file" id="fileInput" accept=".pdf" class="hidden">
     </div>
 
-    <div id="loader" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xl">
-        <div class="spinner mb-6"></div>
-        <p class="text-lg font-medium text-white tracking-wide">Анализируем...</p>
-        <p class="text-xs text-white/40 mt-2">AI распознает профили</p>
+    <div id="loader" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xl">
+        <div class="spinner mb-4"></div>
+        <p class="text-lg font-medium text-white">Расчёт металла...</p>
+        <p class="text-xs text-white/50 mt-1">Формируем карту раскроя</p>
     </div>
 
-    <div id="results" class="hidden space-y-4 animate-fade-in mt-6">
-        </div>
+    <div id="results" class="hidden space-y-4 mt-6"></div>
 
     <div id="exportWrapper" class="hidden fixed bottom-8 left-6 right-6 z-40">
-        <button onclick="downloadExcel()" class="btn-glass-primary w-full py-4 rounded-2xl font-bold text-white text-lg flex items-center justify-center gap-3 transition-all">
+        <button onclick="downloadExcel()" class="btn-glass w-full py-4 rounded-2xl font-bold text-white text-lg flex items-center justify-center gap-3">
             <span>📥</span> Скачать Excel
         </button>
     </div>
@@ -119,7 +55,6 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.enableClosingConfirmation();
         const API_URL = ""; 
 
         const fileInput = document.getElementById('fileInput');
@@ -141,17 +76,9 @@
             try {
                 const res = await fetch(`${API_URL}/api/calculate`, { method: 'POST', body: formData });
                 const data = await res.json();
-                
-                if (data.error) throw new Error(data.error);
-                
                 renderResults(data);
-                
-                // Эффект исчезновения зоны загрузки
-                uploadZone.style.opacity = '0';
-                setTimeout(() => uploadZone.classList.add('hidden'), 300);
-                
+                uploadZone.classList.add('hidden');
                 exportWrapper.classList.remove('hidden');
-
             } catch (err) {
                 tg.showAlert(`Ошибка: ${err.message}`);
             } finally {
@@ -160,76 +87,37 @@
             }
         });
 
-        function downloadExcel() {
-            window.location.href = `${API_URL}/api/export`;
-            tg.HapticFeedback.notificationOccurred('success');
-        }
+        function downloadExcel() { window.location.href = `${API_URL}/api/export`; }
 
         function renderResults(data) {
             resultsDiv.classList.remove('hidden');
             let html = '';
-
-            const createGroup = (title, items, icon, gradientClass) => {
+            
+            const createGroup = (title, items, icon, color) => {
                 if (!items || items.length === 0) return '';
-                
-                let cards = items.map(item => `
-                    <div class="item-card rounded-xl p-3 mb-2">
-                        <div class="flex justify-between items-start mb-1">
-                            <h4 class="font-medium text-sm text-white/90">${item.name}</h4>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/80 backdrop-blur-sm border border-white/5">${item.summary}</span>
-                        </div>
-                        <div class="text-[11px] text-slate-400 font-mono">
-                            ${item.details}
-                        </div>
-                    </div>
-                `).join('');
-
+                let cards = items.map(i => `
+                    <div class="bg-white/5 rounded-xl p-3 mb-2 border border-white/5">
+                        <div class="flex justify-between items-start mb-1"><h4 class="font-medium text-sm">${i.name}</h4><span class="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">${i.summary}</span></div>
+                        <div class="text-[11px] text-slate-400 font-mono">${i.details}</div>
+                    </div>`).join('');
                 return `
-                <details class="glass rounded-2xl mb-4 group open:bg-white/5 transition-colors duration-300">
+                <details class="glass rounded-2xl mb-4 group open:bg-white/5 transition-colors">
                     <summary class="p-4 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full ${gradientClass} flex items-center justify-center text-sm shadow-lg">
-                                ${icon}
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-white/90 text-base">${title}</h3>
-                                <p class="text-[10px] text-white/40 uppercase tracking-wider font-bold">${items.length} ПОЗИЦИЙ</p>
-                            </div>
-                        </div>
-                        <div class="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center arrow group-hover:bg-white/10">
-                            <svg class="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
+                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full flex items-center justify-center bg-${color}-500/20 text-${color}-300">${icon}</div><span class="font-semibold">${title}</span></div>
+                        <span class="text-xs bg-white/10 px-2 py-1 rounded text-slate-300">${items.length}</span>
                     </summary>
-                    <div class="px-3 pb-3 pt-0 animate-fade-in">
-                        ${cards}
-                    </div>
+                    <div class="px-3 pb-3 pt-0">${cards}</div>
                 </details>`;
             };
 
-            // Градиенты для иконок (Tailwind classes)
-            const bgBlue = 'bg-gradient-to-tr from-blue-500 to-cyan-400';
-            const bgIndigo = 'bg-gradient-to-tr from-indigo-500 to-violet-500';
-            const bgPurple = 'bg-gradient-to-tr from-purple-500 to-fuchsia-500';
-            const bgEmerald = 'bg-gradient-to-tr from-emerald-500 to-teal-400';
-            const bgAmber = 'bg-gradient-to-tr from-amber-500 to-orange-400';
-            const bgRed = 'bg-gradient-to-tr from-red-500 to-rose-400';
+            html += createGroup('Листы', data.sheets, '🟦', 'blue');
+            html += createGroup('Труба Квадрат', data.square_tubes, '🔳', 'indigo');
+            html += createGroup('Труба Прямоуг.', data.rect_tubes, '▭', 'purple');
+            html += createGroup('Труба Э/С', data.es_pipes, '⚪', 'emerald');
+            html += createGroup('Уголок', data.angles, '📐', 'amber');
+            html += createGroup('Круг / Пруток', data.rounds, '⚫', 'red');
 
-            html += createGroup('Листы', data.sheets, '🟦', bgBlue);
-            html += createGroup('Квадратная', data.square_tubes, '🔳', bgIndigo);
-            html += createGroup('Прямоугольная', data.rect_tubes, '▭', bgPurple);
-            html += createGroup('Труба Э/С', data.es_pipes, '⚪', bgEmerald);
-            html += createGroup('Уголок', data.angles, '📐', bgAmber);
-            html += createGroup('Круг / Пруток', data.rounds, '⚫', bgRed);
-
-            if (!html) {
-                html = `
-                <div class="glass p-8 rounded-2xl text-center">
-                    <p class="text-2xl mb-2">👻</p>
-                    <p class="text-white/60 text-sm">Файл пуст или формат не распознан</p>
-                </div>`;
-                exportWrapper.classList.add('hidden');
-            }
-
+            if (!html) html = '<div class="glass p-8 rounded-2xl text-center"><p class="text-xl">👻</p><p class="text-white/60 text-sm mt-2">Данные не найдены</p></div>';
             resultsDiv.innerHTML = html;
         }
     </script>
