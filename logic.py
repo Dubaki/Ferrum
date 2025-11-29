@@ -36,8 +36,8 @@ class MetalCalculator:
 
     def optimize_profile(self, name, parts_list):
         stock_len = self.PROFILE_STD_LEN
-        # Если в названии есть маркеры мелкой трубы - длина 6м
-        if any(x in name for x in ["15x15", "20x20", "25x25", "30x30", "15x1", "20x2"]): 
+        # Если труба мелкая (до 30мм), считаем по 6м
+        if any(x in name for x in ["15x15", "20x20", "25x25", "30x30", "15x1", "20x2", "35x"]): 
             stock_len = self.PROFILE_SMALL_LEN
 
         all_pieces = []
@@ -96,7 +96,7 @@ class MetalCalculator:
             add_row("Лист", item['name'], item['summary'], item['details'])
 
         categories = {
-            'square_tubes': 'Квадратная', 'rect_tubes': 'Прямоугольная',
+            'square_tubes': 'Труба ПК (Квадрат)', 'rect_tubes': 'Труба ПП (Прямоуг)',
             'es_pipes': 'Труба Э/С', 'angles': 'Уголок', 'rounds': 'Круг'
         }
         for key, label in categories.items():
@@ -110,8 +110,26 @@ class MetalCalculator:
 
 class SpecParser:
     def __init__(self):
-        # Стандартные диаметры Э/С труб (Эвристика: если значка нет, но размер совпадает)
-        self.STD_PIPE_DIAMETERS = {57, 76, 89, 102, 108, 114, 127, 133, 159, 219, 273, 325}
+        # 1. ТРУБА ПП (Прямоугольная) - Маркер "ПП"
+        # Ищет: Труба ПП 100x50x4
+        self.re_tube_pp = re.compile(r'Труба\s*ПП\s*(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
+
+        # 2. ТРУБА ПК (Квадратная) - Маркер "ПК"
+        # Ищет: Труба ПК 100x4 (2 цифры) или 100x100x4 (3 цифры)
+        self.re_tube_pk = re.compile(r'Труба\s*ПК\s*(\d+)[xх*](\d+)(?:[xх*](\d+[.,]?\d*))?', re.I)
+
+        # 3. ТРУБА (Э/С) - Маркер "Труба" БЕЗ "ПП" или "ПК"
+        # Negative Lookahead (?!П[ПК]) гарантирует, что это не профильная
+        self.re_tube_es = re.compile(r'Труба\s+(?!П[ПК])(\S*\s)?(\d+)[xх*](\d+[.,]?\d*)', re.I)
+
+        # 4. УГОЛОК - Маркер "Уголок"
+        self.re_angle = re.compile(r'Уголок\s*(\d+)[xх*](\d+)(?:[xх*](\d+))?', re.I)
+
+        # 5. КРУГ - Маркер "Круг"
+        self.re_round = re.compile(r'Круг\s*(\d+)', re.I)
+
+        # 6. ЛИСТ - Маркер "Лист" или "-"
+        self.re_sheet = re.compile(r'(?:Лист|^|[\s\d])[-—–]\s*(\d+)[xх*](\d+)', re.I)
 
     def parse(self, pdf_path):
         data = {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
@@ -121,129 +139,100 @@ class SpecParser:
                 text = page.extract_text()
                 if not text: continue
                 
-                # Разбиваем текст на токены (слова), а не строки, так надежнее
-                # Но для начала попробуем построчный анализ с очисткой
-                for line in text.split('\n'):
+                # Чистка: замена русских 'х' на 'x'
+                clean_text = text.replace('х', 'x').replace('Х', 'x').replace('–', '-').replace('—', '-')
+
+                for line in clean_text.split('\n'):
                     line = line.strip()
                     if not line or "Марка" in line or "Спецификация" in line: continue
 
-                    # Попытка найти профиль в строке
-                    # Мы ищем паттерн: "Число x Число" или "Число x Число x Число"
-                    # И смотрим, что стоит ПЕРЕД ним
-                    
-                    # 1. Сначала ищем ПРЯМОУГОЛЬНИК (3 числа) - самый длинный паттерн
-                    # Пример: 100x50x4
-                    m_rect = re.search(r'(?:^|\s)(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', line, re.I)
-                    
-                    if m_rect:
-                        # Это либо Прямоуг. труба, либо Уголок
-                        if "L" in line or "∟" in line:
-                            # Уголок
-                            self._extract_qty_len_and_add(data['angles'], line, m_rect, f"Уголок {m_rect.group(1)}x{m_rect.group(2)}x{m_rect.group(3)}")
-                            continue
-                        else:
-                            # Прямоугольная труба
-                            self._extract_qty_len_and_add(data['rect_tubes'], line, m_rect, f"Труба ПР {m_rect.group(1)}x{m_rect.group(2)}x{m_rect.group(3)}")
-                            continue
-
-                    # 2. Ищем 2 числа (AxB)
-                    m_square = re.search(r'(?:^|\s)([-—LØO0]?)?\s*(\d+)[xх*](\d+[.,]?\d*)', line, re.I)
-                    
-                    if m_square:
-                        prefix = m_square.group(1) # Может быть L, -, Ø, O
-                        v1 = m_square.group(2)
-                        v2 = m_square.group(3)
-                        
-                        # --- ЛОГИКА ОПРЕДЕЛЕНИЯ ТИПА ---
-                        
-                        # А. ЛИСТ (Есть минус или тире)
-                        if prefix and prefix in ['-', '—', '–']:
-                            # Особая логика для листов - нам нужны 4 параметра, тут только 2 (толщина и ширина)
-                            # Листы часто пишут: Кол -3x50 Длина
-                            self._extract_sheet(data['sheets'], line, float(v1), float(v2))
-                            continue
-                            
-                        # Б. УГОЛОК (Есть L)
-                        if (prefix and prefix in ['L', 'l']) or 'L' in line:
-                            self._extract_qty_len_and_add(data['angles'], line, m_square, f"Уголок {v1}x{v1}x{v2}")
-                            continue
-
-                        # В. ТРУБА Э/С (Есть Ø, O, 0 или диаметр стандартный)
-                        is_std_pipe = False
-                        try:
-                            if float(v1) in self.STD_PIPE_DIAMETERS: is_std_pipe = True
-                        except: pass
-
-                        if (prefix and prefix in ['Ø', 'O', '0', 'О']) or is_std_pipe:
-                             self._extract_qty_len_and_add(data['es_pipes'], line, m_square, f"Труба Э/С Ø{v1}x{v2}")
-                             continue
-
-                        # Г. КВАДРАТНАЯ ТРУБА (Остальное)
-                        self._extract_qty_len_and_add(data['square_tubes'], line, m_square, f"Труба КВ {v1}x{v1}x{v2}")
+                    # 1. ТРУБА ПП (Прямоугольная)
+                    m = self.re_tube_pp.search(line)
+                    if m:
+                        name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3).replace(',','.')}"
+                        self._extract_qty_len_and_add(data['rect_tubes'], line, m, name)
                         continue
 
-                    # 3. Ищем КРУГ/ПРУТОК (O + 1 число)
-                    # Ищем Ø16 или O16, но чтобы дальше НЕ было 'x'
-                    m_round = re.search(r'(?:^|\s)[ØOО0]\s?(\d+)(?!\s*[xх*])', line, re.I)
-                    if m_round:
-                         self._extract_qty_len_and_add(data['rounds'], line, m_round, f"Круг Ø{m_round.group(1)}")
-                         continue
+                    # 2. ТРУБА ПК (Квадратная)
+                    m = self.re_tube_pk.search(line)
+                    if m:
+                        v1, v2, v3 = m.groups()
+                        # Если только 2 цифры (100x4), значит 100x100x4
+                        if not v3:
+                            name = f"Труба ПК {v1}x{v1}x{v2.replace(',','.')}"
+                        else:
+                            name = f"Труба ПК {v1}x{v2}x{v3.replace(',','.')}"
+                        
+                        self._extract_qty_len_and_add(data['square_tubes'], line, m, name)
+                        continue
+
+                    # 3. ТРУБА Э/С (Просто "Труба")
+                    m = self.re_tube_es.search(line)
+                    if m:
+                        d = m.group(2)
+                        s = m.group(3)
+                        name = f"Труба Э/С Ø{d}x{s.replace(',','.')}"
+                        self._extract_qty_len_and_add(data['es_pipes'], line, m, name)
+                        continue
+
+                    # 4. УГОЛОК
+                    m = self.re_angle.search(line)
+                    if m:
+                        s1, s2, s3 = m.groups()
+                        # Если 3 цифры - разнополочный, 2 - равнополочный
+                        name = f"Уголок {s1}x{s2}x{s3}" if s3 else f"Уголок {s1}x{s1}x{s2}"
+                        self._extract_qty_len_and_add(data['angles'], line, m, name)
+                        continue
+
+                    # 5. КРУГ
+                    m = self.re_round.search(line)
+                    if m:
+                        name = f"Круг Ø{m.group(1)}"
+                        self._extract_qty_len_and_add(data['rounds'], line, m, name)
+                        continue
+
+                    # 6. ЛИСТ
+                    m = self.re_sheet.search(line)
+                    if m:
+                        self._extract_sheet(data['sheets'], line, m)
+                        continue
 
         return data
 
-    def _extract_qty_len_and_add(self, storage, line, match_obj, name):
-        """Ищет числа слева и справа от найденного профиля"""
-        start, end = match_obj.span()
-        left_part = line[:start].strip()
-        right_part = line[end:].strip()
-        
-        # Ищем последнее число слева (Кол-во)
-        qty = 1
-        m_qty = re.findall(r'(\d+)', left_part)
-        if m_qty:
-            qty = int(m_qty[-1]) # Берем ближайшее число слева
-
-        # Ищем первое число справа (Длина)
+    def _extract_sheet(self, storage, line, match_obj):
+        # Длина (справа)
+        right_part = line[match_obj.end():]
         length = 0
         m_len = re.search(r'(\d+)', right_part)
-        if m_len:
-            length = float(m_len.group(1))
-        
-        # Если длина не найдена справа (бывает в Tekla), ищем второе число слева
-        if length == 0 and len(m_qty) >= 2:
-            # Возможно формат: Кол Длина Профиль (редко)
-            pass 
+        if m_len: length = float(m_len.group(1))
 
-        # Валидация: Длина должна быть разумной (>10мм)
+        # Количество (слева)
+        left_part = line[:match_obj.start()]
+        qty = 1
+        m_qty = re.findall(r'(\d+)', left_part)
+        if m_qty: qty = int(m_qty[-1])
+
+        if length > 0:
+            storage.append({
+                'qty': qty, 
+                'thickness': float(match_obj.group(1)), 
+                'width': float(match_obj.group(2)), 
+                'length': length
+            })
+
+    def _extract_qty_len_and_add(self, storage, line, match_obj, name):
+        # Длина (справа, колонка "L")
+        right_part = line[match_obj.end():]
+        length = 0
+        m_len = re.search(r'(\d+)', right_part)
+        if m_len: length = float(m_len.group(1))
+
+        # Количество (слева)
+        left_part = line[:match_obj.start()]
+        qty = 1
+        m_qty = re.findall(r'(\d+)', left_part)
+        if m_qty: qty = int(m_qty[-1])
+
         if length > 10:
             if name not in storage: storage[name] = []
             storage[name].append({'length': length, 'qty': qty})
-
-    def _extract_sheet(self, storage, line, thk, width):
-        # Аналогичный поиск для листа, но сохраняем в список
-        # Лист обычно: QTY -ThkxWidth LENGTH
-        # Мы уже нашли -ThkxWidth. Ищем соседей.
-        
-        # Находим позицию подстроки профиля в линии
-        # Упрощенно: разбиваем строку, ищем числа
-        nums = re.findall(r'(\d+)', line)
-        # В строке "-3x50" регекс найдет 3 и 50.
-        # Нам нужны числа, которые НЕ 3 и НЕ 50 (если они уникальны)
-        
-        # Лучший способ - использовать тот же метод соседей
-        m = re.search(r'[-—]\s*(\d+)[xх*](\d+)', line)
-        if m:
-            start, end = m.span()
-            left_part = line[:start].strip()
-            right_part = line[end:].strip()
-            
-            qty = 1
-            mq = re.findall(r'(\d+)', left_part)
-            if mq: qty = int(mq[-1])
-            
-            length = 0
-            ml = re.search(r'(\d+)', right_part)
-            if ml: length = float(ml.group(1))
-
-            if length > 10:
-                storage.append({'qty': qty, 'thickness': thk, 'width': width, 'length': length})
