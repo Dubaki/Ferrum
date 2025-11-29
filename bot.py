@@ -6,7 +6,13 @@ from aiogram.filters import Command
 from logic import MetalCalculator, SpecParser
 
 # --- НАСТРОЙКИ ---
-TOKEN = "тут будет токен"
+# Читаем токен из настроек сервера (Render), а не из файла
+TOKEN = os.getenv("BOT_TOKEN")
+
+# Проверка на случай, если забыли добавить переменную на сервере
+if not TOKEN:
+    raise ValueError("Токен не найден! Убедитесь, что вы добавили переменную BOT_TOKEN в настройках Render.")
+
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
