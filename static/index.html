@@ -6,20 +6,20 @@
     <title>Ferrum.AI</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .ambient-light { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 10% 20%, rgba(79,70,229,0.3), transparent 40%), radial-gradient(circle at 90% 80%, rgba(236,72,153,0.2), transparent 40%); filter: blur(60px); }
-        .glass { background: rgba(255,255,255,0.07); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); }
+        body { background: #0f172a; color: #f8fafc; font-family: 'Outfit', sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .loader { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-left-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         details summary { list-style: none; outline: none; cursor: pointer; }
         details summary::-webkit-details-marker { display: none; }
-        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-left-color: #60a5fa; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        .btn-glass { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); background-image: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(147,51,234,0.4)); }
+        .upload-zone { border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.05)); }
+        .btn-primary { background: linear-gradient(92deg, #4f46e5 0%, #7c3aed 100%); }
+        .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
     </style>
 </head>
-<body class="p-5 pb-32 min-h-screen">
-    <div class="ambient-light"></div>
+<body class="p-5 pb-32 min-h-screen flex flex-col">
 
     <header class="flex justify-between items-center mb-8 mt-4">
         <div>
@@ -29,26 +29,29 @@
         <div class="glass w-10 h-10 rounded-full flex items-center justify-center text-lg">💎</div>
     </header>
 
-    <div id="uploadZone" class="glass rounded-3xl h-60 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden active:scale-95 transition-all">
-        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4 border border-white/10 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-            <svg class="w-8 h-8 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+    <div id="uploadZone" class="upload-zone rounded-3xl h-60 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden active:scale-95 transition-all">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-4 border border-indigo-500/30">
+            <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
         </div>
-        <h3 class="text-lg font-semibold text-white">Загрузить файл</h3>
-        <p class="text-sm text-slate-400 mt-1">PDF Спецификация</p>
+        <h3 class="text-lg font-bold text-white">Загрузить PDF</h3>
         <input type="file" id="fileInput" accept=".pdf" class="hidden">
     </div>
 
-    <div id="loader" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xl">
-        <div class="spinner mb-4"></div>
+    <div id="loader" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl">
+        <div class="loader mb-4"></div>
         <p class="text-lg font-medium text-white">Расчёт металла...</p>
-        <p class="text-xs text-white/50 mt-1">Формируем карту раскроя</p>
     </div>
 
     <div id="results" class="hidden space-y-4 mt-6"></div>
 
-    <div id="exportWrapper" class="hidden fixed bottom-8 left-6 right-6 z-40">
-        <button onclick="downloadExcel()" class="btn-glass w-full py-4 rounded-2xl font-bold text-white text-lg flex items-center justify-center gap-3">
-            <span>📥</span> Скачать Excel
+    <div id="actionsWrapper" class="hidden fixed bottom-6 left-4 right-4 z-40 flex flex-col gap-3">
+        <button onclick="downloadExcel()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex justify-center gap-2 items-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Скачать Excel
+        </button>
+        
+        <button onclick="resetApp()" class="btn-secondary w-full py-3.5 rounded-xl font-semibold text-slate-300 flex justify-center gap-2">
+            ↺ Загрузить другой файл
         </button>
     </div>
 
@@ -61,7 +64,7 @@
         const uploadZone = document.getElementById('uploadZone');
         const loader = document.getElementById('loader');
         const resultsDiv = document.getElementById('results');
-        const exportWrapper = document.getElementById('exportWrapper');
+        const actionsWrapper = document.getElementById('actionsWrapper');
 
         uploadZone.addEventListener('click', () => fileInput.click());
 
@@ -76,16 +79,28 @@
             try {
                 const res = await fetch(`${API_URL}/api/calculate`, { method: 'POST', body: formData });
                 const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+                
                 renderResults(data);
                 uploadZone.classList.add('hidden');
-                exportWrapper.classList.remove('hidden');
+                actionsWrapper.classList.remove('hidden');
+
             } catch (err) {
                 tg.showAlert(`Ошибка: ${err.message}`);
+                resetApp(); // Сброс при ошибке
             } finally {
                 loader.classList.add('hidden');
                 fileInput.value = '';
             }
         });
+
+        function resetApp() {
+            resultsDiv.innerHTML = '';
+            resultsDiv.classList.add('hidden');
+            actionsWrapper.classList.add('hidden');
+            uploadZone.classList.remove('hidden');
+        }
 
         function downloadExcel() { window.location.href = `${API_URL}/api/export`; }
 
@@ -96,17 +111,17 @@
             const createGroup = (title, items, icon, color) => {
                 if (!items || items.length === 0) return '';
                 let cards = items.map(i => `
-                    <div class="bg-white/5 rounded-xl p-3 mb-2 border border-white/5">
-                        <div class="flex justify-between items-start mb-1"><h4 class="font-medium text-sm">${i.name}</h4><span class="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">${i.summary}</span></div>
-                        <div class="text-[11px] text-slate-400 font-mono">${i.details}</div>
+                    <div class="bg-white/5 rounded-xl p-3 mb-2 border-l-2 border-${color}-500">
+                        <div class="flex justify-between items-start mb-1"><h4 class="font-medium text-sm text-slate-200">${i.name}</h4><span class="text-[10px] bg-white/10 px-2 py-0.5 rounded text-slate-400">${i.summary}</span></div>
+                        <div class="text-[11px] text-slate-500 font-mono">${i.details}</div>
                     </div>`).join('');
                 return `
-                <details class="glass rounded-2xl mb-4 group open:bg-white/5 transition-colors">
+                <details class="glass rounded-xl mb-3 group open:bg-slate-800/80 transition-colors">
                     <summary class="p-4 flex items-center justify-between">
-                        <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full flex items-center justify-center bg-${color}-500/20 text-${color}-300">${icon}</div><span class="font-semibold">${title}</span></div>
-                        <span class="text-xs bg-white/10 px-2 py-1 rounded text-slate-300">${items.length}</span>
+                        <div class="flex items-center gap-3"><span class="text-xl">${icon}</span> <span class="font-bold text-slate-200">${title}</span></div>
+                        <span class="text-xs bg-slate-700 px-2 py-1 rounded-full text-slate-300">${items.length}</span>
                     </summary>
-                    <div class="px-3 pb-3 pt-0">${cards}</div>
+                    <div class="px-3 pb-3 pt-0 border-t border-white/5 mt-2 pt-3">${cards}</div>
                 </details>`;
             };
 
@@ -117,7 +132,14 @@
             html += createGroup('Уголок', data.angles, '📐', 'amber');
             html += createGroup('Круг / Пруток', data.rounds, '⚫', 'red');
 
-            if (!html) html = '<div class="glass p-8 rounded-2xl text-center"><p class="text-xl">👻</p><p class="text-white/60 text-sm mt-2">Данные не найдены</p></div>';
+            if (!html) {
+                html = `
+                <div class="glass p-8 rounded-2xl text-center border-dashed border-2 border-slate-600">
+                    <p class="text-3xl mb-2">🤷‍♂️</p>
+                    <p class="text-slate-300 font-bold">Данные не найдены</p>
+                    <p class="text-slate-500 text-sm mt-1">Попробуйте другой файл или проверьте формат</p>
+                </div>`;
+            }
             resultsDiv.innerHTML = html;
         }
     </script>
