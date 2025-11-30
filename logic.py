@@ -110,157 +110,200 @@ class MetalCalculator:
 
 class SpecParser:
     def __init__(self):
-        # 1. СТРОГИЕ (Слова + Цифры)
-        # Ищем слово, потом любой мусор (.*?), потом цифры
-        self.re_pp = re.compile(r'ПП.*?(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
-        self.re_pk = re.compile(r'ПК.*?(\d+)[xх*](\d+)(?:[xх*](\d+[.,]?\d*))?', re.I)
-        # Э/С: Слово "Труба", но без ПП/ПК впереди
-        self.re_es_word = re.compile(r'Труба(?!\s*(?:ПП|ПК|проф)).*?(\d+)[xх*](\d+[.,]?\d*)', re.I)
-        self.re_angle_word = re.compile(r'Уголок.*?(\d+)[xх*](\d+)(?:[xх*](\d+))?', re.I)
-        self.re_round_word = re.compile(r'Круг.*?(\d+)', re.I)
-        self.re_sheet_word = re.compile(r'Лист.*?(\d+)[xх*](\d+)', re.I)
-
-        # 2. РЕЗЕРВНЫЕ (Символы или Формат)
-        self.re_sheet_sym = re.compile(r'(?:^|[\s\d])[-—–]\s*(\d+)[xх*](\d+)', re.I)
-        self.re_angle_sym = re.compile(r'[L∟∠]\s?(\d+)[xх*](\d+)(?:[xх*](\d+))?', re.I)
-        self.re_es_sym = re.compile(r'[ØOО0]\s?(\d+)[xх*](\d+[.,]?\d*)', re.I)
-        self.re_round_sym = re.compile(r'[ØOО0]\s?(\d+)(?!\s*[xх*])', re.I)
+        # Трубы профильные прямоугольные (ПП)
+        self.re_pp = re.compile(r'(?:Труба\s+)?ПП.*?(\d+)\s*[xх×*]\s*(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
         
-        # Геометрический поиск (если слов нет)
-        self.re_rect_geo = re.compile(r'(?:^|\s)(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
-        self.re_sq_geo = re.compile(r'(?:^|\s)(\d+)[xх*](\d+[.,]?\d*)', re.I)
+        # Трубы профильные квадратные (ПК)
+        self.re_pk = re.compile(r'(?:Труба\s+)?ПК.*?(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
+        
+        # Трубы электросварные (Э/С)
+        self.re_es = re.compile(r'Труба(?!\s*(?:ПП|ПК)).*?(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
+        
+        # Уголок (по слову)
+        self.re_angle = re.compile(r'Уголок.*?(\d+)\s*[xх×*]\s*(\d+)(?:\s*[xх×*]\s*(\d+))?', re.I)
+        
+        # Круг (по слову)
+        self.re_round = re.compile(r'Круг.*?(\d+)', re.I)
+        
+        # Лист (по слову)
+        self.re_sheet = re.compile(r'Лист.*?(\d+)\s*[xх×*]\s*(\d+)', re.I)
+        
+        # Поиск по символам (резервные паттерны)
+        self.re_sheet_dash = re.compile(r'[-–—]\s*(\d+)\s*[xх×*]\s*(\d+)', re.I)
+        self.re_angle_L = re.compile(r'[L∟∠]\s*(\d+)\s*[xх×*]\s*(\d+)(?:\s*[xх×*]\s*(\d+))?', re.I)
+        self.re_es_circle = re.compile(r'[ØOО0]\s*(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
+        self.re_round_circle = re.compile(r'[ØOО0]\s*(\d+)(?!\s*[xх×*])', re.I)
 
     def parse(self, pdf_path):
-        data = {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
+        data = {
+            'sheets': [], 
+            'rect_tubes': {}, 
+            'square_tubes': {}, 
+            'es_pipes': {}, 
+            'angles': {}, 
+            'rounds': {}
+        }
         
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
-                if not text: continue
+                if not text:
+                    continue
                 
-                # Нормализация
-                clean_text = text.replace('х', 'x').replace('Х', 'x').replace('*', 'x').replace('–', '-').replace('—', '-')
-
-                for line in clean_text.split('\n'):
+                # Нормализация текста
+                text = text.replace('х', 'x').replace('Х', 'x').replace('×', 'x')
+                text = text.replace('*', 'x').replace('–', '-').replace('—', '-')
+                
+                for line in text.split('\n'):
                     line = line.strip()
-                    if not line or "Марка" in line: continue
-
-                    # --- ЭТАП 1: КЛЮЧЕВЫЕ СЛОВА ---
+                    if not line or len(line) < 5:
+                        continue
                     
-                    if "ПП" in line.upper():
-                        m = self.re_pp.search(line)
-                        if m:
-                            name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3).replace(',', '.')}"
-                            self._add_item(data['rect_tubes'], line, m, name)
-                            continue
-
-                    if "ПК" in line.upper():
-                        m = self.re_pk.search(line)
-                        if m:
-                            v1, v2, v3 = m.groups()
-                            name = f"Труба ПК {v1}x{v2}x{v3.replace(',', '.')}" if v3 else f"Труба ПК {v1}x{v1}x{v2.replace(',', '.')}"
-                            self._add_item(data['square_tubes'], line, m, name)
-                            continue
-
-                    if "УГОЛОК" in line.upper():
-                        m = self.re_angle_word.search(line)
-                        if m:
-                            s1, s2, s3 = m.groups()
-                            name = f"Уголок {s1}x{s2}x{s3}" if s3 else f"Уголок {s1}x{s1}x{s2}"
-                            self._add_item(data['angles'], line, m, name)
-                            continue
-
-                    if "КРУГ" in line.upper():
-                        m = self.re_round_word.search(line)
-                        if m:
-                            self._add_item(data['rounds'], line, m, f"Круг Ø{m.group(1)}")
-                            continue
-
-                    if "ЛИСТ" in line.upper():
-                        m = self.re_sheet_word.search(line)
-                        if m:
-                            self._add_sheet(data['sheets'], line, m)
-                            continue
-
-                    # Труба Э/С (Слово "Труба", но без ПП/ПК)
-                    if "ТРУБА" in line.upper() and not ("ПП" in line.upper() or "ПК" in line.upper()):
-                        m = self.re_es_word.search(line)
-                        if m:
-                            name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
-                            self._add_item(data['es_pipes'], line, m, name)
-                            continue
-
-                    # --- ЭТАП 2: СИМВОЛЫ И ГЕОМЕТРИЯ (РЕЗЕРВ) ---
+                    # Пропускаем заголовки
+                    if any(word in line for word in ['Марка', 'Обозначение', 'Наименование', 'Формат']):
+                        continue
                     
-                    # Лист (-)
-                    m = self.re_sheet_sym.search(line)
-                    if m:
-                        self._add_sheet(data['sheets'], line, m)
+                    # Обрабатываем строку по приоритету
+                    if self._try_parse_line(line, data):
                         continue
-
-                    # Уголок (L)
-                    m = self.re_angle_sym.search(line)
-                    if m:
-                        s1, s2, s3 = m.groups()
-                        name = f"Уголок {s1}x{s2}x{s3}" if s3 else f"Уголок {s1}x{s1}x{s2}"
-                        self._add_item(data['angles'], line, m, name)
-                        continue
-
-                    # Э/С (Ø)
-                    m = self.re_es_sym.search(line)
-                    if m:
-                        name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
-                        self._add_item(data['es_pipes'], line, m, name)
-                        continue
-
-                    # Круг (Ø)
-                    m = self.re_round_sym.search(line)
-                    if m:
-                        self._add_item(data['rounds'], line, m, f"Круг Ø{m.group(1)}")
-                        continue
-
-                    # Геометрия: 3 числа = Прямоугольник
-                    m = self.re_rect_geo.search(line)
-                    if m:
-                        name = f"Труба ПР {m.group(1)}x{m.group(2)}x{m.group(3).replace(',', '.')}"
-                        self._add_item(data['rect_tubes'], line, m, name)
-                        continue
-
-                    # Геометрия: 2 числа = Квадрат (последний шанс)
-                    m = self.re_sq_geo.search(line)
-                    if m:
-                        name = f"Труба КВ {m.group(1)}x{m.group(1)}x{m.group(2).replace(',', '.')}"
-                        self._add_item(data['square_tubes'], line, m, name)
-                        continue
-
+        
         return data
 
-    def _add_item(self, storage, line, match_obj, name):
-        right_part = line[match_obj.end():]
-        m_len = re.search(r'(\d+)', right_part)
-        length = float(m_len.group(1)) if m_len else 0
+    def _try_parse_line(self, line, data):
+        """Пытается распарсить строку по всем известным паттернам"""
+        
+        # 1. Профильная труба прямоугольная (ПП)
+        if 'ПП' in line.upper():
+            m = self.re_pp.search(line)
+            if m:
+                name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3).replace(',', '.')}"
+                self._add_profile_item(data['rect_tubes'], line, m, name)
+                return True
+        
+        # 2. Профильная труба квадратная (ПК)
+        if 'ПК' in line.upper():
+            m = self.re_pk.search(line)
+            if m:
+                size = m.group(1)
+                thickness = m.group(2).replace(',', '.')
+                name = f"Труба ПК {size}x{thickness}"
+                self._add_profile_item(data['square_tubes'], line, m, name)
+                return True
+        
+        # 3. Уголок
+        if 'УГОЛОК' in line.upper():
+            m = self.re_angle.search(line)
+            if m:
+                s1, s2, s3 = m.groups()
+                if s3:
+                    name = f"Уголок {s1}x{s2}x{s3}"
+                else:
+                    # Равнополочный уголок
+                    name = f"Уголок {s1}x{s1}x{s2}"
+                self._add_profile_item(data['angles'], line, m, name)
+                return True
+        
+        # 4. Круг (пруток)
+        if 'КРУГ' in line.upper():
+            m = self.re_round.search(line)
+            if m:
+                name = f"Круг Ø{m.group(1)}"
+                self._add_profile_item(data['rounds'], line, m, name)
+                return True
+        
+        # 5. Лист
+        if 'ЛИСТ' in line.upper():
+            m = self.re_sheet.search(line)
+            if m:
+                self._add_sheet_item(data['sheets'], line, m)
+                return True
+        
+        # 6. Труба электросварная (без ПП/ПК)
+        if 'ТРУБА' in line.upper() and not ('ПП' in line.upper() or 'ПК' in line.upper()):
+            m = self.re_es.search(line)
+            if m:
+                name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
+                self._add_profile_item(data['es_pipes'], line, m, name)
+                return True
+        
+        # 7. Резервные паттерны (символы)
+        
+        # Лист (по тире)
+        m = self.re_sheet_dash.search(line)
+        if m:
+            self._add_sheet_item(data['sheets'], line, m)
+            return True
+        
+        # Уголок (по L)
+        m = self.re_angle_L.search(line)
+        if m:
+            s1, s2, s3 = m.groups()
+            if s3:
+                name = f"Уголок {s1}x{s2}x{s3}"
+            else:
+                name = f"Уголок {s1}x{s1}x{s2}"
+            self._add_profile_item(data['angles'], line, m, name)
+            return True
+        
+        # Труба Э/С (по Ø с двумя числами)
+        m = self.re_es_circle.search(line)
+        if m:
+            name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
+            self._add_profile_item(data['es_pipes'], line, m, name)
+            return True
+        
+        # Круг (по Ø с одним числом)
+        m = self.re_round_circle.search(line)
+        if m:
+            name = f"Круг Ø{m.group(1)}"
+            self._add_profile_item(data['rounds'], line, m, name)
+            return True
+        
+        return False
 
+    def _add_profile_item(self, storage, line, match_obj, name):
+        """Добавляет профильный элемент (труба, уголок, круг)"""
+        # Ищем длину после совпадения
+        right_part = line[match_obj.end():]
+        m_len = re.search(r'L\s*=\s*(\d+)|(\d{3,5})\s*мм', right_part, re.I)
+        
+        if not m_len:
+            # Просто ищем число длины
+            m_len = re.search(r'(\d{3,5})', right_part)
+        
+        length = float(m_len.group(1) or m_len.group(2)) if m_len else 0
+        
+        # Ищем количество слева от совпадения
         left_part = line[:match_obj.start()]
         nums = re.findall(r'(\d+)', left_part)
         qty = int(nums[-1]) if nums else 1
-
-        if length > 10:
-            if name not in storage: storage[name] = []
+        
+        # Добавляем только если длина разумная
+        if 50 <= length <= 15000:
+            if name not in storage:
+                storage[name] = []
             storage[name].append({'length': length, 'qty': qty})
 
-    def _add_sheet(self, storage, line, match_obj):
+    def _add_sheet_item(self, storage, line, match_obj):
+        """Добавляет листовой элемент"""
+        # Толщина и ширина из регулярки
+        thickness = float(match_obj.group(1))
+        width = float(match_obj.group(2))
+        
+        # Ищем длину после совпадения
         right_part = line[match_obj.end():]
         m_len = re.search(r'(\d+)', right_part)
         length = float(m_len.group(1)) if m_len else 0
-
+        
+        # Ищем количество слева
         left_part = line[:match_obj.start()]
         nums = re.findall(r'(\d+)', left_part)
         qty = int(nums[-1]) if nums else 1
-
+        
         if length > 0:
             storage.append({
-                'qty': qty, 
-                'thickness': float(match_obj.group(1)), 
-                'width': float(match_obj.group(2)), 
+                'qty': qty,
+                'thickness': thickness,
+                'width': width,
                 'length': length
             })
