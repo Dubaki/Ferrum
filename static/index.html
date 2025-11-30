@@ -3,55 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ferrum.AI</title>
+    <title>Ferrum.AI Excel</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: 'Outfit', sans-serif; }
         .glass { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .loader { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-left-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
+        .loader { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-left-color: #10b981; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         details summary { list-style: none; outline: none; cursor: pointer; }
         details summary::-webkit-details-marker { display: none; }
-        .upload-zone { border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.05)); }
-        .btn-primary { background: linear-gradient(92deg, #4f46e5 0%, #7c3aed 100%); }
-        .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+        .upload-zone { border: 2px dashed rgba(16, 185, 129, 0.4); background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 95, 70, 0.05)); }
+        .btn-excel { background: linear-gradient(92deg, #059669 0%, #10b981 100%); }
     </style>
 </head>
 <body class="p-5 pb-32 min-h-screen flex flex-col">
 
     <header class="flex justify-between items-center mb-8 mt-4">
         <div>
-            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Ferrum</h1>
-            <p class="text-xs text-blue-200 opacity-70 tracking-wider uppercase font-semibold">Система Расчета</p>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-300">Ferrum</h1>
+            <p class="text-xs text-emerald-200/70 tracking-wider uppercase font-semibold">Excel Reader</p>
         </div>
-        <div class="glass w-10 h-10 rounded-full flex items-center justify-center text-lg">💎</div>
+        <div class="glass w-10 h-10 rounded-full flex items-center justify-center text-lg">📊</div>
     </header>
 
     <div id="uploadZone" class="upload-zone rounded-3xl h-60 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden active:scale-95 transition-all">
-        <div class="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center mb-4 border border-indigo-500/30">
-            <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+        <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-4 border border-emerald-500/30">
+            <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
         </div>
-        <h3 class="text-lg font-bold text-white">Загрузить PDF</h3>
-        <input type="file" id="fileInput" accept=".pdf" class="hidden">
+        <h3 class="text-lg font-bold text-white">Загрузить Excel</h3>
+        <p class="text-sm text-slate-400 mt-1">.xlsx файл (Отчет Tekla)</p>
+        <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden">
     </div>
 
     <div id="loader" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl">
         <div class="loader mb-4"></div>
-        <p class="text-lg font-medium text-white">Расчёт металла...</p>
+        <p class="text-lg font-medium text-white">Обработка Excel...</p>
     </div>
 
     <div id="results" class="hidden space-y-4 mt-6"></div>
 
     <div id="actionsWrapper" class="hidden fixed bottom-6 left-4 right-4 z-40 flex flex-col gap-3">
-        <button onclick="downloadExcel()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex justify-center gap-2 items-center">
+        <button onclick="downloadExcel()" class="btn-excel w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex justify-center gap-2 items-center">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            Скачать Excel
+            Скачать Отчет
         </button>
-        
-        <button onclick="resetApp()" class="btn-secondary w-full py-3.5 rounded-xl font-semibold text-slate-300 flex justify-center gap-2">
-            ↺ Загрузить другой файл
+        <button onclick="resetApp()" class="bg-white/10 border border-white/10 w-full py-3.5 rounded-xl font-semibold text-slate-300 flex justify-center gap-2">
+            ↺ Загрузить другой
         </button>
     </div>
 
@@ -88,7 +87,7 @@
 
             } catch (err) {
                 tg.showAlert(`Ошибка: ${err.message}`);
-                resetApp(); // Сброс при ошибке
+                resetApp(); 
             } finally {
                 loader.classList.add('hidden');
                 fileInput.value = '';
@@ -135,9 +134,9 @@
             if (!html) {
                 html = `
                 <div class="glass p-8 rounded-2xl text-center border-dashed border-2 border-slate-600">
-                    <p class="text-3xl mb-2">🤷‍♂️</p>
-                    <p class="text-slate-300 font-bold">Данные не найдены</p>
-                    <p class="text-slate-500 text-sm mt-1">Попробуйте другой файл или проверьте формат</p>
+                    <p class="text-3xl mb-2">📂</p>
+                    <p class="text-slate-300 font-bold">Пусто</p>
+                    <p class="text-slate-500 text-sm mt-1">Проверьте, что в Excel есть колонки "Профиль", "Длина" и "Кол-во"</p>
                 </div>`;
             }
             resultsDiv.innerHTML = html;

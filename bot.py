@@ -27,9 +27,10 @@ async def api_calculate(request):
         if field.name != 'file': return web.json_response({'error': 'No file'}, status=400)
         
         filename = field.filename.lower()
-        # РАЗРЕШАЕМ И PDF И EXCEL
-        if not (filename.endswith('.pdf') or filename.endswith('.xlsx') or filename.endswith('.xls')):
-            return web.json_response({'error': 'Формат не поддерживается. Нужен PDF или Excel'}, status=400)
+        
+        # --- ВАЖНО: РАЗРЕШАЕМ ТОЛЬКО EXCEL ---
+        if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
+            return web.json_response({'error': 'Пожалуйста, загрузите файл Excel (.xlsx)'}, status=400)
         
         temp_path = f"temp_{field.filename}"
         with open(temp_path, 'wb') as f:
@@ -38,14 +39,12 @@ async def api_calculate(request):
                 if not chunk: break
                 f.write(chunk)
 
-        # Парсинг
-        parser = SpecParser()
-        # Логика внутри parser.parse сама разберется, PDF это или Excel
         try:
+            parser = SpecParser()
             data = parser.parse(temp_path)
-        except Exception as parse_error:
-            logging.error(f"Parse error: {parse_error}")
-            return web.json_response({'error': 'Не удалось прочитать таблицу. Убедитесь, что в PDF есть четкие границы таблицы.'}, status=400)
+        except Exception as parse_err:
+            logging.error(f"Parse error: {parse_err}")
+            return web.json_response({'error': 'Не удалось прочитать Excel. Проверьте формат.'}, status=400)
 
         calc = MetalCalculator()
         
@@ -70,19 +69,10 @@ async def api_calculate(request):
 
 async def api_export_excel(request):
     try:
-        if not LAST_CALCULATION:
-            return web.json_response({'error': 'Нет данных'}, status=400)
-        
+        if not LAST_CALCULATION: return web.json_response({'error': 'Нет данных'}, status=400)
         calc = MetalCalculator()
         excel_file = calc.generate_excel(LAST_CALCULATION)
-        
-        return web.Response(
-            body=excel_file.getvalue(),
-            headers={
-                'Content-Disposition': 'attachment; filename="Order_Metal.xlsx"',
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            }
-        )
+        return web.Response(body=excel_file.getvalue(), headers={'Content-Disposition': 'attachment; filename="Order_Metal.xlsx"', 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
     except Exception as e:
         return web.json_response({'error': str(e)}, status=500)
 
@@ -102,7 +92,7 @@ async def start_server():
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    await message.answer("Нажми кнопку меню для запуска! 🚀")
+    await message.answer("Нажми кнопку меню 📱")
 
 async def main():
     await start_server()
