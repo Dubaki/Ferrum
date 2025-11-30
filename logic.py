@@ -25,7 +25,6 @@ class MetalCalculator:
             std_area, std_name = (self.SHEET_SMALL_AREA, "1250x2500") if 0.5 <= t <= 2 else (self.SHEET_LARGE_AREA, "1500x6000")
             count = math.ceil(data['total_area'] / std_area)
             weight = (data['total_area'] * (t / 1000) * 7850) / 1000
-            
             results.append({
                 'name': f"Лист t={t}мм",
                 'summary': f"{count} шт ({std_name})",
@@ -108,18 +107,14 @@ class MetalCalculator:
 
 class SpecParser:
     def __init__(self):
-        # 3 числа (Прямоугольник/Разнополочный уголок)
         self.re_3_nums = re.compile(r'(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
-        # 2 числа (Квадрат/Уголок/Труба/Лист)
         self.re_2_nums = re.compile(r'(\d+)[xх*](\d+[.,]?\d*)', re.I)
-        # 1 число (Круг)
         self.re_1_num = re.compile(r'(?:Ø|O|0)?\s*(\d+)', re.I)
 
     def parse(self, file_path):
-        # В этом режиме мы ожидаем только Excel
         wb = openpyxl.load_workbook(file_path, data_only=True)
-        # Ищем лист со спецификацией (обычно он активный, но можно перебрать)
-        sheet = wb.active 
+        # Обычно в Tekla данные на 1-м листе, но иногда на других. Берем активный.
+        sheet = wb.active
         rows = list(sheet.iter_rows(values_only=True))
         return self._process_grid(rows)
 
@@ -131,60 +126,80 @@ class SpecParser:
         col_qty = None
         start_row = 0
 
-        # 1. ПОИСК КОЛОНОК (Адаптивный)
-        # Сканируем первые 20 строк, чтобы найти где заголовки
-        for r_idx, row in enumerate(rows[:20]):
+        # 1. ПОИСК ЗАГОЛОВКОВ (ГЛУБОКОЕ СКАНИРОВАНИЕ)
+        # Увеличили глубину поиска до 100 строк (у вас заголовки на ~43 строке)
+        for r_idx, row in enumerate(rows[:100]): 
             row_str = [str(x).lower() for x in row if x]
-            # Ищем строку где есть и "профиль", и "кол"
-            if any("профиль" in s for s in row_str) and any("кол" in s for s in row_str):
+            
+            # Ищем ключевые слова заголовков
+            if any(k in s for k in ["профиль", "наименование", "сечение"] for s in row_str):
                 for c_idx, cell_val in enumerate(row):
                     if not cell_val: continue
                     val = str(cell_val).lower()
-                    if "профиль" in val: col_profile = c_idx
-                    elif ("длина" in val or "мм" in val) and col_length is None: col_length = c_idx
-                    elif ("кол" in val or "шт" in val) and col_qty is None: col_qty = c_idx
+                    
+                    if "профиль" in val or "наименование" in val or "сечение" in val:
+                        col_profile = c_idx
+                    elif ("длина" in val or "мм" in val) and col_length is None:
+                        col_length = c_idx
+                    elif ("кол" in val or "шт" in val) and col_qty is None:
+                        col_qty = c_idx
                 
                 if col_profile is not None:
                     start_row = r_idx + 1
                     break
         
-        # Если не нашли заголовки, берем дефолт под ваш файл 291125.xlsx (Table 3.csv)
-        # В вашем файле: Кол=C(2), Профиль=D(3), Длина=E(4)
+        # Если заголовки не найдены (или файл без шапки), пробуем "угадать" по данным
         if col_profile is None:
-            col_qty = 2
-            col_profile = 3
-            col_length = 4
+            # Эвристика: ищем строку, где есть что-то похожее на профиль (например "L 50x5")
+            for r_idx, row in enumerate(rows[:100]):
+                for c_idx, cell_val in enumerate(row):
+                    val = str(cell_val)
+                    if "x" in val or "L" in val or "—" in val:
+                        # Предполагаем, что это колонка профиля
+                        col_profile = c_idx
+                        # Обычно кол-во слева (-1), длина справа (+1)
+                        if c_idx > 0: col_qty = c_idx - 1
+                        if c_idx + 1 < len(row): col_length = c_idx + 1
+                        start_row = r_idx
+                        break
+                if col_profile is not None: break
+
+        # Если совсем всё плохо - дефолт для Tekla (смещенный)
+        if col_profile is None:
+            col_qty = 5      # F (индекс 5)
+            col_profile = 6  # G (индекс 6)
+            col_length = 7   # H (индекс 7)
 
         # 2. ЧТЕНИЕ СТРОК
         for row in rows[start_row:]:
-            # Защита от пустых строк
-            if not row or len(row) <= max(col_profile, col_length, col_qty): continue
+            if not row or len(row) <= max(col_profile or 0, col_length or 0, col_qty or 0): continue
             
+            # Получаем значение профиля
             raw_profile = str(row[col_profile]).strip()
             if not raw_profile or raw_profile.lower() in ["профиль", "none", ""]: continue
 
+            # Получаем цифры (Длина и Кол-во)
             try:
-                # Чистка цифр (замена запятых, удаление пробелов)
-                # Длина
-                len_raw = str(row[col_length]).replace(',', '.').replace(u'\xa0', '').strip()
-                if not len_raw or len_raw == 'None': continue
-                length = float(re.findall(r"[\d\.]+", len_raw)[0])
+                len_val = str(row[col_length]).replace(',', '.').replace(u'\xa0', '').strip()
+                qty_val = str(row[col_qty]).replace(',', '.').replace(u'\xa0', '').strip()
                 
-                # Кол-во
-                qty_raw = str(row[col_qty]).replace(',', '.').replace(u'\xa0', '').strip()
-                if not qty_raw or qty_raw == 'None': continue
-                qty = float(re.findall(r"[\d\.]+", qty_raw)[0])
+                # Ищем числа (игнорируем пустые ячейки)
+                if not len_val or len_val == 'None': continue
+                if not qty_val or qty_val == 'None': continue
+
+                length = float(re.findall(r"[\d\.]+", len_val)[0])
+                qty = float(re.findall(r"[\d\.]+", qty_val)[0])
             except:
-                continue 
+                continue
 
             if length <= 0 or qty <= 0: continue
 
-            # --- ЛОГИКА РАСПРЕДЕЛЕНИЯ (Строго под ваши названия) ---
+            # --- ЛОГИКА РАСПРЕДЕЛЕНИЯ ---
             prof = raw_profile.upper()
             clean = raw_profile.lower().replace('х', 'x').replace('*', 'x').replace(',', '.')
 
             # 1. ТРУБА ПП (Прямоугольная)
-            if "ПП" in prof:
+            if "ПП" in prof or ("ТРУБА" in prof and self.re_3_nums.search(clean) and "ПК" not in prof):
                 m = self.re_3_nums.search(clean)
                 if m:
                     name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3)}"
@@ -193,18 +208,18 @@ class SpecParser:
 
             # 2. ТРУБА ПК (Квадратная)
             if "ПК" in prof:
-                m = self.re_3_nums.search(clean) # Бывает 100x100x4
+                m = self.re_3_nums.search(clean) # 100x100x4
                 if m: 
                     name = f"Труба ПК {m.group(1)}x{m.group(2)}x{m.group(3)}"
                     self._add(data['square_tubes'], name, length, qty)
                 else:
-                    m2 = self.re_2_nums.search(clean) # Бывает 100x4
+                    m2 = self.re_2_nums.search(clean) # 100x4
                     if m2:
                         name = f"Труба ПК {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
                         self._add(data['square_tubes'], name, length, qty)
                 continue
 
-            # 3. УГОЛОК (L или Уголок)
+            # 3. УГОЛОК
             if "УГОЛОК" in prof or prof.startswith("L") or "∟" in prof:
                 m3 = self.re_3_nums.search(clean)
                 if m3: 
@@ -217,7 +232,7 @@ class SpecParser:
                         self._add(data['angles'], name, length, qty)
                 continue
 
-            # 4. ЛИСТ (-, —, Лист, PL)
+            # 4. ЛИСТ
             if "ЛИСТ" in prof or prof.startswith("-") or "—" in prof or "–" in prof or "PL" in prof:
                 m = self.re_2_nums.search(clean)
                 if m:
@@ -229,8 +244,7 @@ class SpecParser:
                     })
                 continue
 
-            # 5. КРУГ (Круг, Ø)
-            # Важно: Проверяем это ДО "Трубы Э/С", так как Ø8 может быть похож на трубу
+            # 5. КРУГ
             if "КРУГ" in prof or (any(x in prof for x in ["O", "0", "Ø"]) and "X" not in prof.replace("X", "x")):
                 m = self.re_1_num.search(clean)
                 if m:
@@ -238,8 +252,7 @@ class SpecParser:
                     self._add(data['rounds'], name, length, qty)
                 continue
 
-            # 6. ТРУБА Э/С (Просто "Труба" или "Ø" с иксом)
-            # Сюда падает всё, что имеет слово "Труба" (но не ПП/ПК) или значок Ø с размерами
+            # 6. ТРУБА Э/С
             is_es = ("ТРУБА" in prof and "ПП" not in prof and "ПК" not in prof) or ("Ø" in prof and "X" in prof.replace("X", "x"))
             if is_es:
                 m = self.re_2_nums.search(clean)
