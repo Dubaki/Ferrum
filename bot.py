@@ -15,7 +15,7 @@ if not TOKEN: raise ValueError("Нет токена!")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-LAST_CALCULATION = {} # Временное хранилище для экспорта (в идеале нужна БД)
+LAST_CALCULATION = {} 
 
 async def index_handler(request):
     return web.FileResponse('./static/index.html')
@@ -26,16 +26,27 @@ async def api_calculate(request):
         field = await reader.next()
         if field.name != 'file': return web.json_response({'error': 'No file'}, status=400)
         
-        filename = field.filename
-        temp_path = f"temp_{filename}"
+        filename = field.filename.lower()
+        # РАЗРЕШАЕМ И PDF И EXCEL
+        if not (filename.endswith('.pdf') or filename.endswith('.xlsx') or filename.endswith('.xls')):
+            return web.json_response({'error': 'Формат не поддерживается. Нужен PDF или Excel'}, status=400)
+        
+        temp_path = f"temp_{field.filename}"
         with open(temp_path, 'wb') as f:
             while True:
                 chunk = await field.read_chunk()
                 if not chunk: break
                 f.write(chunk)
 
+        # Парсинг
         parser = SpecParser()
-        data = parser.parse(temp_path)
+        # Логика внутри parser.parse сама разберется, PDF это или Excel
+        try:
+            data = parser.parse(temp_path)
+        except Exception as parse_error:
+            logging.error(f"Parse error: {parse_error}")
+            return web.json_response({'error': 'Не удалось прочитать таблицу. Убедитесь, что в PDF есть четкие границы таблицы.'}, status=400)
+
         calc = MetalCalculator()
         
         response = {
@@ -47,7 +58,6 @@ async def api_calculate(request):
             for name, parts in data[k].items():
                 response[k].append(calc.optimize_profile(name, parts))
 
-        # Сохраняем результат для экспорта в Excel
         global LAST_CALCULATION
         LAST_CALCULATION = response
 
@@ -59,10 +69,9 @@ async def api_calculate(request):
         return web.json_response({'error': str(e)}, status=500)
 
 async def api_export_excel(request):
-    """Генерация Excel файла"""
     try:
         if not LAST_CALCULATION:
-            return web.json_response({'error': 'Нет данных для экспорта'}, status=400)
+            return web.json_response({'error': 'Нет данных'}, status=400)
         
         calc = MetalCalculator()
         excel_file = calc.generate_excel(LAST_CALCULATION)
@@ -80,10 +89,9 @@ async def api_export_excel(request):
 async def start_server():
     app = web.Application()
     cors = aiohttp_cors.setup(app, defaults={"*": aiohttp_cors.ResourceOptions(allow_credentials=True, expose_headers="*", allow_headers="*", allow_methods="*")})
-    
     app.router.add_get('/', index_handler)
     cors.add(app.router.add_post('/api/calculate', api_calculate))
-    cors.add(app.router.add_get('/api/export', api_export_excel)) # Новый маршрут
+    cors.add(app.router.add_get('/api/export', api_export_excel))
     
     runner = web.AppRunner(app)
     await runner.setup()

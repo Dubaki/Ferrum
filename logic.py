@@ -26,7 +26,6 @@ class MetalCalculator:
             std_area, std_name = (self.SHEET_SMALL_AREA, "1250x2500") if 0.5 <= t <= 2 else (self.SHEET_LARGE_AREA, "1500x6000")
             count = math.ceil(data['total_area'] / std_area)
             weight = (data['total_area'] * (t / 1000) * 7850) / 1000
-            
             results.append({
                 'name': f"Лист t={t}мм",
                 'summary': f"{count} шт ({std_name})",
@@ -71,7 +70,6 @@ class MetalCalculator:
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Заказ металла"
-        
         header_font = Font(bold=True, color="FFFFFF")
         header_fill = PatternFill("solid", fgColor="4F46E5")
         border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
@@ -110,200 +108,142 @@ class MetalCalculator:
 
 class SpecParser:
     def __init__(self):
-        # Трубы профильные прямоугольные (ПП)
-        self.re_pp = re.compile(r'(?:Труба\s+)?ПП.*?(\d+)\s*[xх×*]\s*(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
-        
-        # Трубы профильные квадратные (ПК)
-        self.re_pk = re.compile(r'(?:Труба\s+)?ПК.*?(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
-        
-        # Трубы электросварные (Э/С)
-        self.re_es = re.compile(r'Труба(?!\s*(?:ПП|ПК)).*?(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
-        
-        # Уголок (по слову)
-        self.re_angle = re.compile(r'Уголок.*?(\d+)\s*[xх×*]\s*(\d+)(?:\s*[xх×*]\s*(\d+))?', re.I)
-        
-        # Круг (по слову)
-        self.re_round = re.compile(r'Круг.*?(\d+)', re.I)
-        
-        # Лист (по слову)
-        self.re_sheet = re.compile(r'Лист.*?(\d+)\s*[xх×*]\s*(\d+)', re.I)
-        
-        # Поиск по символам (резервные паттерны)
-        self.re_sheet_dash = re.compile(r'[-–—]\s*(\d+)\s*[xх×*]\s*(\d+)', re.I)
-        self.re_angle_L = re.compile(r'[L∟∠]\s*(\d+)\s*[xх×*]\s*(\d+)(?:\s*[xх×*]\s*(\d+))?', re.I)
-        self.re_es_circle = re.compile(r'[ØOО0]\s*(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
-        self.re_round_circle = re.compile(r'[ØOО0]\s*(\d+)(?!\s*[xх×*])', re.I)
+        self.re_3_nums = re.compile(r'(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
+        self.re_2_nums = re.compile(r'(\d+)[xх*](\d+[.,]?\d*)', re.I)
+        self.re_1_num = re.compile(r'(?:Ø|O|0)?\s*(\d+)', re.I)
 
-    def parse(self, pdf_path):
-        data = {
-            'sheets': [], 
-            'rect_tubes': {}, 
-            'square_tubes': {}, 
-            'es_pipes': {}, 
-            'angles': {}, 
-            'rounds': {}
-        }
-        
-        with pdfplumber.open(pdf_path) as pdf:
+    def parse(self, file_path):
+        if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+            return self._parse_excel(file_path)
+        else:
+            return self._parse_pdf_as_tables(file_path)
+
+    def _parse_excel(self, file_path):
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        sheet = wb.active
+        rows = list(sheet.iter_rows(values_only=True))
+        return self._process_grid(rows)
+
+    def _parse_pdf_as_tables(self, file_path):
+        rows = []
+        with pdfplumber.open(file_path) as pdf:
             for page in pdf.pages:
-                text = page.extract_text()
-                if not text:
-                    continue
-                
-                # Нормализация текста
-                text = text.replace('х', 'x').replace('Х', 'x').replace('×', 'x')
-                text = text.replace('*', 'x').replace('–', '-').replace('—', '-')
-                
-                for line in text.split('\n'):
-                    line = line.strip()
-                    if not line or len(line) < 5:
-                        continue
-                    
-                    # Пропускаем заголовки
-                    if any(word in line for word in ['Марка', 'Обозначение', 'Наименование', 'Формат']):
-                        continue
-                    
-                    # Обрабатываем строку по приоритету
-                    if self._try_parse_line(line, data):
-                        continue
+                # Извлекаем таблицы. Это превращает PDF в сетку данных.
+                tables = page.extract_tables()
+                for table in tables:
+                    for row in table:
+                        # Очищаем None (в pdfplumber пустые ячейки = None)
+                        clean_row = [str(cell) if cell is not None else "" for cell in row]
+                        rows.append(clean_row)
+        return self._process_grid(rows)
+
+    def _process_grid(self, rows):
+        """Единая логика для Excel и PDF-таблиц"""
+        data = {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
         
+        col_profile = None
+        col_length = None
+        col_qty = None
+        header_found = False
+
+        # 1. Поиск колонок
+        for r_idx, row in enumerate(rows[:20]): # Ищем в первых 20 строках
+            row_str = [str(x).lower() for x in row if x]
+            if any("профиль" in s or "наименование" in s or "сечение" in s for s in row_str):
+                for c_idx, cell_val in enumerate(row):
+                    val = str(cell_val).lower()
+                    if "профиль" in val or "сечение" in val or "наим" in val: col_profile = c_idx
+                    elif ("длина" in val or "мм" in val) and col_length is None: col_length = c_idx
+                    elif ("кол" in val or "шт" in val) and col_qty is None: col_qty = c_idx
+                header_found = True
+                start_row = r_idx + 1
+                break
+        
+        # Если заголовки не найдены, используем дефолтные для Tekla (3-я, 4-я, 5-я колонки)
+        if not header_found or col_profile is None:
+            col_qty = 2      # Обычно 3-я колонка
+            col_profile = 3  # Обычно 4-я колонка
+            col_length = 4   # Обычно 5-я колонка
+            start_row = 0
+
+        # 2. Обработка данных
+        for row in rows[start_row:]:
+            if not row or len(row) <= max(col_profile, col_length, col_qty): continue
+            
+            raw_profile = str(row[col_profile]).strip()
+            if not raw_profile or "Профиль" in raw_profile: continue
+
+            # Чистка цифр
+            try:
+                length_str = str(row[col_length]).replace(',', '.').replace(' ', '')
+                # Удаляем нечисловые символы кроме точки
+                length = float(re.findall(r"[\d\.]+", length_str)[0])
+                
+                qty_str = str(row[col_qty]).replace(',', '.').replace(' ', '')
+                qty = float(re.findall(r"[\d\.]+", qty_str)[0])
+            except:
+                continue
+
+            if length <= 0 or qty <= 0: continue
+
+            # Логика определения (Та же, что и раньше)
+            prof_upper = raw_profile.upper()
+            clean_profile = raw_profile.lower().replace('х', 'x').replace('*', 'x').replace(',', '.')
+
+            # ТРУБА ПП
+            if "ПП" in prof_upper or ("ТРУБА" in prof_upper and self.re_3_nums.search(clean_profile) and "ПК" not in prof_upper):
+                m = self.re_3_nums.search(clean_profile)
+                if m:
+                    name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3)}"
+                    self._add(data['rect_tubes'], name, length, qty)
+                continue
+
+            # ТРУБА ПК
+            if "ПК" in prof_upper:
+                m = self.re_3_nums.search(clean_profile)
+                if m: name = f"Труба ПК {m.group(1)}x{m.group(2)}x{m.group(3)}"
+                else:
+                    m2 = self.re_2_nums.search(clean_profile)
+                    if m2: name = f"Труба ПК {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
+                if m or m2: self._add(data['square_tubes'], name, length, qty)
+                continue
+
+            # ТРУБА Э/С
+            is_es = ("ТРУБА" in prof_upper and "ПП" not in prof_upper and "ПК" not in prof_upper) or "Ø" in prof_upper or ("O" in prof_upper and "x" in clean_profile)
+            if is_es:
+                m = self.re_2_nums.search(clean_profile)
+                if m:
+                    name = f"Труба Э/С Ø{m.group(1)}x{m.group(2)}"
+                    self._add(data['es_pipes'], name, length, qty)
+                continue
+
+            # УГОЛОК
+            if "УГОЛОК" in prof_upper or prof_upper.startswith("L") or "∟" in prof_upper:
+                m = self.re_3_nums.search(clean_profile)
+                if m: name = f"Уголок {m.group(1)}x{m.group(2)}x{m.group(3)}"
+                else:
+                    m2 = self.re_2_nums.search(clean_profile)
+                    if m2: name = f"Уголок {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
+                if m or m2: self._add(data['angles'], name, length, qty)
+                continue
+
+            # ЛИСТ
+            if "ЛИСТ" in prof_upper or prof_upper.startswith("-") or "PL" in prof_upper:
+                m = self.re_2_nums.search(clean_profile)
+                if m:
+                    data['sheets'].append({'qty': int(qty), 'thickness': float(m.group(1)), 'width': float(m.group(2)), 'length': length})
+                continue
+
+            # КРУГ
+            if "КРУГ" in prof_upper or (any(x in prof_upper for x in ["O", "0", "Ø"]) and "X" not in prof_upper):
+                m = self.re_1_num.search(clean_profile)
+                if m:
+                    name = f"Круг Ø{m.group(1)}"
+                    self._add(data['rounds'], name, length, qty)
+                continue
+
         return data
 
-    def _try_parse_line(self, line, data):
-        """Пытается распарсить строку по всем известным паттернам"""
-        
-        # 1. Профильная труба прямоугольная (ПП)
-        if 'ПП' in line.upper():
-            m = self.re_pp.search(line)
-            if m:
-                name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3).replace(',', '.')}"
-                self._add_profile_item(data['rect_tubes'], line, m, name)
-                return True
-        
-        # 2. Профильная труба квадратная (ПК)
-        if 'ПК' in line.upper():
-            m = self.re_pk.search(line)
-            if m:
-                size = m.group(1)
-                thickness = m.group(2).replace(',', '.')
-                name = f"Труба ПК {size}x{thickness}"
-                self._add_profile_item(data['square_tubes'], line, m, name)
-                return True
-        
-        # 3. Уголок
-        if 'УГОЛОК' in line.upper():
-            m = self.re_angle.search(line)
-            if m:
-                s1, s2, s3 = m.groups()
-                if s3:
-                    name = f"Уголок {s1}x{s2}x{s3}"
-                else:
-                    # Равнополочный уголок
-                    name = f"Уголок {s1}x{s1}x{s2}"
-                self._add_profile_item(data['angles'], line, m, name)
-                return True
-        
-        # 4. Круг (пруток)
-        if 'КРУГ' in line.upper():
-            m = self.re_round.search(line)
-            if m:
-                name = f"Круг Ø{m.group(1)}"
-                self._add_profile_item(data['rounds'], line, m, name)
-                return True
-        
-        # 5. Лист
-        if 'ЛИСТ' in line.upper():
-            m = self.re_sheet.search(line)
-            if m:
-                self._add_sheet_item(data['sheets'], line, m)
-                return True
-        
-        # 6. Труба электросварная (без ПП/ПК)
-        if 'ТРУБА' in line.upper() and not ('ПП' in line.upper() or 'ПК' in line.upper()):
-            m = self.re_es.search(line)
-            if m:
-                name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
-                self._add_profile_item(data['es_pipes'], line, m, name)
-                return True
-        
-        # 7. Резервные паттерны (символы)
-        
-        # Лист (по тире)
-        m = self.re_sheet_dash.search(line)
-        if m:
-            self._add_sheet_item(data['sheets'], line, m)
-            return True
-        
-        # Уголок (по L)
-        m = self.re_angle_L.search(line)
-        if m:
-            s1, s2, s3 = m.groups()
-            if s3:
-                name = f"Уголок {s1}x{s2}x{s3}"
-            else:
-                name = f"Уголок {s1}x{s1}x{s2}"
-            self._add_profile_item(data['angles'], line, m, name)
-            return True
-        
-        # Труба Э/С (по Ø с двумя числами)
-        m = self.re_es_circle.search(line)
-        if m:
-            name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
-            self._add_profile_item(data['es_pipes'], line, m, name)
-            return True
-        
-        # Круг (по Ø с одним числом)
-        m = self.re_round_circle.search(line)
-        if m:
-            name = f"Круг Ø{m.group(1)}"
-            self._add_profile_item(data['rounds'], line, m, name)
-            return True
-        
-        return False
-
-    def _add_profile_item(self, storage, line, match_obj, name):
-        """Добавляет профильный элемент (труба, уголок, круг)"""
-        # Ищем длину после совпадения
-        right_part = line[match_obj.end():]
-        m_len = re.search(r'L\s*=\s*(\d+)|(\d{3,5})\s*мм', right_part, re.I)
-        
-        if not m_len:
-            # Просто ищем число длины
-            m_len = re.search(r'(\d{3,5})', right_part)
-        
-        length = float(m_len.group(1) or m_len.group(2)) if m_len else 0
-        
-        # Ищем количество слева от совпадения
-        left_part = line[:match_obj.start()]
-        nums = re.findall(r'(\d+)', left_part)
-        qty = int(nums[-1]) if nums else 1
-        
-        # Добавляем только если длина разумная
-        if 50 <= length <= 15000:
-            if name not in storage:
-                storage[name] = []
-            storage[name].append({'length': length, 'qty': qty})
-
-    def _add_sheet_item(self, storage, line, match_obj):
-        """Добавляет листовой элемент"""
-        # Толщина и ширина из регулярки
-        thickness = float(match_obj.group(1))
-        width = float(match_obj.group(2))
-        
-        # Ищем длину после совпадения
-        right_part = line[match_obj.end():]
-        m_len = re.search(r'(\d+)', right_part)
-        length = float(m_len.group(1)) if m_len else 0
-        
-        # Ищем количество слева
-        left_part = line[:match_obj.start()]
-        nums = re.findall(r'(\d+)', left_part)
-        qty = int(nums[-1]) if nums else 1
-        
-        if length > 0:
-            storage.append({
-                'qty': qty,
-                'thickness': thickness,
-                'width': width,
-                'length': length
-            })
+    def _add(self, d, name, l, q):
+        if name not in d: d[name] = []
+        d[name].append({'length': l, 'qty': int(q)})
