@@ -27,10 +27,8 @@ async def api_calculate(request):
         if field.name != 'file': return web.json_response({'error': 'No file'}, status=400)
         
         filename = field.filename.lower()
-        
-        # --- ВАЖНО: РАЗРЕШАЕМ ТОЛЬКО EXCEL ---
         if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
-            return web.json_response({'error': 'Пожалуйста, загрузите файл Excel (.xlsx)'}, status=400)
+            return web.json_response({'error': 'Пожалуйста, загрузите Excel (.xlsx)'}, status=400)
         
         temp_path = f"temp_{field.filename}"
         with open(temp_path, 'wb') as f:
@@ -40,11 +38,12 @@ async def api_calculate(request):
                 f.write(chunk)
 
         try:
+            # Сразу используем парсер (он внутри сам откроет Excel)
             parser = SpecParser()
             data = parser.parse(temp_path)
         except Exception as parse_err:
             logging.error(f"Parse error: {parse_err}")
-            return web.json_response({'error': 'Не удалось прочитать Excel. Проверьте формат.'}, status=400)
+            return web.json_response({'error': 'Ошибка чтения Excel. Проверьте формат.'}, status=400)
 
         calc = MetalCalculator()
         
@@ -92,7 +91,7 @@ async def start_server():
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    await message.answer("Нажми кнопку меню 📱")
+    await message.answer("Откройте приложение по кнопке меню 📱")
 
 async def main():
     await start_server()

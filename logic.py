@@ -1,6 +1,5 @@
 import re
 import math
-import pdfplumber
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from io import BytesIO
@@ -71,7 +70,6 @@ class MetalCalculator:
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Заказ металла"
-        
         header_font = Font(bold=True, color="FFFFFF")
         header_fill = PatternFill("solid", fgColor="4F46E5")
         border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
@@ -108,225 +106,172 @@ class MetalCalculator:
         stream.seek(0)
         return stream
 
-
 class SpecParser:
     def __init__(self):
-        # Регулярки для поиска размеров
-        self.re_3_nums = re.compile(r'(\d+)\s*[xх×*]\s*(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
-        self.re_2_nums = re.compile(r'(\d+)\s*[xх×*]\s*(\d+[.,]?\d*)', re.I)
-        self.re_1_num = re.compile(r'(\d+)', re.I)
+        # Паттерны для классификации профиля
+        self.re_profile_marker = re.compile(r'(?:[xх]\d|L|Ø|ПК|ПП|Труба|Лист|—|-)', re.I)
+        
+        # Для извлечения размеров
+        self.re_3_nums = re.compile(r'(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
+        self.re_2_nums = re.compile(r'(\d+)[xх*](\d+[.,]?\d*)', re.I)
+        self.re_1_num = re.compile(r'(?:Ø|O|0)?\s*(\d+)', re.I)
 
     def parse(self, file_path):
-        """Главная функция парсинга - определяет формат и вызывает нужный парсер"""
-        if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-            return self._parse_excel(file_path)
-        else:
-            return self._parse_pdf(file_path)
-
-    def _parse_excel(self, file_path):
-        """Парсинг Excel файлов"""
         wb = openpyxl.load_workbook(file_path, data_only=True)
-        sheet = wb.active
+        sheet = wb.active 
         rows = list(sheet.iter_rows(values_only=True))
-        return self._process_table_data(rows)
-
-    def _parse_pdf(self, file_path):
-        """Парсинг PDF - извлекает таблицы"""
-        all_rows = []
         
-        with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
-                # Извлекаем таблицы из PDF
-                tables = page.extract_tables()
+        if not rows: return self._empty_data()
+
+        # --- ЭТАП 1: ОПРЕДЕЛЕНИЕ ТИПОВ КОЛОНОК (Scoring) ---
+        # Мы пройдем по всем колонкам и дадим им баллы:
+        # Score_Profile: содержит буквы и цифры, есть 'x', 'L', 'Ø'
+        # Score_Length: содержит числа > 10 (длина)
+        # Score_Qty: содержит целые числа < 1000 (кол-во)
+
+        max_cols = max(len(r) for r in rows[:50]) # Проверяем первые 50 строк
+        scores = [{'profile': 0, 'length': 0, 'qty': 0} for _ in range(max_cols)]
+
+        for row in rows[:100]: # Анализируем до 100 строк для точности
+            for i, val in enumerate(row):
+                if i >= max_cols or not val: continue
+                s_val = str(val).strip()
                 
-                if tables:
-                    # Если нашли таблицы - обрабатываем их
-                    for table in tables:
-                        for row in table:
-                            clean_row = [str(cell).strip() if cell else "" for cell in row]
-                            all_rows.append(clean_row)
-                else:
-                    # Если таблиц нет - пытаемся парсить как текст
-                    text = page.extract_text()
-                    if text:
-                        for line in text.split('\n'):
-                            # Разбиваем по пробелам/табам
-                            parts = re.split(r'\s{2,}|\t', line.strip())
-                            if len(parts) >= 3:
-                                all_rows.append(parts)
-        
-        return self._process_table_data(all_rows)
+                # Проверка на Профиль (текст + цифры + маркеры)
+                if self.re_profile_marker.search(s_val) and any(c.isdigit() for c in s_val) and len(s_val) > 2:
+                    scores[i]['profile'] += 5 # Сильный признак
+                
+                # Проверка на Числа
+                try:
+                    num = float(s_val.replace(',', '.').replace(u'\xa0', ''))
+                    if num > 10: 
+                        scores[i]['length'] += 1 # Похоже на длину
+                    if 0 < num < 1000 and num.is_integer():
+                        scores[i]['qty'] += 1    # Похоже на кол-во
+                except:
+                    pass
 
-    def _process_table_data(self, rows):
-        """Единая обработка табличных данных (из PDF или Excel)"""
-        data = {
-            'sheets': [], 
-            'rect_tubes': {}, 
-            'square_tubes': {}, 
-            'es_pipes': {}, 
-            'angles': {}, 
-            'rounds': {}
-        }
+        # Выбираем победителей (индексы колонок)
+        # Сортируем индексы по баллам
+        col_profile = sorted(range(len(scores)), key=lambda k: scores[k]['profile'], reverse=True)[0]
         
-        # Автоопределение колонок
-        col_indices = self._detect_columns(rows)
+        # Для длины и кол-ва берем топ-2 колонки с числами и пытаемся различить
+        # Обычно Длина > Кол-ва.
+        # Исключаем колонку профиля из кандидатов
+        numeric_cols = sorted(range(len(scores)), key=lambda k: scores[k]['length'] + scores[k]['qty'], reverse=True)
+        numeric_cols = [c for c in numeric_cols if c != col_profile]
         
-        if not col_indices:
-            # Если не смогли определить колонки - используем дефолт для Tekla
-            col_indices = {'qty': 2, 'profile': 3, 'length': 4}
+        if len(numeric_cols) < 2:
+            # Аварийный режим (если не нашли 2 числовые колонки)
+            return self._empty_data()
+
+        # Эвристика: Колонка с бОльшим средним значением - это Длина
+        col_A = numeric_cols[0]
+        col_B = numeric_cols[1]
         
-        # Обрабатываем строки данных
-        start_row = col_indices.get('header_row', 0) + 1
+        avg_A = self._get_avg_val(rows, col_A)
+        avg_B = self._get_avg_val(rows, col_B)
+
+        if avg_A > avg_B:
+            col_length, col_qty = col_A, col_B
+        else:
+            col_length, col_qty = col_B, col_A
+
+        # --- ЭТАП 2: ЧТЕНИЕ ДАННЫХ ИЗ НАЙДЕННЫХ КОЛОНОК ---
+        return self._extract_data(rows, col_profile, col_length, col_qty)
+
+    def _get_avg_val(self, rows, col_idx):
+        total, count = 0, 0
+        for row in rows[:50]:
+            if col_idx < len(row):
+                try:
+                    val = float(str(row[col_idx]).replace(',', '.'))
+                    total += val
+                    count += 1
+                except: pass
+        return total / count if count > 0 else 0
+
+    def _extract_data(self, rows, c_prof, c_len, c_qty):
+        data = {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
         
-        for row in rows[start_row:]:
-            if not row or len(row) < max(col_indices.values()):
-                continue
+        for row in rows:
+            if not row or len(row) <= max(c_prof, c_len, c_qty): continue
             
+            raw_profile = str(row[c_prof]).strip()
+            if not raw_profile or "Профиль" in raw_profile: continue # Пропуск заголовков
+
             try:
-                # Извлекаем данные
-                qty = self._extract_number(row[col_indices['qty']])
-                profile_text = str(row[col_indices['profile']]).strip()
-                length = self._extract_number(row[col_indices['length']])
-                
-                if not profile_text or qty <= 0 or length <= 0:
-                    continue
-                
-                # Классифицируем и добавляем
-                self._classify_and_add(profile_text, length, qty, data)
-                
-            except (IndexError, ValueError, TypeError):
+                length = float(str(row[c_len]).replace(',', '.').replace(u'\xa0', ''))
+                qty = float(str(row[c_qty]).replace(',', '.').replace(u'\xa0', ''))
+            except: continue
+
+            if length <= 0 or qty <= 0: continue
+
+            # --- ЛОГИКА ОПРЕДЕЛЕНИЯ (Та же, что и раньше, но теперь данные точные) ---
+            prof = raw_profile.upper()
+            clean = raw_profile.lower().replace('х', 'x').replace('*', 'x').replace(',', '.')
+
+            # 1. ТРУБА ПП
+            if "ПП" in prof or ("ТРУБА" in prof and self.re_3_nums.search(clean) and "ПК" not in prof):
+                m = self.re_3_nums.search(clean)
+                if m:
+                    name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3)}"
+                    self._add(data['rect_tubes'], name, length, qty)
                 continue
-        
+
+            # 2. ТРУБА ПК
+            if "ПК" in prof:
+                m3 = self.re_3_nums.search(clean)
+                m2 = self.re_2_nums.search(clean)
+                if m3: 
+                    name = f"Труба ПК {m3.group(1)}x{m3.group(2)}x{m3.group(3)}"
+                    self._add(data['square_tubes'], name, length, qty)
+                elif m2:
+                    name = f"Труба ПК {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
+                    self._add(data['square_tubes'], name, length, qty)
+                continue
+
+            # 3. УГОЛОК
+            if "УГОЛОК" in prof or prof.startswith("L") or "∟" in prof or "∠" in prof:
+                m3 = self.re_3_nums.search(clean)
+                m2 = self.re_2_nums.search(clean)
+                if m3:
+                    name = f"Уголок {m3.group(1)}x{m3.group(2)}x{m3.group(3)}"
+                    self._add(data['angles'], name, length, qty)
+                elif m2:
+                    name = f"Уголок {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
+                    self._add(data['angles'], name, length, qty)
+                continue
+
+            # 4. ЛИСТ
+            if "ЛИСТ" in prof or prof.startswith("-") or "—" in prof or "–" in prof or "PL" in prof:
+                m = self.re_2_nums.search(clean)
+                if m:
+                    data['sheets'].append({'qty': int(qty), 'thickness': float(m.group(1)), 'width': float(m.group(2)), 'length': length})
+                continue
+
+            # 5. КРУГ
+            if "КРУГ" in prof or (any(x in prof for x in ["O", "0", "Ø"]) and "X" not in prof.replace("X", "x")):
+                m = self.re_1_num.search(clean)
+                if m:
+                    name = f"Круг Ø{m.group(1)}"
+                    self._add(data['rounds'], name, length, qty)
+                continue
+
+            # 6. ТРУБА Э/С
+            is_es = ("ТРУБА" in prof and "ПП" not in prof and "ПК" not in prof) or ("Ø" in prof and "X" in prof.replace("X", "x"))
+            if is_es:
+                m = self.re_2_nums.search(clean)
+                if m:
+                    name = f"Труба Э/С Ø{m.group(1)}x{m.group(2)}"
+                    self._add(data['es_pipes'], name, length, qty)
+                continue
+
         return data
 
-    def _detect_columns(self, rows):
-        """Автоматическое определение колонок в таблице"""
-        for idx, row in enumerate(rows[:20]):  # Ищем в первых 20 строках
-            row_str = ' '.join([str(cell).lower() for cell in row if cell])
-            
-            # Ищем заголовок таблицы
-            if any(word in row_str for word in ['наименование', 'профиль', 'сечение', 'примечание']):
-                result = {'header_row': idx}
-                
-                for col_idx, cell in enumerate(row):
-                    cell_lower = str(cell).lower()
-                    
-                    # Колонка с профилем/сечением
-                    if any(word in cell_lower for word in ['профиль', 'сечение', 'наименование', 'примечание']):
-                        result['profile'] = col_idx
-                    
-                    # Колонка с длиной
-                    elif any(word in cell_lower for word in ['длина', 'l=', 'мм']):
-                        if 'length' not in result:
-                            result['length'] = col_idx
-                    
-                    # Колонка с количеством
-                    elif any(word in cell_lower for word in ['кол', 'шт', 'количество']):
-                        if 'qty' not in result:
-                            result['qty'] = col_idx
-                
-                # Проверяем, что нашли все нужные колонки
-                if all(key in result for key in ['qty', 'profile', 'length']):
-                    return result
-        
-        return None
+    def _add(self, d, name, l, q):
+        if name not in d: d[name] = []
+        d[name].append({'length': l, 'qty': int(q)})
 
-    def _extract_number(self, value):
-        """Извлекает число из строки"""
-        if value is None:
-            return 0
-        
-        value_str = str(value).replace(',', '.').replace(' ', '').strip()
-        
-        # Ищем все числа в строке
-        numbers = re.findall(r'\d+\.?\d*', value_str)
-        
-        if numbers:
-            return float(numbers[0])
-        
-        return 0
-
-    def _classify_and_add(self, profile_text, length, qty, data):
-        """Классифицирует профиль и добавляет в нужную категорию"""
-        
-        profile_upper = profile_text.upper()
-        profile_clean = profile_text.replace('х', 'x').replace('Х', 'x').replace('*', 'x')
-        
-        # 1. ТРУБА ПП (прямоугольная)
-        if 'ПП' in profile_upper or ('ТРУБА' in profile_upper and self.re_3_nums.search(profile_clean)):
-            m = self.re_3_nums.search(profile_clean)
-            if m:
-                name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3).replace(',', '.')}"
-                self._add_item(data['rect_tubes'], name, length, qty)
-                return
-        
-        # 2. ТРУБА ПК (квадратная)
-        if 'ПК' in profile_upper:
-            m = self.re_3_nums.search(profile_clean)
-            if m:
-                name = f"Труба ПК {m.group(1)}x{m.group(2)}x{m.group(3).replace(',', '.')}"
-            else:
-                m = self.re_2_nums.search(profile_clean)
-                if m:
-                    name = f"Труба ПК {m.group(1)}x{m.group(1)}x{m.group(2).replace(',', '.')}"
-            if m:
-                self._add_item(data['square_tubes'], name, length, qty)
-                return
-        
-        # 3. ТРУБА Э/С (круглая электросварная)
-        is_es_pipe = (
-            ('ТРУБА' in profile_upper and 'ПП' not in profile_upper and 'ПК' not in profile_upper) or
-            'Ø' in profile_text or
-            ('ГОСТ Р 58064' in profile_text) or
-            ('159X4' in profile_upper.replace(' ', ''))
-        )
-        
-        if is_es_pipe:
-            m = self.re_2_nums.search(profile_clean)
-            if m:
-                name = f"Труба Э/С Ø{m.group(1)}x{m.group(2).replace(',', '.')}"
-                self._add_item(data['es_pipes'], name, length, qty)
-                return
-        
-        # 4. УГОЛОК
-        if 'УГОЛОК' in profile_upper or profile_text.startswith('L'):
-            m = self.re_3_nums.search(profile_clean)
-            if m:
-                name = f"Уголок {m.group(1)}x{m.group(2)}x{m.group(3)}"
-            else:
-                m = self.re_2_nums.search(profile_clean)
-                if m:
-                    name = f"Уголок {m.group(1)}x{m.group(1)}x{m.group(2)}"
-            
-            if m:
-                self._add_item(data['angles'], name, length, qty)
-                return
-        
-        # 5. ЛИСТ
-        if 'ЛИСТ' in profile_upper or profile_text.startswith('-'):
-            m = self.re_2_nums.search(profile_clean)
-            if m:
-                thickness = float(m.group(1))
-                width = float(m.group(2))
-                data['sheets'].append({
-                    'qty': int(qty),
-                    'thickness': thickness,
-                    'width': width,
-                    'length': length
-                })
-                return
-        
-        # 6. КРУГ (пруток)
-        if 'КРУГ' in profile_upper or ('Ø' in profile_text and 'X' not in profile_upper):
-            m = self.re_1_num.search(profile_clean)
-            if m:
-                diameter = m.group(1)
-                name = f"Круг Ø{diameter}"
-                self._add_item(data['rounds'], name, length, qty)
-                return
-
-    def _add_item(self, storage, name, length, qty):
-        """Добавляет элемент в хранилище"""
-        if name not in storage:
-            storage[name] = []
-        storage[name].append({'length': length, 'qty': int(qty)})
+    def _empty_data(self):
+        return {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
