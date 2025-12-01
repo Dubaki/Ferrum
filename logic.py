@@ -108,163 +108,110 @@ class MetalCalculator:
 
 class SpecParser:
     def __init__(self):
-        # Паттерны для классификации профиля
-        self.re_profile_marker = re.compile(r'(?:[xх]\d|L|Ø|ПК|ПП|Труба|Лист|—|-)', re.I)
-        
-        # Для извлечения размеров
+        # Регулярки для очищенного текста (где 'х' заменен на 'x')
         self.re_3_nums = re.compile(r'(\d+)[xх*](\d+)[xх*](\d+[.,]?\d*)', re.I)
         self.re_2_nums = re.compile(r'(\d+)[xх*](\d+[.,]?\d*)', re.I)
         self.re_1_num = re.compile(r'(?:Ø|O|0)?\s*(\d+)', re.I)
 
     def parse(self, file_path):
         wb = openpyxl.load_workbook(file_path, data_only=True)
-        sheet = wb.active 
+        sheet = wb.active
         rows = list(sheet.iter_rows(values_only=True))
         
-        if not rows: return self._empty_data()
-
-        # --- ЭТАП 1: ОПРЕДЕЛЕНИЕ ТИПОВ КОЛОНОК (Scoring) ---
-        # Мы пройдем по всем колонкам и дадим им баллы:
-        # Score_Profile: содержит буквы и цифры, есть 'x', 'L', 'Ø'
-        # Score_Length: содержит числа > 10 (длина)
-        # Score_Qty: содержит целые числа < 1000 (кол-во)
-
-        max_cols = max(len(r) for r in rows[:50]) # Проверяем первые 50 строк
-        scores = [{'profile': 0, 'length': 0, 'qty': 0} for _ in range(max_cols)]
-
-        for row in rows[:100]: # Анализируем до 100 строк для точности
-            for i, val in enumerate(row):
-                if i >= max_cols or not val: continue
-                s_val = str(val).strip()
-                
-                # Проверка на Профиль (текст + цифры + маркеры)
-                if self.re_profile_marker.search(s_val) and any(c.isdigit() for c in s_val) and len(s_val) > 2:
-                    scores[i]['profile'] += 5 # Сильный признак
-                
-                # Проверка на Числа
-                try:
-                    num = float(s_val.replace(',', '.').replace(u'\xa0', ''))
-                    if num > 10: 
-                        scores[i]['length'] += 1 # Похоже на длину
-                    if 0 < num < 1000 and num.is_integer():
-                        scores[i]['qty'] += 1    # Похоже на кол-во
-                except:
-                    pass
-
-        # Выбираем победителей (индексы колонок)
-        # Сортируем индексы по баллам
-        col_profile = sorted(range(len(scores)), key=lambda k: scores[k]['profile'], reverse=True)[0]
-        
-        # Для длины и кол-ва берем топ-2 колонки с числами и пытаемся различить
-        # Обычно Длина > Кол-ва.
-        # Исключаем колонку профиля из кандидатов
-        numeric_cols = sorted(range(len(scores)), key=lambda k: scores[k]['length'] + scores[k]['qty'], reverse=True)
-        numeric_cols = [c for c in numeric_cols if c != col_profile]
-        
-        if len(numeric_cols) < 2:
-            # Аварийный режим (если не нашли 2 числовые колонки)
-            return self._empty_data()
-
-        # Эвристика: Колонка с бОльшим средним значением - это Длина
-        col_A = numeric_cols[0]
-        col_B = numeric_cols[1]
-        
-        avg_A = self._get_avg_val(rows, col_A)
-        avg_B = self._get_avg_val(rows, col_B)
-
-        if avg_A > avg_B:
-            col_length, col_qty = col_A, col_B
-        else:
-            col_length, col_qty = col_B, col_A
-
-        # --- ЭТАП 2: ЧТЕНИЕ ДАННЫХ ИЗ НАЙДЕННЫХ КОЛОНОК ---
-        return self._extract_data(rows, col_profile, col_length, col_qty)
-
-    def _get_avg_val(self, rows, col_idx):
-        total, count = 0, 0
-        for row in rows[:50]:
-            if col_idx < len(row):
-                try:
-                    val = float(str(row[col_idx]).replace(',', '.'))
-                    total += val
-                    count += 1
-                except: pass
-        return total / count if count > 0 else 0
-
-    def _extract_data(self, rows, c_prof, c_len, c_qty):
         data = {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
         
-        for row in rows:
-            if not row or len(row) <= max(c_prof, c_len, c_qty): continue
-            
-            raw_profile = str(row[c_prof]).strip()
-            if not raw_profile or "Профиль" in raw_profile: continue # Пропуск заголовков
+        col_profile = None
+        col_length = None
+        col_qty = None
+        start_row = 0
 
+        # 1. ПОИСК ЗАГОЛОВКОВ (ГЛУБОКИЙ - до 100 строк)
+        for r_idx, row in enumerate(rows[:100]):
+            row_str = [str(x).lower() for x in row if x]
+            if any(k in s for k in ["профиль", "наименование", "сечение"] for s in row_str):
+                for c_idx, cell_val in enumerate(row):
+                    if not cell_val: continue
+                    val = str(cell_val).lower()
+                    if "профиль" in val or "наименование" in val: col_profile = c_idx
+                    elif ("длина" in val or "мм" in val) and col_length is None: col_length = c_idx
+                    elif ("кол" in val or "шт" in val) and col_qty is None: col_qty = c_idx
+                
+                if col_profile is not None:
+                    start_row = r_idx + 1
+                    break
+        
+        # Если не нашли, используем индексы из вашего файла (C, D, E)
+        # В Pandas это были бы 2, 3, 4
+        if col_profile is None:
+            col_qty = 2      # C
+            col_profile = 3  # D
+            col_length = 4   # E
+
+        # 2. ЧТЕНИЕ ДАННЫХ
+        for row in rows[start_row:]:
+            if not row or len(row) <= max(col_profile, col_length, col_qty): continue
+            
+            raw_profile = str(row[col_profile]).strip()
+            if not raw_profile or raw_profile.lower() in ["профиль", "none", ""]: continue
+
+            # Чистка цифр
             try:
-                length = float(str(row[c_len]).replace(',', '.').replace(u'\xa0', ''))
-                qty = float(str(row[c_qty]).replace(',', '.').replace(u'\xa0', ''))
+                len_val = str(row[col_length]).replace(',', '.').replace(u'\xa0', '').strip()
+                qty_val = str(row[col_qty]).replace(',', '.').replace(u'\xa0', '').strip()
+                if not len_val or len_val == 'None' or not qty_val or qty_val == 'None': continue
+                
+                length = float(re.findall(r"[\d\.]+", len_val)[0])
+                qty = float(re.findall(r"[\d\.]+", qty_val)[0])
             except: continue
 
             if length <= 0 or qty <= 0: continue
 
-            # --- ЛОГИКА ОПРЕДЕЛЕНИЯ (Та же, что и раньше, но теперь данные точные) ---
+            # --- ЛОГИКА ОПРЕДЕЛЕНИЯ (ПО КЛЮЧЕВЫМ СЛОВАМ) ---
             prof = raw_profile.upper()
-            clean = raw_profile.lower().replace('х', 'x').replace('*', 'x').replace(',', '.')
+            # Важно: нормализуем текст (убираем неразрывные пробелы и меняем кириллицу)
+            clean = raw_profile.lower().replace('х', 'x').replace('*', 'x').replace(',', '.').replace(u'\xa0', ' ')
 
             # 1. ТРУБА ПП
-            if "ПП" in prof or ("ТРУБА" in prof and self.re_3_nums.search(clean) and "ПК" not in prof):
+            if "ПП" in prof:
                 m = self.re_3_nums.search(clean)
-                if m:
-                    name = f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3)}"
-                    self._add(data['rect_tubes'], name, length, qty)
+                if m: self._add(data['rect_tubes'], f"Труба ПП {m.group(1)}x{m.group(2)}x{m.group(3)}", length, qty)
                 continue
 
             # 2. ТРУБА ПК
             if "ПК" in prof:
                 m3 = self.re_3_nums.search(clean)
                 m2 = self.re_2_nums.search(clean)
-                if m3: 
-                    name = f"Труба ПК {m3.group(1)}x{m3.group(2)}x{m3.group(3)}"
-                    self._add(data['square_tubes'], name, length, qty)
-                elif m2:
-                    name = f"Труба ПК {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
-                    self._add(data['square_tubes'], name, length, qty)
+                if m3: self._add(data['square_tubes'], f"Труба ПК {m3.group(1)}x{m3.group(2)}x{m3.group(3)}", length, qty)
+                elif m2: self._add(data['square_tubes'], f"Труба ПК {m2.group(1)}x{m2.group(1)}x{m2.group(2)}", length, qty)
                 continue
 
-            # 3. УГОЛОК
-            if "УГОЛОК" in prof or prof.startswith("L") or "∟" in prof or "∠" in prof:
+            # 3. УГОЛОК (L или слово)
+            if "УГОЛОК" in prof or prof.startswith("L") or "∟" in prof:
                 m3 = self.re_3_nums.search(clean)
                 m2 = self.re_2_nums.search(clean)
-                if m3:
-                    name = f"Уголок {m3.group(1)}x{m3.group(2)}x{m3.group(3)}"
-                    self._add(data['angles'], name, length, qty)
-                elif m2:
-                    name = f"Уголок {m2.group(1)}x{m2.group(1)}x{m2.group(2)}"
-                    self._add(data['angles'], name, length, qty)
+                if m3: self._add(data['angles'], f"Уголок {m3.group(1)}x{m3.group(2)}x{m3.group(3)}", length, qty)
+                elif m2: self._add(data['angles'], f"Уголок {m2.group(1)}x{m2.group(1)}x{m2.group(2)}", length, qty)
                 continue
 
-            # 4. ЛИСТ
+            # 4. ЛИСТ (-, —, Лист)
             if "ЛИСТ" in prof or prof.startswith("-") or "—" in prof or "–" in prof or "PL" in prof:
                 m = self.re_2_nums.search(clean)
                 if m:
                     data['sheets'].append({'qty': int(qty), 'thickness': float(m.group(1)), 'width': float(m.group(2)), 'length': length})
                 continue
 
-            # 5. КРУГ
+            # 5. КРУГ (Ø, Круг)
             if "КРУГ" in prof or (any(x in prof for x in ["O", "0", "Ø"]) and "X" not in prof.replace("X", "x")):
                 m = self.re_1_num.search(clean)
-                if m:
-                    name = f"Круг Ø{m.group(1)}"
-                    self._add(data['rounds'], name, length, qty)
+                if m: self._add(data['rounds'], f"Круг Ø{m.group(1)}", length, qty)
                 continue
 
             # 6. ТРУБА Э/С
+            # Если "Труба" есть, но нет ПП/ПК. Или просто Ø с размерами.
             is_es = ("ТРУБА" in prof and "ПП" not in prof and "ПК" not in prof) or ("Ø" in prof and "X" in prof.replace("X", "x"))
             if is_es:
                 m = self.re_2_nums.search(clean)
-                if m:
-                    name = f"Труба Э/С Ø{m.group(1)}x{m.group(2)}"
-                    self._add(data['es_pipes'], name, length, qty)
+                if m: self._add(data['es_pipes'], f"Труба Э/С Ø{m.group(1)}x{m.group(2)}", length, qty)
                 continue
 
         return data
@@ -272,6 +219,3 @@ class SpecParser:
     def _add(self, d, name, l, q):
         if name not in d: d[name] = []
         d[name].append({'length': l, 'qty': int(q)})
-
-    def _empty_data(self):
-        return {'sheets': [], 'rect_tubes': {}, 'square_tubes': {}, 'es_pipes': {}, 'angles': {}, 'rounds': {}}
