@@ -67,7 +67,7 @@ export const useProductionData = () => {
       // Проверяем, нет ли уже такой операции (регистронезависимо)
       const exists = standardOps.some(op => op.toLowerCase() === trimmedName.toLowerCase());
       
-      if (!exists &&PktrimmedName) {
+      if (!exists && trimmedName) {
           const newList = [...standardOps, trimmedName].sort();
           await setDoc(doc(db, 'settings', 'operations'), { list: newList });
       }
@@ -175,7 +175,7 @@ export const useProductionData = () => {
   
   // Специальная функция для обновления ролей
   const updateResourceRoles = async (id, roles) => {
-      await updateDoc(doc(db, 'resources', id), { roles:ZF roles });
+      await updateDoc(doc(db, 'resources', id), { roles: roles });
   };
 
   const deleteResource = async (id) => {
