@@ -5,57 +5,75 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  doc 
+  doc,
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
-import { db } from '../firebase'; // Импорт нашей базы данных
+import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
+import { INITIAL_OPERATIONS } from '../utils/constants';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
   const [products, setProducts] = useState([]);
   const [reports, setReports] = useState([]);
+  const [standardOps, setStandardOps] = useState([]); // Список стандартизированных операций
   const [loading, setLoading] = useState(true);
 
-  // --- 1. СЛУШАЕМ БАЗУ ДАННЫХ (REAL-TIME) ---
-  // Этот useEffect срабатывает при старте и "подписывается" на обновления.
-  // Как только кто-то (вы или коллега) меняет данные в Firebase, 
-  // эти функции запускаются автоматически и обновляют экран.
-  
   useEffect(() => {
-    // Слушаем коллекцию сотрудников
+    // 1. Сотрудники
     const unsubResources = onSnapshot(collection(db, 'resources'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Сортируем по имени, чтобы список не прыгал
       setResources(list.sort((a,b) => a.name.localeCompare(b.name)));
     });
 
-    // Слушаем коллекцию заказов
+    // 2. Заказы
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(list);
     });
 
-    // Слушаем коллекцию отчетов
+    // 3. Отчеты
     const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Сортируем: самые новые отчеты сверху
       setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
-      setLoading(false);
     });
 
-    // Когда вкладка закрывается, отписываемся от прослушивания
+    // 4. Стандартные операции (храним в отдельной коллекции 'settings', документ 'operations')
+    const unsubOps = onSnapshot(doc(db, 'settings', 'operations'), (docSnap) => {
+        if (docSnap.exists()) {
+            setStandardOps(docSnap.data().list || []);
+        } else {
+            // Если в базе пусто, инициализируем начальным списком
+            setDoc(doc(db, 'settings', 'operations'), { list: INITIAL_OPERATIONS });
+        }
+        setLoading(false);
+    });
+
     return () => {
       unsubResources();
       unsubProducts();
       unsubReports();
+      unsubOps();
     };
   }, []);
 
 
-  // --- 2. ФУНКЦИИ УПРАВЛЕНИЯ (CRUD) ---
-  // Эти функции отправляют команды в Firebase
+  // --- ACTIONS ---
 
-  // === ЗАКАЗЫ (Products) ===
+  // === Standard Operations ===
+  const addStandardOperation = async (newOpName) => {
+      const trimmedName = newOpName.trim();
+      // Проверяем, нет ли уже такой операции (регистронезависимо)
+      const exists = standardOps.some(op => op.toLowerCase() === trimmedName.toLowerCase());
+      
+      if (!exists &&PktrimmedName) {
+          const newList = [...standardOps, trimmedName].sort();
+          await setDoc(doc(db, 'settings', 'operations'), { list: newList });
+      }
+  };
+
+  // === Products ===
   const addProduct = async () => {
     const newProduct = {
       name: 'Новый заказ',
@@ -63,15 +81,13 @@ export const useProductionData = () => {
       startDate: formatDate(new Date()),
       status: 'active',
       operations: [],
-      createdAt: Date.now() // Нужно для сортировки
+      createdAt: Date.now()
     };
-    // addDoc автоматически создает уникальный ID документа
     await addDoc(collection(db, 'products'), newProduct);
   };
 
   const updateProduct = async (id, field, value) => {
     const productRef = doc(db, 'products', id);
-    // updateDoc меняет только указанное поле, не трогая остальные
     await updateDoc(productRef, { [field]: value });
   };
 
@@ -88,20 +104,15 @@ export const useProductionData = () => {
     }
   };
 
-  // === ОПЕРАЦИИ (Operations) ===
-  // В Firebase операции хранятся ВНУТРИ документа заказа (как массив).
-  // Поэтому мы скачиваем массив, меняем его и перезаписываем обратно в заказ.
-  
+  // === Operations inside Product ===
   const addOperation = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-
-    // Находим максимальный sequence (номер по порядку)
     const maxSeq = product.operations.length > 0 ? Math.max(...product.operations.map(o => o.sequence)) : 0;
     
     const newOperation = {
-      id: Date.now(), // Используем время как уникальный ID операции
-      name: 'Новая операция',
+      id: Date.now(),
+      name: '', // Имя пустое, чтобы пользователь выбрал из списка
       resourceIds: [],
       minutesPerUnit: 60,
       sequence: maxSeq + 1
@@ -114,6 +125,11 @@ export const useProductionData = () => {
   const updateOperation = async (productId, opId, field, value) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
+
+    // Если меняем имя, пробуем добавить его в стандартный список (если его там нет)
+    if (field === 'name') {
+        await addStandardOperation(value);
+    }
 
     const newOperations = product.operations.map(op => 
       op.id === opId ? { ...op, [field]: value } : op
@@ -128,7 +144,6 @@ export const useProductionData = () => {
     const newOperations = product.operations.map(op => {
       if (op.id !== opId) return op;
       const currentIds = op.resourceIds || [];
-      // Если ID уже есть - убираем, если нет - добавляем
       const newIds = currentIds.includes(resourceId) 
         ? currentIds.filter(id => id !== resourceId) 
         : [...currentIds, resourceId];
@@ -144,17 +159,23 @@ export const useProductionData = () => {
     await updateDoc(doc(db, 'products', productId), { operations: newOperations });
   };
 
-  // === СОТРУДНИКИ (Resources) ===
+  // === Resources ===
   const addResource = async () => {
      await addDoc(collection(db, 'resources'), {
        name: 'Новый сотрудник',
        hoursPerDay: 8,
-       schedule: {} // Здесь будет храниться календарь (больничные/отпуска)
+       roles: [], // Новый массив ролей
+       schedule: {}
      });
   };
 
   const updateResource = async (id, field, value) => {
       await updateDoc(doc(db, 'resources', id), { [field]: value });
+  };
+  
+  // Специальная функция для обновления ролей
+  const updateResourceRoles = async (id, roles) => {
+      await updateDoc(doc(db, 'resources', id), { roles:ZF roles });
   };
 
   const deleteResource = async (id) => {
@@ -163,7 +184,7 @@ export const useProductionData = () => {
       }
   };
 
-  // === ОТЧЕТЫ (Reports) ===
+  // === Reports ===
   const addReport = async (reportData) => {
      await addDoc(collection(db, 'reports'), reportData);
   };
@@ -176,17 +197,18 @@ export const useProductionData = () => {
 
   return {
     resources, 
-    setResources: updateResource, // Перенаправляем для совместимости с ResourcesTab
+    setResources: updateResource, 
     products, 
     setProducts,
     reports, 
-    setReports: addReport, // Перенаправляем для совместимости с ReportsTab
+    setReports: addReport,
+    standardOps, // Экспортируем список операций
     loading,
     actions: {
         addProduct, updateProduct, toggleProductStatus, deleteProduct,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
-        addResource, updateResource, deleteResource,
-        addReport, deleteReport 
+        addResource, updateResource, updateResourceRoles, deleteResource, // Добавили updateResourceRoles
+        addReport, deleteReport, addStandardOperation
     }
   };
 };

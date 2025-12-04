@@ -12,9 +12,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('planning');
   
   // 1. Подключаем данные и функции управления (теперь из Firebase)
-  // setResources и setProducts здесь используются только для локальных обновлений внутри компонентов, 
-  // основная работа идет через actions
-  const { resources, setResources, products, setProducts, reports, setReports, actions, loading } = useProductionData();
+  // Мы добавили standardOps в список того, что забираем из хука
+  const { 
+    resources, 
+    setResources, 
+    products, 
+    setProducts, 
+    reports, 
+    setReports, 
+    actions, 
+    loading,
+    standardOps // <--- НОВОЕ: получаем список операций из базы
+  } = useProductionData();
   
   // 2. Подключаем движок расчетов (симуляцию)
   // Он пересчитывает график каждый раз, когда меняются данные
@@ -62,6 +71,7 @@ export default function App() {
                 resources={resources} 
                 resourceLoad={resourceLoad} 
                 actions={actions} 
+                standardOps={standardOps} // <--- ВАЖНО: Передаем список операций в компонент
             />
         )}
 
