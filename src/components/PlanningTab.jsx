@@ -1,28 +1,26 @@
-// src/components/PlanningTab.jsx
 import React, { useState } from 'react';
-import { Plus, Trash2, BarChart3, CheckCircle, RotateCcw, ChevronDown, X, AlertCircle } from 'lucide-react';
-// Подключаем наши данные
-import { useProductionData } from '../hooks/useProductionData'; // Чтобы достать standardOps если пропсами не передали
+import { Plus, Trash2, BarChart3, CheckCircle, RotateCcw, ChevronDown, X } from 'lucide-react';
 import { isResourceEligible } from '../utils/constants';
+import WorkloadTab from './WorkloadTab'; // Импорт таблицы загрузки
 
-// ВАЖНО: Мы ожидаем, что в App.jsx в PlanningTab будет передан standardOps
-// Если сложно прокинуть, можно использовать контекст или импортировать хук здесь, 
-// но лучше передать пропсом. Я добавлю fallback.
-
-export default function PlanningTab({ products, resources, resourceLoad, actions, standardOps = [] }) {
+export default function PlanningTab({ products, resources, resourceLoad, actions, standardOps = [], globalTimeline }) {
   const [showHistory, setShowHistory] = useState(false);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
 
-  // Сортировка ресурсов по имени
+  // Сортируем сотрудников по алфавиту
   const sortedResources = [...resources].sort((a,b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-6">
-      {/* ЗАГРУЗКА ЦЕХА - Оставляем без изменений */}
+      
+      {/* 1. ВСТАВЛЯЕМ ТАБЛИЦУ ЗАГРУЗКИ (СВОРАЧИВАЕМУЮ) */}
+      <WorkloadTab resources={resources} globalTimeline={globalTimeline} />
+
+      {/* 2. СТАРАЯ ДИАГРАММА (ОБЩАЯ) */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <BarChart3 size={20} className="text-blue-600"/>
-              Загрузка цеха
+              Общая выработка (Всего часов)
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {Object.values(resourceLoad).map(stat => {
@@ -44,7 +42,7 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
           </div>
       </div>
 
-      {/* ЗАГОЛОВОК И КНОПКА СОЗДАНИЯ */}
+      {/* 3. ЗАГОЛОВОК И КНОПКА СОЗДАНИЯ */}
       <div className="flex justify-between items-center mt-8">
          <div className="flex gap-4 items-center">
              <h2 className="text-2xl font-bold">Активные заказы</h2>
@@ -57,10 +55,10 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
          </button>
       </div>
 
-      {/* СПИСОК ЗАКАЗОВ */}
+      {/* 4. СПИСОК ЗАКАЗОВ */}
       {products.filter(p => showHistory ? true : p.status === 'active').sort((a,b) => b.id - a.id).map(product => (
         <div key={product.id} className={`rounded-xl shadow-sm border transition-all ${product.status === 'completed' ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-200'}`}>
-          {/* ШАПКА ЗАКАЗА (Оставляем как было) */}
+          {/* ШАПКА ЗАКАЗА */}
           <div className="p-5 border-b border-gray-100 flex flex-wrap gap-6 items-start">
              <div className="flex-1">
                 <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Изделие</label>
@@ -108,8 +106,8 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
              <div className="space-y-3">
                  <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-gray-400 px-2">
                      <div className="col-span-1 text-center">№</div>
-                     <div className="col-span-4">ОПЕРАЦИЯ (ВЫБОР ИЗ СПИСКА)</div>
-                     <div className="col-span-3">ИСПОЛНИТЕЛИ (ФИЛЬТР ПО ДОЛЖНОСТИ)</div>
+                     <div className="col-span-4">ОПЕРАЦИЯ</div>
+                     <div className="col-span-3">ИСПОЛНИТЕЛИ</div>
                      <div className="col-span-3">МИНУТЫ НА 1 ШТ</div>
                      <div className="col-span-1"></div>
                  </div>
@@ -117,8 +115,8 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
                  {product.operations.map((op) => {
                      const totalHours = (op.minutesPerUnit * product.quantity) / 60;
                      const isDropdownOpen = openExecutorDropdown === op.id;
-
-                     // Фильтруем сотрудников для конкретной операции
+                     
+                     // Фильтрация исполнителей
                      const eligibleResources = sortedResources.filter(res => isResourceEligible(res, op.name));
                      const ineligibleResources = sortedResources.filter(res => !isResourceEligible(res, op.name));
 
@@ -126,10 +124,10 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
                        <div key={op.id} className="grid grid-cols-12 gap-4 items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm relative">
                           <div className="col-span-1 text-center font-bold text-gray-400">{op.sequence}</div>
                           
-                          {/* 1. УМНЫЙ ВЫБОР ОПЕРАЦИИ */}
+                          {/* Умный ввод названия операции */}
                           <div className="col-span-4 relative group">
                               <input 
-                                list={`ops-${op.id}`} // Связь с datalist
+                                list={`ops-${op.id}`}
                                 type="text" 
                                 value={op.name}
                                 onChange={e => actions.updateOperation(product.id, op.id, 'name', e.target.value)}
@@ -141,15 +139,9 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
                                       <option key={idx} value={stdOp} />
                                   ))}
                               </datalist>
-                              {/* Подсказка если новая операция */}
-                              {op.name && !standardOps.includes(op.name) && (
-                                  <div className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] text-green-600 bg-green-50 px-1 rounded border border-green-200 pointer-events-none">
-                                      + Новая
-                                  </div>
-                              )}
                           </div>
 
-                          {/* 2. ВЫБОР ИСПОЛНИТЕЛЕЙ С ФИЛЬТРАЦИЕЙ */}
+                          {/* Выбор исполнителей */}
                           <div className="col-span-3 relative">
                               <button 
                                   onClick={() => setOpenExecutorDropdown(isDropdownOpen ? null : op.id)}
@@ -172,7 +164,6 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
                                           <button onClick={() => setOpenExecutorDropdown(null)}><X size={14}/></button>
                                       </div>
                                       
-                                      {/* Рекомендуемые */}
                                       <div className="space-y-1">
                                           {eligibleResources.length === 0 && <div className="text-xs text-gray-400 p-2 text-center">Нет подходящих по должности</div>}
                                           {eligibleResources.map(res => (
@@ -195,7 +186,6 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
                                           ))}
                                       </div>
 
-                                      {/* Остальные (скрыты под спойлером или просто ниже) */}
                                       {ineligibleResources.length > 0 && (
                                           <>
                                               <div className="text-[10px] font-bold text-gray-400 mt-3 mb-1 uppercase tracking-wider px-1">Другие должности</div>
@@ -219,6 +209,7 @@ export default function PlanningTab({ products, resources, resourceLoad, actions
                               {isDropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setOpenExecutorDropdown(null)}></div>}
                           </div>
 
+                          {/* Время и итоги */}
                           <div className="col-span-3 flex items-center gap-2">
                              <div className="relative flex-1">
                                  <input 

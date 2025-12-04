@@ -1,13 +1,19 @@
-// Форматирование даты в строку YYYY-MM-DD
-export const formatDate = (date) => date.toISOString().split('T')[0];
+// src/utils/helpers.js
 
-// Проверка на выходной (Воскресенье или Суббота)
-export const isWeekend = (date) => {
-  const day = date.getDay();
-  return day === 0 || day === 6;
+export const formatDate = (date) => {
+  const d = new Date(date);
+  const month = '' + (d.getMonth() + 1);
+  const day = '' + d.getDate();
+  const year = d.getFullYear();
+
+  return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
 };
 
-// Получение всех дней месяца
+export const isWeekend = (date) => {
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0 - Вс, 6 - Сб
+};
+
 export const getMonthDays = (year, month) => {
   const date = new Date(year, month, 1);
   const days = [];
@@ -18,7 +24,6 @@ export const getMonthDays = (year, month) => {
   return days;
 };
 
-// Цвета для диаграммы
 export const getOpColor = (id) => {
   const colors = [
     'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 
@@ -27,21 +32,25 @@ export const getOpColor = (id) => {
   return colors[id % colors.length];
 };
 
-// --- ВОТ ЭТА ФУНКЦИЯ, КОТОРОЙ НЕ ХВАТАЛО ---
+// --- ГЛАВНАЯ ФУНКЦИЯ РАСЧЕТА ЧАСОВ ---
 export const getResourceHoursForDate = (resource, dateObj) => {
     const dateStr = formatDate(dateObj);
-    const schedule = resource.schedule?.[dateStr]; // Безопасное обращение
+    const schedule = resource.schedule?.[dateStr]; 
     
-    // 1. Проверка исключений (График)
+    // 1. Сначала смотрим личные исключения (отпуск/больничный/доп.смена)
     if (schedule) {
       if (schedule.type === 'sick' || schedule.type === 'vacation') return 0;
       if (schedule.type === 'work') return schedule.hours || resource.hoursPerDay;
     }
     
-    // 2. Проверка выходных
+    // 2. Если исключений нет, смотрим стандартные выходные
     const day = dateObj.getDay();
-    if (day === 0 || day === 6) return 0;
+    if (day === 0 || day === 6) {
+        // Здесь можно добавить проверку: работает ли этот конкретный человек по выходным
+        // Пока считаем, что по умолчанию выходные у всех
+        return 0; 
+    }
     
-    // 3. Обычный день
-    return resource.hoursPerDay;
+    // 3. Обычный рабочий день
+    return resource.hoursPerDay || 8;
 };

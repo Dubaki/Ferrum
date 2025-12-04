@@ -1,11 +1,13 @@
+// src/components/Header.jsx
 import React from 'react';
-import { Calendar, Users, BarChart3, FileText, Download, Upload } from 'lucide-react';
+import { Calendar, Users, BarChart3, FileText, Download, Upload, LayoutDashboard } from 'lucide-react';
 
 export default function Header({ activeTab, setActiveTab, exportData, importData }) {
   const tabs = [
     { id: 'planning', icon: Calendar, label: 'Планирование' },
+    { id: 'workload', icon: LayoutDashboard, label: 'Загрузка' }, // <-- НОВАЯ КНОПКА
     { id: 'resources', icon: Users, label: 'Сотрудники' },
-    { id: 'gantt', icon: BarChart3, label: 'График (Гант)' },
+    { id: 'gantt', icon: BarChart3, label: 'График' },
     { id: 'reports', icon: FileText, label: 'Отчеты' },
   ];
 
@@ -15,41 +17,30 @@ export default function Header({ activeTab, setActiveTab, exportData, importData
         <div className="flex items-center gap-3">
            <div className="bg-blue-700 text-white p-2 rounded-lg font-bold text-xl">Fe</div>
            <div>
-             <h1 className="text-xl font-bold text-gray-800">ООО "ИПП Феррум"</h1>
-             <p className="text-xs text-gray-500">Система планирования производства</p>
+             <h1 className="text-xl font-bold text-gray-800">ИПП Феррум</h1>
            </div>
         </div>
         <div className="flex items-center gap-4">
-           {/* Кнопки БД */}
            <div className="flex gap-2 mr-4">
-              <button 
-                onClick={exportData}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition"
-              >
-                  <Download size={14}/> Скачать БД
+              <button onClick={exportData} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded border transition">
+                  <Download size={14}/> Бэкап
               </button>
-              <label className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition cursor-pointer">
-                  <Upload size={14}/> Загрузить БД
-                  <input type="file" onChange={importData} accept=".json" className="hidden" />
-              </label>
            </div>
-
-           <div className="text-right pl-4 border-l border-gray-200">
+           <div className="text-right pl-4 border-l border-gray-200 hidden sm:block">
               <div className="text-sm font-semibold text-gray-700">Сегодня</div>
               <div className="text-xs text-gray-500 capitalize">
-                  {new Date().toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
               </div>
            </div>
         </div>
       </div>
       
-      {/* Навигация */}
-      <div className="max-w-7xl mx-auto px-6 flex gap-1 mt-2">
+      <div className="max-w-7xl mx-auto px-6 flex gap-1 mt-2 overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 font-medium transition rounded-t-lg border-t border-l border-r ${
+              className={`flex items-center gap-2 px-4 py-3 font-medium transition rounded-t-lg border-t border-l border-r whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-white border-gray-200 border-b-white text-blue-600 shadow-[0_-2px_5px_rgba(0,0,0,0.02)]'
                   : 'bg-gray-50 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'

@@ -4,27 +4,26 @@ import { formatDate, getResourceHoursForDate } from '../utils/helpers';
 export const useSimulation = (products, resources) => {
   return useMemo(() => {
     const ganttItems = [];
-    const resourceLoad = {}; 
     
-    // 1. Инициализация нагрузки
+    // 1. Глобальный календарь занятости
+    // Структура: { "resourceId": { "2023-10-01": 5 (часов занято), "2023-10-02": 8 ... } }
+    const globalTimeline = {};
+    
+    // Инициализируем timeline для всех ресурсов
     resources.forEach(r => {
-        resourceLoad[r.id] = { 
-            name: r.name, 
-            totalHours: 0, 
-            maxCapacityPerDay: r.hoursPerDay 
-        };
+        globalTimeline[r.id] = {};
     });
 
-    // 2. Фильтрация активных
+    // 2. Берем только активные заказы
     const activeProducts = products.filter(p => p.status === 'active');
 
-    // 3. Симуляция
+    // 3. Симуляция каждого заказа
     activeProducts.forEach(product => {
+      // Начало работы над заказом
       let currentOperationStartDate = new Date(product.startDate);
       
       const today = new Date();
       today.setHours(0,0,0,0);
-      // Не планируем в прошлом
       if (currentOperationStartDate < today) currentOperationStartDate = new Date(today);
 
       const sortedOps = [...product.operations].sort((a, b) => a.sequence - b.sequence);
@@ -38,50 +37,85 @@ export const useSimulation = (products, resources) => {
         simulationDate.setHours(0, 0, 0, 0);
 
         let daysElapsed = 0;
-        let operationStartDate = new Date(simulationDate);
+        const operationStartRecorded = new Date(simulationDate); // Запоминаем реальный старт
 
-        // Цикл по дням
+        // --- ЦИКЛ ПО ДНЯМ (пока не выполним работу) ---
         while (hoursRemaining > 0.01 && daysElapsed < 365) {
-           let dailyProduction = 0;
+           const dateStr =SFformatDate(simulationDate);
+           
+           // 1. Ищем, кто из назначенных сотрудников свободен в этот день
+           let availableResourcesToday = [];
            
            op.resourceIds.forEach(resId => {
-             const resource = resources.find(r => r.id === parseInt(resId));
-             if (resource) {
-               // ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ HELPERS
-               const availableHours = getResourceHoursForDate(resource, simulationDate);
-               const contribution = Math.min(availableHours, hoursRemaining);
-               
-               if (contribution > 0) {
-                 dailyProduction += availableHours; 
-                 // Записываем реальную нагрузку
-                 resourceLoad[resId].totalHours += Math.min(availableHours, hoursRemaining);
+               const resource = resources.find(r => r.id === resId);
+               if (resource) {
+                   // Максимальная емкость сотрудника в этот день (учитывая выходные/больничные)
+                   const maxCapacity = getResourceHoursForDate(resource, simulationDate);
+                   
+                   // Сколько он УЖЕ отработал на других заказах в этот день
+                   const usedHours = globalTimeline[resId]?.[dateStr] || 0;
+                   
+                   // Сколько он может взять еще
+                   const freeHours = Math.max(0, maxCapacity - usedHours);
+                   
+                   if (freeHours > 0) {
+                       availableResourcesToday.push({ id: resId, freeHours });
+                   }
                }
-             }
            });
 
-           if (dailyProduction > 0) {
-             hoursRemaining -= dailyProduction;
+           // 2. Если есть свободные руки, распределяем работу
+           if (availableResourcesToday.length > 0) {
+               // Считаем общую свободную мощность бригады на сегодня
+               const totalDailyCapacity = availableResourcesToday.reduce((acc, r) => acc + r.freeHours, 0);
+               
+               // Сколько работы можем выполнить сегодня (не больше, чем нужно, и не больше, чем есть сил)
+               const workDoneToday = Math.min(hoursRemaining, totalDailyCapacity);
+
+               // Распределяем нагрузку. 
+               // Логика: делим работу поровну, но не превышая лимит каждого.
+               // (Упрощенно: просто откусываем по очереди)
+               let workToDistribute = workDoneToday;
+
+               availableResourcesToday.forEach(res => {
+                   if (workToDistribute <= 0) return;
+                   
+                   // Сотрудник берет столько, сколько может, или остаток работы
+                   const contribution = Math.min(res.freeHours, workToDistribute);
+                   
+                   // Записываем в Глобальный Таймлайн
+                   if (!globalTimeline[res.id]) globalTimeline[res.id] = {};
+                   const currentUsed = globalTimeline[res.id][dateStr] || 0;
+                   globalTimeline[res.id][dateStr] = currentUsed + contribution;
+
+                   workToDistribute -= contribution;
+               });
+
+               hoursRemaining -= workDoneToday;
            }
 
-           if (hoursRemaining > 0 || dailyProduction === 0) {
+           // 3. Если работа еще осталась, переходим на следующий день
+           if (hoursRemaining > 0.01) {
              simulationDate.setDate(simulationDate.getDate() + 1);
              daysElapsed++;
            }
         }
 
-        const operationEndDate = new Date(simulationDate);
+        const operationEndRecorded = new Date(simulationDate);
 
         productGanttSegments.push({
             opId: op.id,
             name: op.name,
             hours: totalHoursNeeded,
-            startDate: operationStartDate,
-            endDate: operationEndDate,
+            startDate: new Date(operationStartRecorded),
+            endDate: new Date(operationEndRecorded),
             days: daysElapsed + 1,
-            resourceNames: op.resourceIds.map(id => resources.find(r => r.id == id)?.name).join(', ')
+            resourceNames: op.resourceIds.map(id => resources.find(r => r.id === id)?.name).join(', ')
         });
 
-        currentOperationStartDate = new Date(operationEndDate);
+        // Следующая операция начнется на следующий день после окончания этой
+        // (или в тот же день, если технологически это возможно - но пока ставим +0, чтобы не было разрывов)
+        currentOperationStartDate = new Date(operationEndRecorded);
       });
 
       if (productGanttSegments.length > 0) {
@@ -95,6 +129,6 @@ export const useSimulation = (products, resources) => {
       }
     });
 
-    return { ganttItems, resourceLoad };
+    return { ganttItems, globalTimeline };
   }, [products, resources]);
 };

@@ -6,13 +6,13 @@ import Header from './components/Header';
 import PlanningTab from './components/PlanningTab';
 import ResourcesTab from './components/ResourcesTab';
 import GanttTab from './components/GanttTab';
+import WorkloadTab from './components/WorkloadTab'; // Импорт, если вдруг захотим отдельную вкладку
 import ReportsTab from './components/ReportsTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planning');
   
-  // 1. Подключаем данные и функции управления (теперь из Firebase)
-  // Мы добавили standardOps в список того, что забираем из хука
+  // 1. Подключаем данные
   const { 
     resources, 
     setResources, 
@@ -22,14 +22,27 @@ export default function App() {
     setReports, 
     actions, 
     loading,
-    standardOps // <--- НОВОЕ: получаем список операций из базы
+    standardOps 
   } = useProductionData();
   
-  // 2. Подключаем движок расчетов (симуляцию)
-  // Он пересчитывает график каждый раз, когда меняются данные
-  const { ganttItems, resourceLoad } = useSimulation(products, resources);
+  // 2. Подключаем симуляцию (теперь получаем globalTimeline)
+  const { ganttItems, globalTimeline } = useSimulation(products, resources);
 
-  // 3. Функция экспорта (Бэкап)
+  // Создаем упрощенную сводку для старых виджетов (совместимость)
+  const resourceLoadSummary = {};
+  resources.forEach(r => {
+      let total = 0;
+      if (globalTimeline[r.id]) {
+          total = Object.values(globalTimeline[r.id]).reduce((a, b) => a + b, 0);
+      }
+      resourceLoadSummary[r.id] = {
+          name: r.name,
+          totalHours: total,
+          maxCapacityPerDay: r.hoursPerDay
+      };
+  });
+
+  // 3. Бэкап
   const exportData = () => {
     const data = { resources, products, reports, date: new Date().toISOString() };
     const fileName = `ferrum_backup_${new Date().toLocaleDateString('ru-RU')}.json`;
@@ -40,9 +53,8 @@ export default function App() {
     link.click();
   };
 
-  // Импорт отключен для облачной версии во избежание конфликтов ID
   const importData = () => {
-      alert("В облачном режиме загрузка из файла временно недоступна. Данные загружаются автоматически с сервера.");
+      alert("В облачном режиме загрузка из файла временно недоступна.");
   };
 
   if (loading) {
@@ -69,17 +81,23 @@ export default function App() {
             <PlanningTab 
                 products={products} 
                 resources={resources} 
-                resourceLoad={resourceLoad} 
+                resourceLoad={resourceLoadSummary} 
                 actions={actions} 
-                standardOps={standardOps} // <--- ВАЖНО: Передаем список операций в компонент
+                standardOps={standardOps} 
+                globalTimeline={globalTimeline} // <-- Передаем детальную загрузку
             />
+        )}
+
+        {/* Отдельная вкладка Загрузки (оставим пока) */}
+        {activeTab === 'workload' && (
+            <WorkloadTab resources={resources} globalTimeline={globalTimeline} />
         )}
 
         {/* Вкладка Сотрудников */}
         {activeTab === 'resources' && (
             <ResourcesTab 
                 resources={resources} 
-                setResources={setResources} // Передаем для работы календаря (через actions под капотом)
+                setResources={setResources} 
                 actions={actions}
             />
         )}
@@ -94,8 +112,8 @@ export default function App() {
             <ReportsTab 
                 reports={reports} 
                 setReports={setReports} 
-                resourceLoad={resourceLoad} 
-                actions={actions} // <-- Обязательно передаем actions для работы кнопок
+                resourceLoad={resourceLoadSummary} 
+                actions={actions} 
             />
         )}
       </div>
