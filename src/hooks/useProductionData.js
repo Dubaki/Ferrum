@@ -5,19 +5,15 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  doc,
-  setDoc,
-  getDoc
+  doc
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
-import { INITIAL_OPERATIONS } from '../utils/constants';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
   const [products, setProducts] = useState([]);
   const [reports, setReports] = useState([]);
-  const [standardOps, setStandardOps] = useState([]); // Список стандартизированных операций
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,48 +33,26 @@ export const useProductionData = () => {
     const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
-    });
-
-    // 4. Стандартные операции (храним в отдельной коллекции 'settings', документ 'operations')
-    const unsubOps = onSnapshot(doc(db, 'settings', 'operations'), (docSnap) => {
-        if (docSnap.exists()) {
-            setStandardOps(docSnap.data().list || []);
-        } else {
-            // Если в базе пусто, инициализируем начальным списком
-            setDoc(doc(db, 'settings', 'operations'), { list: INITIAL_OPERATIONS });
-        }
-        setLoading(false);
+      setLoading(false);
     });
 
     return () => {
       unsubResources();
       unsubProducts();
       unsubReports();
-      unsubOps();
     };
   }, []);
 
-
   // --- ACTIONS ---
-
-  // === Standard Operations ===
-  const addStandardOperation = async (newOpName) => {
-      const trimmedName = newOpName.trim();
-      // Проверяем, нет ли уже такой операции (регистронезависимо)
-      const exists = standardOps.some(op => op.toLowerCase() === trimmedName.toLowerCase());
-      
-      if (!exists && trimmedName) {
-          const newList = [...standardOps, trimmedName].sort();
-          await setDoc(doc(db, 'settings', 'operations'), { list: newList });
-      }
-  };
 
   // === Products ===
   const addProduct = async () => {
+    const todayStr = formatDate(new Date());
     const newProduct = {
       name: 'Новый заказ',
       quantity: 1,
-      startDate: formatDate(new Date()),
+      startDate: todayStr,
+      deadline: todayStr, // <-- НОВОЕ ПОЛЕ: Срок сдачи
       status: 'active',
       operations: [],
       createdAt: Date.now()
@@ -104,7 +78,7 @@ export const useProductionData = () => {
     }
   };
 
-  // === Operations inside Product ===
+  // === Operations ===
   const addOperation = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -112,7 +86,7 @@ export const useProductionData = () => {
     
     const newOperation = {
       id: Date.now(),
-      name: '', // Имя пустое, чтобы пользователь выбрал из списка
+      name: 'Сварка', // Значение по умолчанию из списка
       resourceIds: [],
       minutesPerUnit: 60,
       sequence: maxSeq + 1
@@ -126,10 +100,7 @@ export const useProductionData = () => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    // Если меняем имя, пробуем добавить его в стандартный список (если его там нет)
-    if (field === 'name') {
-        await addStandardOperation(value);
-    }
+    // Мы больше НЕ сохраняем новые операции в глобальный список (addStandardOperation удален)
 
     const newOperations = product.operations.map(op => 
       op.id === opId ? { ...op, [field]: value } : op
@@ -164,7 +135,6 @@ export const useProductionData = () => {
      await addDoc(collection(db, 'resources'), {
        name: 'Новый сотрудник',
        hoursPerDay: 8,
-       roles: [], // Новый массив ролей
        schedule: {}
      });
   };
@@ -173,11 +143,6 @@ export const useProductionData = () => {
       await updateDoc(doc(db, 'resources', id), { [field]: value });
   };
   
-  // Специальная функция для обновления ролей
-  const updateResourceRoles = async (id, roles) => {
-      await updateDoc(doc(db, 'resources', id), { roles: roles });
-  };
-
   const deleteResource = async (id) => {
       if(confirm('Удалить сотрудника?')) {
         await deleteDoc(doc(db, 'resources', id));
@@ -202,13 +167,12 @@ export const useProductionData = () => {
     setProducts,
     reports, 
     setReports: addReport,
-    standardOps, // Экспортируем список операций
     loading,
     actions: {
         addProduct, updateProduct, toggleProductStatus, deleteProduct,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
-        addResource, updateResource, updateResourceRoles, deleteResource, // Добавили updateResourceRoles
-        addReport, deleteReport, addStandardOperation
+        addResource, updateResource, deleteResource,
+        addReport, deleteReport
     }
   };
 };

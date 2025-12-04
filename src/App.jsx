@@ -6,13 +6,12 @@ import Header from './components/Header';
 import PlanningTab from './components/PlanningTab';
 import ResourcesTab from './components/ResourcesTab';
 import GanttTab from './components/GanttTab';
-import WorkloadTab from './components/WorkloadTab'; // Импорт, если вдруг захотим отдельную вкладку
+import WorkloadTab from './components/WorkloadTab'; 
 import ReportsTab from './components/ReportsTab';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('planning');
+  const [activeTab, setActiveTab] = useState('orders'); // По умолчанию - Заказы
   
-  // 1. Подключаем данные
   const { 
     resources, 
     setResources, 
@@ -25,10 +24,10 @@ export default function App() {
     standardOps 
   } = useProductionData();
   
-  // 2. Подключаем симуляцию (теперь получаем globalTimeline)
+  // Получаем детальную загрузку
   const { ganttItems, globalTimeline } = useSimulation(products, resources);
 
-  // Создаем упрощенную сводку для старых виджетов (совместимость)
+  // Сохраняем упрощенную сводку только для Отчетов (если там используется)
   const resourceLoadSummary = {};
   resources.forEach(r => {
       let total = 0;
@@ -42,7 +41,6 @@ export default function App() {
       };
   });
 
-  // 3. Бэкап
   const exportData = () => {
     const data = { resources, products, reports, date: new Date().toISOString() };
     const fileName = `ferrum_backup_${new Date().toLocaleDateString('ru-RU')}.json`;
@@ -76,24 +74,22 @@ export default function App() {
 
       <div className="max-w-7xl mx-auto p-6">
         
-        {/* Вкладка Планирования */}
-        {activeTab === 'planning' && (
+        {/* Вкладка Оплаченные заказы */}
+        {activeTab === 'orders' && (
             <PlanningTab 
                 products={products} 
                 resources={resources} 
-                resourceLoad={resourceLoadSummary} 
                 actions={actions} 
                 standardOps={standardOps} 
-                globalTimeline={globalTimeline} // <-- Передаем детальную загрузку
             />
         )}
 
-        {/* Отдельная вкладка Загрузки (оставим пока) */}
-        {activeTab === 'workload' && (
+        {/* Вкладка Планирование (Детальная загрузка) */}
+        {activeTab === 'planning' && (
             <WorkloadTab resources={resources} globalTimeline={globalTimeline} />
         )}
 
-        {/* Вкладка Сотрудников */}
+        {/* Остальные вкладки */}
         {activeTab === 'resources' && (
             <ResourcesTab 
                 resources={resources} 
@@ -102,12 +98,10 @@ export default function App() {
             />
         )}
 
-        {/* Вкладка Графика */}
         {activeTab === 'gantt' && (
             <GanttTab ganttItems={ganttItems} />
         )}
 
-        {/* Вкладка Отчетов */}
         {activeTab === 'reports' && (
             <ReportsTab 
                 reports={reports} 

@@ -1,11 +1,10 @@
-// src/components/Header.jsx
 import React from 'react';
-import { Calendar, Users, BarChart3, FileText, Download, Upload, LayoutDashboard } from 'lucide-react';
+import { Calendar, Users, BarChart3, FileText, Download, Upload, LayoutDashboard, ShoppingCart } from 'lucide-react';
 
 export default function Header({ activeTab, setActiveTab, exportData, importData }) {
   const tabs = [
-    { id: 'planning', icon: Calendar, label: 'Планирование' },
-    { id: 'workload', icon: LayoutDashboard, label: 'Загрузка' }, // <-- НОВАЯ КНОПКА
+    { id: 'orders', icon: ShoppingCart, label: 'Оплаченные заказы' }, // Бывшее Планирование
+    { id: 'planning', icon: LayoutDashboard, label: 'Планирование' }, // Бывшая Загрузка
     { id: 'resources', icon: Users, label: 'Сотрудники' },
     { id: 'gantt', icon: BarChart3, label: 'График' },
     { id: 'reports', icon: FileText, label: 'Отчеты' },
