@@ -17,19 +17,16 @@ export const useProductionData = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Сотрудники
     const unsubResources = onSnapshot(collection(db, 'resources'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setResources(list.sort((a,b) => a.name.localeCompare(b.name)));
     });
 
-    // 2. Заказы
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(list);
     });
 
-    // 3. Отчеты
     const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
@@ -45,14 +42,14 @@ export const useProductionData = () => {
 
   // --- ACTIONS ---
 
-  // === Products ===
   const addProduct = async () => {
     const todayStr = formatDate(new Date());
     const newProduct = {
+      orderNumber: '', // НОВОЕ ПОЛЕ: Ручной номер заказа
       name: 'Новый заказ',
       quantity: 1,
-      startDate: todayStr,
-      deadline: todayStr, // <-- НОВОЕ ПОЛЕ: Срок сдачи
+      startDate: todayStr, // Это "Самый ранний возможный старт"
+      deadline: '',
       status: 'active',
       operations: [],
       createdAt: Date.now()
@@ -78,7 +75,6 @@ export const useProductionData = () => {
     }
   };
 
-  // === Operations ===
   const addOperation = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -86,7 +82,7 @@ export const useProductionData = () => {
     
     const newOperation = {
       id: Date.now(),
-      name: 'Сварка', // Значение по умолчанию из списка
+      name: 'Сварка',
       resourceIds: [],
       minutesPerUnit: 60,
       sequence: maxSeq + 1
@@ -99,8 +95,6 @@ export const useProductionData = () => {
   const updateOperation = async (productId, opId, field, value) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-
-    // Мы больше НЕ сохраняем новые операции в глобальный список (addStandardOperation удален)
 
     const newOperations = product.operations.map(op => 
       op.id === opId ? { ...op, [field]: value } : op
@@ -130,7 +124,6 @@ export const useProductionData = () => {
     await updateDoc(doc(db, 'products', productId), { operations: newOperations });
   };
 
-  // === Resources ===
   const addResource = async () => {
      await addDoc(collection(db, 'resources'), {
        name: 'Новый сотрудник',
@@ -149,7 +142,6 @@ export const useProductionData = () => {
       }
   };
 
-  // === Reports ===
   const addReport = async (reportData) => {
      await addDoc(collection(db, 'reports'), reportData);
   };
@@ -161,12 +153,9 @@ export const useProductionData = () => {
   };
 
   return {
-    resources, 
-    setResources: updateResource, 
-    products, 
-    setProducts,
-    reports, 
-    setReports: addReport,
+    resources, setResources: updateResource, 
+    products, setProducts,
+    reports, setReports: addReport,
     loading,
     actions: {
         addProduct, updateProduct, toggleProductStatus, deleteProduct,

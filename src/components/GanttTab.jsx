@@ -32,9 +32,11 @@ export default function GanttTab({ ganttItems }) {
                           style={{ width: `${widthPercent}%`, minWidth: '40px' }}
                         >
                           <span className="font-bold truncate px-1 max-w-full">{seg.name}</span>
+                          {/* ДОБАВИЛИ ЧАСЫ */}
+                          <span className="text-[10px] opacity-90">{seg.hours.toFixed(1)}ч</span>
                           
                           <div className="absolute bottom-full mb-2 bg-gray-800 text-white text-xs rounded px-2 py-1 opacity-0 group-hover/seg:opacity-100 transition whitespace-nowrap z-10 pointer-events-none">
-                              {seg.name}: {seg.days} дн. ({seg.resourceNames})
+                              {seg.name}: {seg.days} дн. ({seg.resourceNames}) - {seg.hours.toFixed(1)}ч
                           </div>
                         </div>
                       );

@@ -10,3 +10,50 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* --- СТИЛИ ДЛЯ ПЕЧАТИ --- */
+@media print {
+  /* Скрываем всё, что имеет класс no-print */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Убираем фоны и тени для экономии чернил */
+  body, .bg-gray-50, .bg-white {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  /* Разворачиваем таблицы, чтобы не было прокрутки */
+  .overflow-x-auto, .overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Уменьшаем отступы, чтобы влезло больше данных */
+  .p-6, .p-5 {
+    padding: 0 !important;
+  }
+  
+  .max-w-7xl {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Принудительно черный текст */
+  .text-gray-500, .text-gray-600, .text-gray-400 {
+    color: #333 !important;
+  }
+  
+  /* Убираем красивые бордеры */
+  .rounded-xl, .rounded-lg {
+    border-radius: 0 !important;
+    border: 1px solid #ddd !important;
+  }
+}

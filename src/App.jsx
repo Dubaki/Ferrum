@@ -10,24 +10,16 @@ import WorkloadTab from './components/WorkloadTab';
 import ReportsTab from './components/ReportsTab';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('orders'); // По умолчанию - Заказы
+  const [activeTab, setActiveTab] = useState('orders');
   
   const { 
-    resources, 
-    setResources, 
-    products, 
-    setProducts, 
-    reports, 
-    setReports, 
-    actions, 
-    loading,
-    standardOps 
+    resources, setResources, products, setProducts, 
+    reports, setReports, actions, loading 
   } = useProductionData();
   
-  // Получаем детальную загрузку
+  // Здесь происходит магия расчета дат
   const { ganttItems, globalTimeline } = useSimulation(products, resources);
 
-  // Сохраняем упрощенную сводку только для Отчетов (если там используется)
   const resourceLoadSummary = {};
   resources.forEach(r => {
       let total = 0;
@@ -80,7 +72,7 @@ export default function App() {
                 products={products} 
                 resources={resources} 
                 actions={actions} 
-                standardOps={standardOps} 
+                ganttItems={ganttItems} // <-- ПЕРЕДАЕМ РАСЧЕТНЫЕ ДАТЫ
             />
         )}
 
