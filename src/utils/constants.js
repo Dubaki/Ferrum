@@ -29,7 +29,8 @@ export const INITIAL_OPERATIONS = [
 
 // Логика: какая роль нужна для какой операции
 // Возвращает массив ID ролей, которые могут это делать
-export constgetRolesForOperation = (opName) => {
+export const getRolesForOperation = (opName) => {
+    if (!opName) return [];
     const name = opName.toLowerCase();
 
     // 1. Лентопил
@@ -39,7 +40,6 @@ export constgetRolesForOperation = (opName) => {
     if (name.includes('плазма')) return ['plasma'];
 
     // 3. Сварка и Сборка (Только Сварщики)
-    // Слесарь НЕ может собирать и обваривать (по вашему условию)
     if (name.includes('сборка') || name.includes('обварка') || name.includes('сварка')) {
         return ['welder'];
     }
@@ -48,9 +48,6 @@ export constgetRolesForOperation = (opName) => {
     if (name.includes('покраска') || name.includes('маляр')) return ['painter'];
 
     // 5. Всё остальное (Зачистка, Упаковка, Установка и т.д.) - это Слесаря
-    // Но, возможно, и другие могут помочь? Пока сделаем строго для Слесарей,
-    // но если Сварщик тоже может "погрузить", добавим его сюда.
-    // По вашему описанию: "У Слесаря широкий спектр... кроме сварки/резки".
     return ['fitter'];
 };
 
@@ -62,7 +59,10 @@ export const isResourceEligible = (resource, opName) => {
 
     const requiredRoles = getRolesForOperation(opName);
     
+    // Если операция не требует специфических ролей (или мы не знаем такую операцию),
+    // то считаем, что она подходит (или можно сделать false, если нужна строгость)
+    if (requiredRoles.length === 0) return true;
+
     // Если операция "слесарная" (fitter), проверим, есть ли у сотрудника роль fitter
-    // Если операция "сварка" (welder), проверяем роль welder
     return resource.roles.some(role => requiredRoles.includes(role));
 };
