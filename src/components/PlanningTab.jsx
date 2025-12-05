@@ -16,6 +16,13 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
   const toggleOrder = (id) => {
       setExpandedOrderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
+  
+  // Отдельный хендлер для клика по стрелке (чтобы точно сработал)
+  const handleChevronClick = (e, id) => {
+      e.stopPropagation(); // Чтобы не было двойного клика если он всплывет
+      toggleOrder(id);
+  };
+
   const toggleProduct = (id, e) => {
       e.stopPropagation();
       setExpandedProductIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -25,21 +32,20 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
   // --- ЛОГИКА ЦВЕТА ПО ДЭДЛАЙНУ ---
   const getOrderStyle = (deadlineStr) => {
-      if (!deadlineStr) return 'bg-white border-gray-200'; // Нет даты - белый
+      if (!deadlineStr) return 'bg-white border-gray-200';
 
       const today = new Date();
       today.setHours(0,0,0,0);
       const deadline = new Date(deadlineStr);
       deadline.setHours(0,0,0,0);
       
-      // Разница в днях
       const diffTime = deadline - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays <= 3) return 'bg-red-50 border-red-200 ring-1 ring-red-100'; // <= 3 дней (Красный)
-      if (diffDays <= 7) return 'bg-orange-50 border-orange-200 ring-1 ring-orange-100'; // 4-7 дней (Оранжевый)
-      if (diffDays <= 10) return 'bg-blue-50 border-blue-200 ring-1 ring-blue-100'; // 7-10 дней (Синий)
-      return 'bg-green-50 border-green-200 ring-1 ring-green-100'; // > 10 дней (Зеленый)
+      if (diffDays <= 3) return 'bg-red-50 border-red-200 ring-1 ring-red-100'; 
+      if (diffDays <= 7) return 'bg-orange-50 border-orange-200 ring-1 ring-orange-100'; 
+      if (diffDays <= 10) return 'bg-blue-50 border-blue-200 ring-1 ring-blue-100'; 
+      return 'bg-green-50 border-green-200 ring-1 ring-green-100'; 
   };
 
   const getDeadlineLabel = (deadlineStr) => {
@@ -73,16 +79,13 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
   };
 
   // --- ГРУППИРОВКА И СОРТИРОВКА ---
-  
-  // 1. Фильтрация (Активные / Архив)
   let displayedOrders = orders.filter(o => showHistory ? true : o.status === 'active');
 
-  // 2. СОРТИРОВКА ПО ДЭДЛАЙНУ (Сначала горящие, без даты - в конце)
   displayedOrders.sort((a, b) => {
       if (!a.deadline && !b.deadline) return 0;
-      if (!a.deadline) return 1; // a (без даты) вниз
-      if (!b.deadline) return -1; // b (без даты) вниз
-      return new Date(a.deadline) - new Date(b.deadline); // По возрастанию даты
+      if (!a.deadline) return 1; 
+      if (!b.deadline) return -1; 
+      return new Date(a.deadline) - new Date(b.deadline); 
   });
 
   const orphanProducts = products.filter(p => !p.orderId);
@@ -109,58 +112,62 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
             const isOrderExpanded = expandedOrderIds.includes(order.id);
             const orderPositions = products.filter(p => p.orderId === order.id);
             
-            // Расчет общей статистики
             const totalOrderHours = orderPositions.reduce((sum, p) => sum + p.operations.reduce((s, op) => s + (op.minutesPerUnit * p.quantity), 0), 0) / 60;
             const doneOrderHours = orderPositions.reduce((sum, p) => sum + p.operations.reduce((s, op) => s + ((op.actualMinutes || 0) * p.quantity), 0), 0) / 60;
             const progress = totalOrderHours > 0 ? Math.round((doneOrderHours / totalOrderHours) * 100) : 0;
 
-            // Стиль карточки на основе даты
             const cardStyle = order.status === 'completed' 
-                ? 'bg-gray-100 border-gray-200 opacity-70' // Для завершенных - серый
-                : getOrderStyle(order.deadline); // Для активных - цветной
+                ? 'bg-gray-100 border-gray-200 opacity-70' 
+                : getOrderStyle(order.deadline); 
 
             return (
                 <div key={order.id} className={`rounded-xl shadow-md border overflow-hidden transition-all hover:shadow-lg ${cardStyle}`}>
                     
                     {/* ШАПКА ЗАКАЗА */}
                     <div 
-                        className="p-4 flex flex-col md:flex-row md:items-center gap-4 cursor-pointer"
+                        className="p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-4 cursor-pointer relative"
                         onClick={() => toggleOrder(order.id)}
                     >
-                        {/* Иконка сворачивания (на моб. скрываем если не нужно, или оставляем) */}
-                        <div className="hidden md:block">
-                            {isOrderExpanded ? <ChevronDown /> : <ChevronRight />}
+                        {/* КНОПКА РАСКРЫТИЯ (Теперь видима всегда и кликабельна) */}
+                        <div className="absolute right-3 top-3 md:static md:block z-10">
+                             <button 
+                                onClick={(e) => handleChevronClick(e, order.id)}
+                                className="p-2 bg-white/50 rounded-full hover:bg-white transition shadow-sm md:shadow-none md:bg-transparent"
+                             >
+                                 {isOrderExpanded ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}
+                             </button>
                         </div>
                         
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-center pr-10 md:pr-0">
                             
                             {/* Номер и Клиент */}
                             <div className="md:col-span-2 space-y-2">
-                                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                    {isOrderExpanded ? <ChevronDown className="md:hidden" size={20}/> : <ChevronRight className="md:hidden" size={20}/>}
+                                <div className="flex items-center gap-2">
                                     <input 
                                         type="text" 
                                         value={order.orderNumber}
+                                        onClick={e => e.stopPropagation()} // Блокируем раскрытие только при клике ВНУТРЬ поля
                                         onChange={(e) => actions.updateOrder(order.id, 'orderNumber', e.target.value)}
-                                        className="font-bold text-lg bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full placeholder-gray-500 text-gray-800"
+                                        className="font-bold text-lg bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full placeholder-gray-500 text-gray-800 py-1"
                                         placeholder="№ Договора..."
                                     />
                                 </div>
-                                <div className="flex items-center gap-2 text-xs opacity-80" onClick={e => e.stopPropagation()}>
-                                    <User size={14} className="text-gray-600" />
+                                <div className="flex items-center gap-2 text-xs opacity-80">
+                                    <User size={14} className="text-gray-600 flex-shrink-0" />
                                     <input 
                                         type="text" 
                                         value={order.clientName}
+                                        onClick={e => e.stopPropagation()}
                                         onChange={(e) => actions.updateOrder(order.id, 'clientName', e.target.value)}
-                                        className="bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full md:w-64 text-gray-700 font-medium"
+                                        className="bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full md:w-64 text-gray-700 font-medium py-1"
                                         placeholder="Имя клиента..."
                                     />
                                 </div>
                             </div>
 
                             {/* Дэдлайн и статус */}
-                            <div className="flex justify-between md:justify-end items-center gap-6 mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
-                                <div className="text-right">
+                            <div className="flex justify-between md:justify-end items-center gap-4 mt-2 md:mt-0">
+                                <div className="text-right flex-1 md:flex-none">
                                     <div className="flex flex-col items-end">
                                         <div className="text-[10px] uppercase text-gray-500 font-bold mb-0.5">Дэдлайн</div>
                                         {getDeadlineLabel(order.deadline)}
@@ -168,18 +175,19 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                                     <input 
                                         type="date" 
                                         value={order.deadline}
+                                        onClick={e => e.stopPropagation()}
                                         onChange={(e) => actions.updateOrder(order.id, 'deadline', e.target.value)}
-                                        className={`bg-transparent text-sm font-bold border-b border-transparent focus:border-red-400 outline-none text-right cursor-pointer ${!order.deadline && 'text-red-400'}`}
+                                        className={`w-full md:w-auto bg-transparent text-sm font-bold border-b border-transparent focus:border-red-400 outline-none text-right cursor-pointer ${!order.deadline && 'text-red-400'}`}
                                     />
                                 </div>
                                 
-                                <div className="text-right min-w-[60px]">
-                                    <div className="text-2xl font-bold leading-none text-gray-800">{progress}%</div>
+                                <div className="text-right min-w-[50px]">
+                                    <div className="text-xl md:text-2xl font-bold leading-none text-gray-800">{progress}%</div>
                                     <div className="text-[10px] uppercase text-gray-400">Готовность</div>
                                 </div>
 
                                 <button 
-                                    onClick={() => actions.deleteOrder(order.id)}
+                                    onClick={(e) => { e.stopPropagation(); actions.deleteOrder(order.id); }}
                                     className="p-2 hover:bg-red-500/10 rounded text-red-400 hover:text-red-600 transition"
                                 >
                                     <Trash2 size={18} />
@@ -288,20 +296,15 @@ function ProductCard({
              <div className="flex flex-col md:flex-row md:items-center p-3 md:p-4 cursor-pointer relative overflow-hidden group gap-2 md:gap-0" onClick={onToggle}>
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${totalFact >= totalPlan && totalPlan > 0 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                 
-                <div className="hidden md:block ml-3 mr-3 text-gray-400">
+                {/* СТРЕЛКА (На мобильном теперь тоже видна справа) */}
+                <div className="absolute right-3 top-3 md:static md:block text-gray-400">
                     {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
                 </div>
 
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center pl-3 md:pl-0">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center pl-3 md:pl-0 pr-8 md:pr-0">
                     {/* Название */}
                     <div className="md:col-span-5">
-                        <div className="flex items-center justify-between md:block">
-                            <div className="font-bold text-gray-800 text-base md:text-lg">{product.name}</div>
-                            {/* Стрелка для мобилок */}
-                            <div className="md:hidden text-gray-400">
-                                {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
-                            </div>
-                        </div>
+                        <div className="font-bold text-gray-800 text-base md:text-lg">{product.name}</div>
                         <div className="text-xs text-gray-500 flex gap-3 mt-1">
                              <span>Кол-во: <span className="font-bold text-gray-900">{product.quantity} шт.</span></span>
                              {product.startDate && <span>Старт: {product.startDate}</span>}
@@ -331,7 +334,7 @@ function ProductCard({
                     <div className="md:col-span-1 flex justify-end">
                         <button 
                             onClick={(e) => { e.stopPropagation(); actions.deleteProduct(product.id); }}
-                            className="text-gray-300 hover:text-red-500 p-2"
+                            className="text-gray-300 hover:text-red-500 p-2 z-10"
                         >
                             <Trash2 size={16} />
                         </button>
