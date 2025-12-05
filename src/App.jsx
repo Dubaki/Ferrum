@@ -13,11 +13,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('orders');
   
   const { 
-    resources, setResources, products, setProducts, 
-    reports, setReports, actions, loading 
+    resources, setResources, 
+    products, setProducts, 
+    orders, setOrders,        
+    reports, setReports, 
+    actions, loading 
   } = useProductionData();
   
-  // Здесь происходит магия расчета дат
   const { ganttItems, globalTimeline } = useSimulation(products, resources);
 
   const resourceLoadSummary = {};
@@ -34,7 +36,7 @@ export default function App() {
   });
 
   const exportData = () => {
-    const data = { resources, products, reports, date: new Date().toISOString() };
+    const data = { resources, products, orders, reports, date: new Date().toISOString() };
     const fileName = `ferrum_backup_${new Date().toLocaleDateString('ru-RU')}.json`;
     const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
     const link = document.createElement('a');
@@ -57,6 +59,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-slate-800 font-sans">
+      {/* Шапка (Меню) */}
       <Header 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -64,24 +67,23 @@ export default function App() {
         importData={importData}
       />
 
-      <div className="max-w-7xl mx-auto p-6">
+      {/* Основной контейнер: на мобильном p-2, на ПК p-6 */}
+      <div className="max-w-7xl mx-auto p-2 md:p-6">
         
-        {/* Вкладка Оплаченные заказы */}
         {activeTab === 'orders' && (
             <PlanningTab 
                 products={products} 
                 resources={resources} 
+                orders={orders}          
                 actions={actions} 
-                ganttItems={ganttItems} // <-- ПЕРЕДАЕМ РАСЧЕТНЫЕ ДАТЫ
+                ganttItems={ganttItems} 
             />
         )}
 
-        {/* Вкладка Планирование (Детальная загрузка) */}
         {activeTab === 'planning' && (
             <WorkloadTab resources={resources} globalTimeline={globalTimeline} />
         )}
 
-        {/* Остальные вкладки */}
         {activeTab === 'resources' && (
             <ResourcesTab 
                 resources={resources} 

@@ -1,298 +1,487 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckCircle, RotateCcw, ChevronDown, ChevronUp, X, ChevronRight } from 'lucide-react';
+import { 
+  Plus, Trash2, CheckCircle, RotateCcw, ChevronDown, 
+  ChevronUp, X, ChevronRight, Clock, ArrowDownCircle, 
+  Package, Calendar, MoreVertical, FolderOpen, User, AlertTriangle 
+} from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../utils/constants';
 
-// Принимаем ganttItems, чтобы показать реальные расчетные даты
-export default function PlanningTab({ products, resources, actions, ganttItems = [] }) {
+export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [] }) {
+  const [expandedOrderIds, setExpandedOrderIds] = useState([]);
+  const [expandedProductIds, setExpandedProductIds] = useState([]); 
   const [showHistory, setShowHistory] = useState(false);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
-  const [expandedOrderIds, setExpandedOrderIds] = useState([]);
 
+  // --- ХЕЛПЕРЫ ---
   const toggleOrder = (id) => {
-      if (expandedOrderIds.includes(id)) {
-          setExpandedOrderIds(expandedOrderIds.filter(oid => oid !== id));
-      } else {
-          setExpandedOrderIds([...expandedOrderIds, id]);
-      }
+      setExpandedOrderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+  const toggleProduct = (id, e) => {
+      e.stopPropagation();
+      setExpandedProductIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const sortedResources = [...resources].sort((a,b) => a.name.localeCompare(b.name));
   const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
-  // Сортировка по дедлайну
-  const sortedProducts = [...products]
-    .filter(p => showHistory ? true : p.status === 'active')
-    .sort((a, b) => {
-        if (a.deadline && b.deadline) {
-            return new Date(a.deadline) - new Date(b.deadline);
-        }
-        if (!a.deadline) return 1;
-        if (!b.deadline) return -1;
-        return b.id - a.id;
+  // --- ЛОГИКА ЦВЕТА ПО ДЭДЛАЙНУ ---
+  const getOrderStyle = (deadlineStr) => {
+      if (!deadlineStr) return 'bg-white border-gray-200'; // Нет даты - белый
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const deadline = new Date(deadlineStr);
+      deadline.setHours(0,0,0,0);
+      
+      // Разница в днях
+      const diffTime = deadline - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 3) return 'bg-red-50 border-red-200 ring-1 ring-red-100'; // <= 3 дней (Красный)
+      if (diffDays <= 7) return 'bg-orange-50 border-orange-200 ring-1 ring-orange-100'; // 4-7 дней (Оранжевый)
+      if (diffDays <= 10) return 'bg-blue-50 border-blue-200 ring-1 ring-blue-100'; // 7-10 дней (Синий)
+      return 'bg-green-50 border-green-200 ring-1 ring-green-100'; // > 10 дней (Зеленый)
+  };
+
+  const getDeadlineLabel = (deadlineStr) => {
+      if (!deadlineStr) return null;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const deadline = new Date(deadlineStr);
+      const diffTime = deadline - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return <span className="text-red-600 font-bold uppercase text-[10px]">Просрочено на {Math.abs(diffDays)} дн!</span>
+      if (diffDays === 0) return <span className="text-red-600 font-bold uppercase text-[10px]">Сегодня!</span>
+      if (diffDays <= 3) return <span className="text-red-500 font-bold text-[10px]">Осталось: {diffDays} дн.</span>
+      return null;
+  };
+
+  // --- ЛОГИКА ИСТОРИИ ---
+  const getHistorySuggestion = (opName) => {
+    if (!opName) return null;
+    let totalMins = 0;
+    let count = 0;
+    products.filter(p => p.status === 'completed').forEach(p => {
+        p.operations.forEach(op => {
+            if (op.name.toLowerCase() === opName.toLowerCase() && op.actualMinutes > 0) {
+                totalMins += op.actualMinutes;
+                count++;
+            }
+        });
     });
+    return count > 0 ? Math.round(totalMins / count) : null;
+  };
+
+  // --- ГРУППИРОВКА И СОРТИРОВКА ---
+  
+  // 1. Фильтрация (Активные / Архив)
+  let displayedOrders = orders.filter(o => showHistory ? true : o.status === 'active');
+
+  // 2. СОРТИРОВКА ПО ДЭДЛАЙНУ (Сначала горящие, без даты - в конце)
+  displayedOrders.sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1; // a (без даты) вниз
+      if (!b.deadline) return -1; // b (без даты) вниз
+      return new Date(a.deadline) - new Date(b.deadline); // По возрастанию даты
+  });
+
+  const orphanProducts = products.filter(p => !p.orderId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-20">
       
-      {/* ЗАГОЛОВОК */}
-      <div className="flex justify-between items-center mt-2">
+      {/* ВЕРХНЯЯ ПАНЕЛЬ */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
          <div className="flex gap-4 items-center">
-             <h2 className="text-2xl font-bold">Оплаченные заказы</h2>
+             <h2 className="text-2xl font-bold text-gray-800">Портфель заказов</h2>
              <button onClick={() => setShowHistory(!showHistory)} className="text-sm text-blue-600 hover:underline">
-               {showHistory ? 'Скрыть завершенные' : 'Показать завершенные'}
+               {showHistory ? 'Скрыть архив' : 'Показать архив'}
              </button>
          </div>
-         <button onClick={actions.addProduct} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 shadow-sm font-medium transition">
-           <Plus size={18} /> Создать заказ
+         <button onClick={actions.addOrder} className="w-full md:w-auto flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-700 shadow-lg font-medium transition">
+           <Plus size={18} /> Создать новый заказ
          </button>
       </div>
 
-      {/* ЗАГОЛОВОК ТАБЛИЦЫ */}
-      <div className="grid grid-cols-12 gap-4 px-5 py-2 bg-gray-100 rounded-t-lg text-xs font-bold text-gray-500 uppercase border border-gray-200 border-b-0">
-          <div className="col-span-2">№ Заказа</div>
-          <div className="col-span-4">Наименование</div>
-          <div className="col-span-2 text-center">Расчетный Старт</div>
-          <div className="col-span-2 text-center text-red-600">Готовность (Договор)</div>
-          <div className="col-span-2 text-right">Действия</div>
+      {/* --- СПИСОК ЗАКАЗОВ (ПАПКИ) --- */}
+      <div className="space-y-6">
+        {displayedOrders.map(order => {
+            const isOrderExpanded = expandedOrderIds.includes(order.id);
+            const orderPositions = products.filter(p => p.orderId === order.id);
+            
+            // Расчет общей статистики
+            const totalOrderHours = orderPositions.reduce((sum, p) => sum + p.operations.reduce((s, op) => s + (op.minutesPerUnit * p.quantity), 0), 0) / 60;
+            const doneOrderHours = orderPositions.reduce((sum, p) => sum + p.operations.reduce((s, op) => s + ((op.actualMinutes || 0) * p.quantity), 0), 0) / 60;
+            const progress = totalOrderHours > 0 ? Math.round((doneOrderHours / totalOrderHours) * 100) : 0;
+
+            // Стиль карточки на основе даты
+            const cardStyle = order.status === 'completed' 
+                ? 'bg-gray-100 border-gray-200 opacity-70' // Для завершенных - серый
+                : getOrderStyle(order.deadline); // Для активных - цветной
+
+            return (
+                <div key={order.id} className={`rounded-xl shadow-md border overflow-hidden transition-all hover:shadow-lg ${cardStyle}`}>
+                    
+                    {/* ШАПКА ЗАКАЗА */}
+                    <div 
+                        className="p-4 flex flex-col md:flex-row md:items-center gap-4 cursor-pointer"
+                        onClick={() => toggleOrder(order.id)}
+                    >
+                        {/* Иконка сворачивания (на моб. скрываем если не нужно, или оставляем) */}
+                        <div className="hidden md:block">
+                            {isOrderExpanded ? <ChevronDown /> : <ChevronRight />}
+                        </div>
+                        
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                            
+                            {/* Номер и Клиент */}
+                            <div className="md:col-span-2 space-y-2">
+                                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                    {isOrderExpanded ? <ChevronDown className="md:hidden" size={20}/> : <ChevronRight className="md:hidden" size={20}/>}
+                                    <input 
+                                        type="text" 
+                                        value={order.orderNumber}
+                                        onChange={(e) => actions.updateOrder(order.id, 'orderNumber', e.target.value)}
+                                        className="font-bold text-lg bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full placeholder-gray-500 text-gray-800"
+                                        placeholder="№ Договора..."
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2 text-xs opacity-80" onClick={e => e.stopPropagation()}>
+                                    <User size={14} className="text-gray-600" />
+                                    <input 
+                                        type="text" 
+                                        value={order.clientName}
+                                        onChange={(e) => actions.updateOrder(order.id, 'clientName', e.target.value)}
+                                        className="bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full md:w-64 text-gray-700 font-medium"
+                                        placeholder="Имя клиента..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Дэдлайн и статус */}
+                            <div className="flex justify-between md:justify-end items-center gap-6 mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
+                                <div className="text-right">
+                                    <div className="flex flex-col items-end">
+                                        <div className="text-[10px] uppercase text-gray-500 font-bold mb-0.5">Дэдлайн</div>
+                                        {getDeadlineLabel(order.deadline)}
+                                    </div>
+                                    <input 
+                                        type="date" 
+                                        value={order.deadline}
+                                        onChange={(e) => actions.updateOrder(order.id, 'deadline', e.target.value)}
+                                        className={`bg-transparent text-sm font-bold border-b border-transparent focus:border-red-400 outline-none text-right cursor-pointer ${!order.deadline && 'text-red-400'}`}
+                                    />
+                                </div>
+                                
+                                <div className="text-right min-w-[60px]">
+                                    <div className="text-2xl font-bold leading-none text-gray-800">{progress}%</div>
+                                    <div className="text-[10px] uppercase text-gray-400">Готовность</div>
+                                </div>
+
+                                <button 
+                                    onClick={() => actions.deleteOrder(order.id)}
+                                    className="p-2 hover:bg-red-500/10 rounded text-red-400 hover:text-red-600 transition"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ТЕЛО ЗАКАЗА (ПОЗИЦИИ) */}
+                    {isOrderExpanded && (
+                        <div className="bg-white/50 p-2 md:p-4 border-t border-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                            
+                            {/* Тулбар позиций */}
+                            <div className="flex justify-between items-center mb-4 px-2">
+                                <div className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider">
+                                    <FolderOpen size={14} />
+                                    Состав заказа ({orderPositions.length})
+                                </div>
+                                <button 
+                                    onClick={() => actions.addProduct(order.id)}
+                                    className="text-sm flex items-center gap-1 text-blue-600 font-bold hover:bg-blue-100 px-3 py-1.5 rounded transition"
+                                >
+                                    <Plus size={16} /> <span className="hidden md:inline">Добавить изделие</span><span className="md:hidden">Изделие</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {orderPositions.map(product => (
+                                    <ProductCard 
+                                        key={product.id} 
+                                        product={product}
+                                        isExpanded={expandedProductIds.includes(product.id)}
+                                        onToggle={(e) => toggleProduct(product.id, e)}
+                                        actions={actions}
+                                        resources={resources}
+                                        isStandard={isStandard}
+                                        ganttItem={ganttItems.find(g => g.productId === product.id)}
+                                        getHistorySuggestion={getHistorySuggestion}
+                                        sortedResources={resources.sort((a,b) => a.name.localeCompare(b.name))}
+                                        openExecutorDropdown={openExecutorDropdown}
+                                        setOpenExecutorDropdown={setOpenExecutorDropdown}
+                                    />
+                                ))}
+                                {orderPositions.length === 0 && (
+                                    <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                                        В этом заказе пока нет изделий. Нажмите "Добавить изделие".
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        })}
+        {displayedOrders.length === 0 && (
+            <div className="text-center py-10 text-gray-400">
+                Нет активных заказов. Создайте новый!
+            </div>
+        )}
       </div>
 
-      {/* СПИСОК ЗАКАЗОВ */}
-      <div className="space-y-2">
-      {sortedProducts.map(product => {
-          const isExpanded = expandedOrderIds.includes(product.id);
-          // Ищем расчетные данные для этого заказа
-          const simData = ganttItems.find(g => g.productId === product.id);
-          
-          return (
-            <div key={product.id} className={`rounded-lg border transition-all overflow-visible ${product.status === 'completed' ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-200 shadow-sm'}`}>
-              
-              {/* СТРОКА-СВОДКА */}
-              <div 
-                className={`grid grid-cols-12 gap-4 items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isExpanded ? 'border-b border-gray-100 bg-gray-50' : ''}`}
-                onClick={() => toggleOrder(product.id)}
-              >
-                  <div className="col-span-2 font-bold text-gray-800">
-                      {product.orderNumber || <span className="text-gray-400 italic text-xs">Без номера</span>}
-                  </div>
-                  
-                  <div className="col-span-4 font-bold text-gray-800 flex items-center gap-2">
-                      {isExpanded ? <ChevronDown size={16} className="text-gray-400"/> : <ChevronRight size={16} className="text-gray-400"/>}
-                      {product.name}
-                      {product.quantity > 1 && <span className="text-xs font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">x{product.quantity}</span>}
-                  </div>
-
-                  {/* РАСЧЕТНЫЙ СТАРТ (ИЗ СИМУЛЯЦИИ) */}
-                  <div className="col-span-2 text-center text-sm font-semibold text-blue-600">
-                      {simData ? simData.startDate.toLocaleDateString('ru-RU') : '-'}
-                  </div>
-
-                  <div className="col-span-2 text-center text-sm font-bold text-red-600">
-                      {product.deadline ? new Date(product.deadline).toLocaleDateString('ru-RU') : '-'}
-                  </div>
-
-                  <div className="col-span-2 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button 
-                            onClick={() => actions.toggleProductStatus(product.id)}
-                            className={`p-1.5 rounded hover:bg-gray-200 transition ${product.status === 'active' ? 'text-green-600' : 'text-gray-400'}`}
-                            title={product.status === 'active' ? "Завершить заказ" : "Вернуть в работу"}
-                        >
-                            {product.status === 'active' ? <CheckCircle size={18} /> : <RotateCcw size={18} />}
-                        </button>
-                  </div>
+      {/* --- НЕРАСПРЕДЕЛЕННЫЕ (ЕСЛИ ЕСТЬ) --- */}
+      {orphanProducts.length > 0 && (
+          <div className="mt-12 pt-8 border-t-2 border-gray-200 border-dashed">
+              <h3 className="text-lg font-bold text-gray-500 mb-4 flex items-center gap-2">
+                  <Package size={20} /> Нераспределенные изделия (Без папки)
+              </h3>
+              <div className="space-y-3">
+                  {orphanProducts.map(product => (
+                      <ProductCard 
+                          key={product.id} 
+                          product={product}
+                          isExpanded={expandedProductIds.includes(product.id)}
+                          onToggle={(e) => toggleProduct(product.id, e)}
+                          actions={actions}
+                          resources={resources}
+                          isStandard={isStandard}
+                          ganttItem={ganttItems.find(g => g.productId === product.id)}
+                          getHistorySuggestion={getHistorySuggestion}
+                          sortedResources={resources}
+                          openExecutorDropdown={openExecutorDropdown}
+                          setOpenExecutorDropdown={setOpenExecutorDropdown}
+                      />
+                  ))}
               </div>
+          </div>
+      )}
+    </div>
+  );
+}
 
-              {/* РАЗВЕРНУТАЯ ЧАСТЬ */}
-              {isExpanded && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* ШАПКА РЕДАКТИРОВАНИЯ */}
-                  <div className="p-5 border-b border-gray-100 bg-gray-50/30 flex flex-wrap gap-6 items-start">
-                    <div className="w-32">
-                        <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">№ Заказа</label>
-                        <input 
-                            type="text" value={product.orderNumber || ''}
-                            onChange={e => actions.updateProduct(product.id, 'orderNumber', e.target.value)}
-                            className="block w-full text-sm font-bold text-gray-800 bg-white border border-gray-200 rounded px-2 py-1.5 focus:border-blue-500 outline-none"
-                            placeholder="№..."
-                        />
+// --- КОМПОНЕНТ КАРТОЧКИ ИЗДЕЛИЯ ---
+function ProductCard({ 
+    product, isExpanded, onToggle, actions, resources, isStandard, 
+    ganttItem, getHistorySuggestion, sortedResources, 
+    openExecutorDropdown, setOpenExecutorDropdown 
+}) {
+    const totalPlan = product.operations.reduce((acc, op) => acc + (op.minutesPerUnit * product.quantity), 0);
+    const totalFact = product.operations.reduce((acc, op) => acc + ((op.actualMinutes || 0) * product.quantity), 0);
+    const factColor = totalFact > totalPlan ? 'text-red-500' : 'text-green-600';
+
+    return (
+        <div className={`bg-white border rounded-lg transition-all ${isExpanded ? 'shadow-md border-blue-300 ring-1 ring-blue-100' : 'border-gray-200 hover:border-blue-300'}`}>
+             
+             {/* Сводная строка изделия */}
+             <div className="flex flex-col md:flex-row md:items-center p-3 md:p-4 cursor-pointer relative overflow-hidden group gap-2 md:gap-0" onClick={onToggle}>
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${totalFact >= totalPlan && totalPlan > 0 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                
+                <div className="hidden md:block ml-3 mr-3 text-gray-400">
+                    {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
+                </div>
+
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center pl-3 md:pl-0">
+                    {/* Название */}
+                    <div className="md:col-span-5">
+                        <div className="flex items-center justify-between md:block">
+                            <div className="font-bold text-gray-800 text-base md:text-lg">{product.name}</div>
+                            {/* Стрелка для мобилок */}
+                            <div className="md:hidden text-gray-400">
+                                {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
+                            </div>
+                        </div>
+                        <div className="text-xs text-gray-500 flex gap-3 mt-1">
+                             <span>Кол-во: <span className="font-bold text-gray-900">{product.quantity} шт.</span></span>
+                             {product.startDate && <span>Старт: {product.startDate}</span>}
+                        </div>
                     </div>
-                    <div className="flex-1 min-w-[200px]">
-                        <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Наименование</label>
+
+                    {/* План / Факт */}
+                    <div className="md:col-span-3 flex gap-4 text-sm bg-gray-50 md:bg-transparent p-2 md:p-0 rounded">
+                        <div>
+                            <span className="text-[10px] text-gray-400 block uppercase">План</span>
+                            <span className="font-semibold">{(totalPlan / 60).toFixed(1)} ч</span>
+                        </div>
+                        <div>
+                            <span className="text-[10px] text-gray-400 block uppercase">Факт</span>
+                            <span className={`font-bold ${factColor}`}>{(totalFact / 60).toFixed(1)} ч</span>
+                        </div>
+                    </div>
+
+                    {/* Гант даты */}
+                    <div className="md:col-span-3 text-xs text-gray-400 hidden md:block">
+                        {ganttItem ? (
+                            <div>Расчет: {ganttItem.startDate.toLocaleDateString()} - {ganttItem.endDate.toLocaleDateString()}</div>
+                        ) : <span>Нет операций</span>}
+                    </div>
+
+                    {/* Кнопки */}
+                    <div className="md:col-span-1 flex justify-end">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); actions.deleteProduct(product.id); }}
+                            className="text-gray-300 hover:text-red-500 p-2"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </div>
+             </div>
+
+             {/* Развернутое тело */}
+             {isExpanded && (
+                 <div className="border-t border-gray-100 bg-gray-50/50 p-2 md:p-4">
+                    <div className="flex flex-col md:flex-row gap-4 mb-6">
                         <input 
                             type="text" value={product.name}
                             onChange={e => actions.updateProduct(product.id, 'name', e.target.value)}
-                            className="block w-full text-sm font-bold text-gray-800 bg-white border border-gray-200 rounded px-3 py-1.5 focus:border-blue-500 outline-none"
+                            className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm font-medium focus:border-blue-400 outline-none"
+                            placeholder="Название изделия..."
                         />
+                         <div className="flex gap-2">
+                             <input 
+                                type="number" value={product.quantity}
+                                onChange={e => actions.updateProduct(product.id, 'quantity', parseInt(e.target.value))}
+                                className="w-20 border border-gray-200 rounded px-2 py-2 text-center text-sm font-bold"
+                                placeholder="Кол-во"
+                            />
+                             <input 
+                                type="date" value={product.startDate}
+                                onChange={e => actions.updateProduct(product.id, 'startDate', e.target.value)}
+                                className="border border-gray-200 rounded px-3 py-2 text-sm"
+                            />
+                         </div>
                     </div>
-                    <div className="w-24">
-                        <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Кол-во</label>
-                        <input 
-                            type="number" value={product.quantity}
-                            onChange={e => actions.updateProduct(product.id, 'quantity', Math.max(1, parseInt(e.target.value)))}
-                            className="w-full font-semibold bg-white border border-gray-200 rounded px-2 py-1.5 text-center"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Мин. старт (материалы)</label>
-                        <input 
-                            type="date" value={product.startDate}
-                            onChange={e => actions.updateProduct(product.id, 'startDate', e.target.value)}
-                            className="block bg-white border border-gray-200 rounded px-3 py-1.5 text-sm font-medium"
-                        />
-                        {/* ПОДСКАЗКА О РЕАЛЬНОМ СТАРТЕ */}
-                        {simData && (
-                            <div className="text-[10px] text-blue-600 mt-1">
-                                Фактический старт: <b>{simData.startDate.toLocaleDateString('ru-RU')}</b>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <label className="text-xs text-red-400 font-bold uppercase tracking-wider">Дэдлайн (Договор)</label>
-                        <input 
-                            type="date" value={product.deadline || ''}
-                            onChange={e => actions.updateProduct(product.id, 'deadline', e.target.value)}
-                            className="block bg-red-50 border border-red-200 text-red-700 rounded px-3 py-1.5 text-sm font-medium focus:border-red-400 outline-none"
-                        />
-                        {/* ПОДСКАЗКА О РЕАЛЬНОМ ФИНИШЕ */}
-                        {simData && (
-                            <div className="text-[10px] text-gray-500 mt-1">
-                                Расчетный финиш: <b>{simData.endDate.toLocaleDateString('ru-RU')}</b>
-                            </div>
-                        )}
-                    </div>
-                    <div className="pt-5 ml-auto">
-                        <button onClick={() => actions.deleteProduct(product.id)} className="flex items-center gap-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded transition">
-                            <Trash2 size={14} /> Удалить
-                        </button>
-                    </div>
-                  </div>
 
-                  {/* ОПЕРАЦИИ */}
-                  {product.status === 'active' && (
-                  <div className="p-5 bg-gray-50/50">
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-gray-400 px-2">
+                    <div className="bg-white rounded border border-gray-200 overflow-hidden">
+                        <div className="grid grid-cols-12 gap-1 md:gap-2 text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-2 uppercase tracking-wide">
                             <div className="col-span-1 text-center">№</div>
-                            <div className="col-span-4">ОПЕРАЦИЯ</div>
-                            <div className="col-span-3">ИСПОЛНИТЕЛИ</div>
-                            <div className="col-span-3">МИНУТЫ НА 1 ШТ</div>
-                            <div className="col-span-1"></div>
+                            <div className="col-span-5 md:col-span-4">Операция</div>
+                            <div className="hidden md:block md:col-span-3">Исполнитель</div>
+                            <div className="col-span-3 md:col-span-2 text-center">План</div>
+                            <div className="col-span-3 md:col-span-2 text-center text-yellow-600">Факт</div>
                         </div>
 
                         {product.operations.map((op) => {
-                            const totalHours = (op.minutesPerUnit * product.quantity) / 60;
                             const isDropdownOpen = openExecutorDropdown === op.id;
-                            
+                            const historySuggestion = getHistorySuggestion(op.name);
+
                             return (
-                            <div key={op.id} className="grid grid-cols-12 gap-4 items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm relative z-0">
-                                <div className="col-span-1 text-center font-bold text-gray-400">{op.sequence}</div>
-                                
-                                <div className="col-span-4 flex gap-2">
-                                    <select 
-                                        value={isStandard(op.name) ? op.name : 'other'}
-                                        onChange={(e) => {
-                                            if (e.target.value === 'other') {
-                                                actions.updateOperation(product.id, op.id, 'name', 'Новая операция');
-                                            } else {
-                                                actions.updateOperation(product.id, op.id, 'name', e.target.value);
-                                            }
-                                        }}
-                                        className="w-full text-sm font-medium border-b border-gray-200 focus:border-blue-400 outline-none bg-transparent py-1"
-                                    >
-                                        {STANDARD_OPERATIONS.map(std => (
-                                            <option key={std} value={std}>{std}</option>
-                                        ))}
-                                        <option value="other">Другое...</option>
-                                    </select>
+                                <div key={op.id} className="grid grid-cols-12 gap-1 md:gap-2 items-center px-2 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 relative">
+                                    <div className="col-span-1 text-center font-bold text-gray-300">{op.sequence}</div>
                                     
-                                    {(!isStandard(op.name)) && (
-                                        <input 
-                                            type="text"
-                                            value={op.name}
-                                            onChange={e => actions.updateOperation(product.id, op.id, 'name', e.target.value)}
-                                            className="w-full text-sm border-b border-blue-400 outline-none bg-blue-50/20 px-1"
-                                            placeholder="Название..."
-                                        />
-                                    )}
-                                </div>
+                                    <div className="col-span-5 md:col-span-4">
+                                        <select 
+                                            value={isStandard(op.name) ? op.name : 'other'}
+                                            onChange={(e) => actions.updateOperation(product.id, op.id, 'name', e.target.value === 'other' ? 'Новая' : e.target.value)}
+                                            className="w-full text-sm bg-transparent font-medium outline-none text-gray-700"
+                                        >
+                                            {STANDARD_OPERATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                            <option value="other">Свой вариант...</option>
+                                        </select>
+                                        {!isStandard(op.name) && (
+                                            <input 
+                                                type="text" value={op.name}
+                                                onChange={e => actions.updateOperation(product.id, op.id, 'name', e.target.value)}
+                                                className="w-full text-xs border-b border-blue-300 outline-none text-blue-800 mt-1"
+                                                placeholder="Введите название..."
+                                            />
+                                        )}
+                                        {historySuggestion && historySuggestion !== op.minutesPerUnit && (
+                                            <button 
+                                                onClick={() => actions.updateOperation(product.id, op.id, 'minutesPerUnit', historySuggestion)}
+                                                className="mt-1 flex items-center gap-1 text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded hover:bg-green-100 transition w-fit"
+                                            >
+                                                <ArrowDownCircle size={10} /> {historySuggestion} мин
+                                            </button>
+                                        )}
+                                        {/* Мобильный выбор исполнителя (если экран маленький) */}
+                                        <div className="md:hidden mt-1">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setOpenExecutorDropdown(isDropdownOpen ? null : op.id); }}
+                                                className="text-[10px] text-blue-600 underline"
+                                            >
+                                                {op.resourceIds?.length > 0 ? 'Исполнителей: ' + op.resourceIds.length : 'Выбрать исполнителя'}
+                                            </button>
+                                        </div>
+                                    </div>
 
-                                {/* ВЫБОР ИСПОЛНИТЕЛЕЙ (ИСПРАВЛЕНО) */}
-                                <div className="col-span-3 relative">
-                                    <button 
-                                        onClick={() => setOpenExecutorDropdown(isDropdownOpen ? null : op.id)}
-                                        className={`w-full flex justify-between items-center px-3 py-1.5 border rounded text-xs text-left transition ${
-                                            op.resourceIds.length === 0 ? 'bg-red-50 border-red-200 text-red-500' : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-blue-400'
-                                        }`}
-                                    >
-                                        <span className="truncate">
-                                            {op.resourceIds.length > 0 
-                                                ? resources.filter(r => op.resourceIds.includes(r.id)).map(r => r.name).join(', ')
-                                                : 'Не назначено'}
-                                        </span>
-                                        <ChevronDown size={14} className="ml-1 flex-shrink-0" />
-                                    </button>
+                                    {/* Десктоп выбор исполнителя */}
+                                    <div className="hidden md:block md:col-span-3 relative">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setOpenExecutorDropdown(isDropdownOpen ? null : op.id); }}
+                                            className="w-full text-left text-xs px-2 py-1 rounded border border-gray-200 truncate hover:border-blue-400 bg-white"
+                                        >
+                                            {op.resourceIds?.length > 0 
+                                                ? sortedResources.filter(r => op.resourceIds.includes(r.id)).map(r => r.name).join(', ') 
+                                                : <span className="text-gray-400">Выбрать...</span>
+                                            }
+                                        </button>
+                                    </div>
 
-                                    {/* DROPDOWN С ВЫСОКИМ Z-INDEX */}
+                                    {/* Общий дропдаун (позиционируется абсолютно) */}
                                     {isDropdownOpen && (
-                                        <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-2 max-h-64 overflow-y-auto">
-                                            <div className="flex justify-between items-center mb-2 pb-2 border-b">
-                                                <span className="text-xs font-bold text-gray-500">Сотрудники</span>
-                                                <button onClick={() => setOpenExecutorDropdown(null)}><X size={14}/></button>
+                                        <div className="absolute top-10 left-10 md:left-1/2 z-50 w-48 bg-white shadow-xl border border-gray-200 rounded p-2 max-h-40 overflow-y-auto">
+                                            <div className="flex justify-between items-center mb-1 pb-1 border-b">
+                                                 <span className="text-xs font-bold">Кто делает?</span>
+                                                 <X size={12} onClick={() => setOpenExecutorDropdown(null)}/>
                                             </div>
-                                            <div className="space-y-1">
-                                                {/* Показываем ВСЕХ сотрудников без фильтрации */}
-                                                {sortedResources.map(res => (
-                                                    <label key={res.id} className="flex items-center gap-2 p-1.5 hover:bg-blue-50 rounded cursor-pointer">
-                                                        <input 
-                                                            type="checkbox"
-                                                            checked={op.resourceIds.includes(res.id)}
-                                                            onChange={() => actions.toggleResourceForOp(product.id, op.id, res.id)}
-                                                            className="rounded text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span className="text-sm text-gray-700 font-medium">{res.name}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
+                                            {sortedResources.map(res => (
+                                                <label key={res.id} className="flex items-center gap-2 p-1 hover:bg-blue-50 cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={op.resourceIds?.includes(res.id)}
+                                                        onChange={() => actions.toggleResourceForOp(product.id, op.id, res.id)}
+                                                        className="rounded text-blue-600"
+                                                    />
+                                                    <span className="text-xs">{res.name}</span>
+                                                </label>
+                                            ))}
                                         </div>
                                     )}
                                     {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setOpenExecutorDropdown(null)}></div>}
-                                </div>
 
-                                <div className="col-span-3 flex items-center gap-2">
-                                    <div className="relative flex-1">
+                                    <div className="col-span-3 md:col-span-2 text-center">
                                         <input 
-                                        type="number" 
-                                        value={op.minutesPerUnit}
-                                        onChange={e => actions.updateOperation(product.id, op.id, 'minutesPerUnit', parseFloat(e.target.value) || 0)}
-                                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded text-center font-bold"
+                                            type="number" value={op.minutesPerUnit}
+                                            onChange={e => actions.updateOperation(product.id, op.id, 'minutesPerUnit', parseFloat(e.target.value))}
+                                            className="w-full md:w-16 text-center text-sm font-bold bg-gray-50 border border-transparent rounded focus:outline-none focus:border-blue-400"
                                         />
-                                        <span className="absolute right-2 top-1.5 text-xs text-gray-400">мин</span>
                                     </div>
-                                    <div className="text-xs font-semibold text-blue-600 whitespace-nowrap w-[60px] text-right">
-                                        {totalHours.toFixed(1)} ч
-                                    </div>
-                                </div>
 
-                                <div className="col-span-1 text-right">
-                                    <button onClick={() => actions.deleteOperation(product.id, op.id)} className="text-gray-400 hover:text-red-500 transition">
-                                        <X size={18} />
-                                    </button>
+                                    <div className="col-span-3 md:col-span-2 text-center relative flex justify-center items-center gap-1">
+                                        <input 
+                                            type="number" value={op.actualMinutes || 0}
+                                            onChange={e => actions.updateOperation(product.id, op.id, 'actualMinutes', parseFloat(e.target.value))}
+                                            className="w-full md:w-16 text-center text-sm font-bold bg-yellow-50 border border-yellow-100 text-gray-800 rounded focus:outline-none focus:border-yellow-400"
+                                        />
+                                        <button onClick={() => actions.deleteOperation(product.id, op.id)} className="text-gray-300 hover:text-red-500 absolute -right-4 md:-right-6">
+                                            <X size={14} />
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            )
+                            );
                         })}
-                        
-                        <button onClick={() => actions.addOperation(product.id)} className="text-sm text-blue-600 font-bold hover:bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 transition">
-                        <Plus size={16} /> Добавить операцию
+                        <button 
+                            onClick={() => actions.addOperation(product.id)}
+                            className="w-full py-3 text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center justify-center gap-1"
+                        >
+                            <Plus size={14} /> Добавить операцию
                         </button>
                     </div>
-                  </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-      })}
-      </div>
-    </div>
-  );
+                 </div>
+             )}
+        </div>
+    );
 }

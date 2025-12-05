@@ -12,21 +12,32 @@ import { formatDate } from '../utils/helpers';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState([]); // Это "Позиции" внутри заказов
+  const [orders, setOrders] = useState([]);     // НОВОЕ: Это сами "Заказы" (Папки)
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Загрузка Ресурсов
     const unsubResources = onSnapshot(collection(db, 'resources'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setResources(list.sort((a,b) => a.name.localeCompare(b.name)));
     });
 
+    // 2. Загрузка Позиций (Изделий)
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(list);
     });
 
+    // 3. НОВОЕ: Загрузка Заказов (Папок)
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Сортируем: сначала новые
+      setOrders(list.sort((a,b) => b.createdAt - a.createdAt));
+    });
+
+    // 4. Загрузка Отчетов
     const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
@@ -36,20 +47,45 @@ export const useProductionData = () => {
     return () => {
       unsubResources();
       unsubProducts();
+      unsubOrders();
       unsubReports();
     };
   }, []);
 
   // --- ACTIONS ---
 
-  const addProduct = async () => {
+  // НОВОЕ: Создать Группу-Заказ
+  const addOrder = async () => {
+    const newOrder = {
+      orderNumber: 'Новый договор',
+      clientName: 'Клиент...',
+      deadline: '',
+      status: 'active',
+      createdAt: Date.now()
+    };
+    await addDoc(collection(db, 'orders'), newOrder);
+  };
+
+  // НОВОЕ: Обновить Заказ
+  const updateOrder = async (id, field, value) => {
+    await updateDoc(doc(db, 'orders', id), { [field]: value });
+  };
+
+  // НОВОЕ: Удалить Заказ (и предупредить, если внутри есть позиции - логика в UI)
+  const deleteOrder = async (id) => {
+    if(confirm('Удалить этот заказ (папку)? Позиции внутри останутся без привязки.')) {
+      await deleteDoc(doc(db, 'orders', id));
+    }
+  };
+
+  // ОБНОВЛЕНО: Создать позицию (теперь принимает orderId)
+  const addProduct = async (orderId = null) => {
     const todayStr = formatDate(new Date());
     const newProduct = {
-      orderNumber: '', // НОВОЕ ПОЛЕ: Ручной номер заказа
-      name: 'Новый заказ',
+      orderId: orderId, // Привязка к папке
+      name: 'Новое изделие',
       quantity: 1,
-      startDate: todayStr, // Это "Самый ранний возможный старт"
-      deadline: '',
+      startDate: todayStr,
       status: 'active',
       operations: [],
       createdAt: Date.now()
@@ -70,11 +106,12 @@ export const useProductionData = () => {
   };
 
   const deleteProduct = async (id) => {
-    if(confirm('Вы уверены, что хотите удалить заказ?')) {
+    if(confirm('Удалить эту позицию из заказа?')) {
       await deleteDoc(doc(db, 'products', id));
     }
   };
 
+  // --- OPERATIONS LOGIC (Без изменений, но сохраняем actualMinutes) ---
   const addOperation = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -85,9 +122,9 @@ export const useProductionData = () => {
       name: 'Сварка',
       resourceIds: [],
       minutesPerUnit: 60,
+      actualMinutes: 0,
       sequence: maxSeq + 1
     };
-
     const newOperations = [...product.operations, newOperation];
     await updateDoc(doc(db, 'products', productId), { operations: newOperations });
   };
@@ -95,7 +132,6 @@ export const useProductionData = () => {
   const updateOperation = async (productId, opId, field, value) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-
     const newOperations = product.operations.map(op => 
       op.id === opId ? { ...op, [field]: value } : op
     );
@@ -105,7 +141,6 @@ export const useProductionData = () => {
   const toggleResourceForOp = async (productId, opId, resourceId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-
     const newOperations = product.operations.map(op => {
       if (op.id !== opId) return op;
       const currentIds = op.resourceIds || [];
@@ -124,40 +159,21 @@ export const useProductionData = () => {
     await updateDoc(doc(db, 'products', productId), { operations: newOperations });
   };
 
-  const addResource = async () => {
-     await addDoc(collection(db, 'resources'), {
-       name: 'Новый сотрудник',
-       hoursPerDay: 8,
-       schedule: {}
-     });
-  };
-
-  const updateResource = async (id, field, value) => {
-      await updateDoc(doc(db, 'resources', id), { [field]: value });
-  };
-  
-  const deleteResource = async (id) => {
-      if(confirm('Удалить сотрудника?')) {
-        await deleteDoc(doc(db, 'resources', id));
-      }
-  };
-
-  const addReport = async (reportData) => {
-     await addDoc(collection(db, 'reports'), reportData);
-  };
-  
-  const deleteReport = async (id) => {
-      if(confirm('Удалить отчет?')) {
-        await deleteDoc(doc(db, 'reports', id));
-      }
-  };
+  // --- RESOURCES & REPORTS ---
+  const addResource = async () => addDoc(collection(db, 'resources'), { name: 'Новый', hoursPerDay: 8 });
+  const updateResource = async (id, field, value) => updateDoc(doc(db, 'resources', id), { [field]: value });
+  const deleteResource = async (id) => deleteDoc(doc(db, 'resources', id));
+  const addReport = async (data) => addDoc(collection(db, 'reports'), data);
+  const deleteReport = async (id) => deleteDoc(doc(db, 'reports', id));
 
   return {
     resources, setResources: updateResource, 
     products, setProducts,
+    orders, setOrders: updateOrder, // Экспортируем orders
     reports, setReports: addReport,
     loading,
     actions: {
+        addOrder, updateOrder, deleteOrder, // Экспортируем действия с заказами
         addProduct, updateProduct, toggleProductStatus, deleteProduct,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
         addResource, updateResource, deleteResource,

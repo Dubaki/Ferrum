@@ -23,6 +23,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                     value={resource.name}
                     onChange={(e) => setResources(resource.id, 'name', e.target.value)}
                     className="font-bold text-gray-800 bg-transparent border-b border-transparent hover:border-blue-300 focus:border-blue-500 outline-none transition-colors w-full"
+                    placeholder="Имя сотрудника"
                   />
                   <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                       <Clock size={12}/>
