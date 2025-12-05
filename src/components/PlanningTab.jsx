@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  Plus, Trash2, CheckCircle, RotateCcw, ChevronDown, 
-  ChevronUp, X, ChevronRight, Clock, ArrowDownCircle, 
-  Package, Calendar, MoreVertical, FolderOpen, User, AlertTriangle 
+  Plus, Trash2, ChevronDown, ChevronRight, ArrowDownCircle, 
+  Package, FolderOpen, User, X
 } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../utils/constants';
 
@@ -17,9 +16,8 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       setExpandedOrderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
   
-  // Отдельный хендлер для клика по стрелке (чтобы точно сработал)
   const handleChevronClick = (e, id) => {
-      e.stopPropagation(); // Чтобы не было двойного клика если он всплывет
+      e.stopPropagation();
       toggleOrder(id);
   };
 
@@ -30,7 +28,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
   const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
-  // --- ЛОГИКА ЦВЕТА ПО ДЭДЛАЙНУ ---
+  // --- ЯРКАЯ ГРАДАЦИЯ ЦВЕТОВ ---
   const getOrderStyle = (deadlineStr) => {
       if (!deadlineStr) return 'bg-white border-gray-200';
 
@@ -42,10 +40,11 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       const diffTime = deadline - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays <= 3) return 'bg-red-50 border-red-200 ring-1 ring-red-100'; 
-      if (diffDays <= 7) return 'bg-orange-50 border-orange-200 ring-1 ring-orange-100'; 
-      if (diffDays <= 10) return 'bg-blue-50 border-blue-200 ring-1 ring-blue-100'; 
-      return 'bg-green-50 border-green-200 ring-1 ring-green-100'; 
+      // ЯРКИЕ ЦВЕТА
+      if (diffDays <= 3) return 'bg-red-200 border-red-500 ring-1 ring-red-400'; // Горит!
+      if (diffDays <= 7) return 'bg-orange-200 border-orange-400 ring-1 ring-orange-300'; // Внимание
+      if (diffDays <= 10) return 'bg-blue-200 border-blue-400 ring-1 ring-blue-300'; // Рабочий режим
+      return 'bg-green-100 border-green-400 ring-1 ring-green-300'; // Запас есть
   };
 
   const getDeadlineLabel = (deadlineStr) => {
@@ -56,13 +55,12 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       const diffTime = deadline - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays < 0) return <span className="text-red-600 font-bold uppercase text-[10px]">Просрочено на {Math.abs(diffDays)} дн!</span>
-      if (diffDays === 0) return <span className="text-red-600 font-bold uppercase text-[10px]">Сегодня!</span>
-      if (diffDays <= 3) return <span className="text-red-500 font-bold text-[10px]">Осталось: {diffDays} дн.</span>
+      if (diffDays < 0) return <span className="text-red-700 font-black uppercase text-[10px]">Просрочено {Math.abs(diffDays)} дн!</span>
+      if (diffDays === 0) return <span className="text-red-700 font-black uppercase text-[10px]">СЕГОДНЯ!</span>
+      if (diffDays <= 3) return <span className="text-red-700 font-bold text-[10px]">Осталось: {diffDays} дн.</span>
       return null;
   };
 
-  // --- ЛОГИКА ИСТОРИИ ---
   const getHistorySuggestion = (opName) => {
     if (!opName) return null;
     let totalMins = 0;
@@ -78,22 +76,20 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
     return count > 0 ? Math.round(totalMins / count) : null;
   };
 
-  // --- ГРУППИРОВКА И СОРТИРОВКА ---
+  // --- СОРТИРОВКА ---
   let displayedOrders = orders.filter(o => showHistory ? true : o.status === 'active');
-
   displayedOrders.sort((a, b) => {
       if (!a.deadline && !b.deadline) return 0;
       if (!a.deadline) return 1; 
       if (!b.deadline) return -1; 
       return new Date(a.deadline) - new Date(b.deadline); 
   });
-
   const orphanProducts = products.filter(p => !p.orderId);
 
   return (
     <div className="space-y-8 pb-20">
       
-      {/* ВЕРХНЯЯ ПАНЕЛЬ */}
+      {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
          <div className="flex gap-4 items-center">
              <h2 className="text-2xl font-bold text-gray-800">Портфель заказов</h2>
@@ -106,7 +102,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
          </button>
       </div>
 
-      {/* --- СПИСОК ЗАКАЗОВ (ПАПКИ) --- */}
+      {/* --- СПИСОК ЗАКАЗОВ --- */}
       <div className="space-y-6">
         {displayedOrders.map(order => {
             const isOrderExpanded = expandedOrderIds.includes(order.id);
@@ -121,14 +117,15 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 : getOrderStyle(order.deadline); 
 
             return (
-                <div key={order.id} className={`rounded-xl shadow-md border overflow-hidden transition-all hover:shadow-lg ${cardStyle}`}>
+                // ВАЖНО: Убран overflow-hidden, чтобы список исполнителей мог выпадать наружу
+                <div key={order.id} className={`rounded-xl shadow-md border transition-all hover:shadow-lg ${cardStyle}`}>
                     
                     {/* ШАПКА ЗАКАЗА */}
                     <div 
                         className="p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-4 cursor-pointer relative"
                         onClick={() => toggleOrder(order.id)}
                     >
-                        {/* КНОПКА РАСКРЫТИЯ (Теперь видима всегда и кликабельна) */}
+                        {/* Кнопка раскрытия */}
                         <div className="absolute right-3 top-3 md:static md:block z-10">
                              <button 
                                 onClick={(e) => handleChevronClick(e, order.id)}
@@ -139,37 +136,34 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                         </div>
                         
                         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-center pr-10 md:pr-0">
-                            
-                            {/* Номер и Клиент */}
                             <div className="md:col-span-2 space-y-2">
                                 <div className="flex items-center gap-2">
                                     <input 
                                         type="text" 
                                         value={order.orderNumber}
-                                        onClick={e => e.stopPropagation()} // Блокируем раскрытие только при клике ВНУТРЬ поля
+                                        onClick={e => e.stopPropagation()}
                                         onChange={(e) => actions.updateOrder(order.id, 'orderNumber', e.target.value)}
-                                        className="font-bold text-lg bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full placeholder-gray-500 text-gray-800 py-1"
+                                        className="font-bold text-lg bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full placeholder-gray-600 text-gray-900 py-1"
                                         placeholder="№ Договора..."
                                     />
                                 </div>
-                                <div className="flex items-center gap-2 text-xs opacity-80">
-                                    <User size={14} className="text-gray-600 flex-shrink-0" />
+                                <div className="flex items-center gap-2 text-xs opacity-90">
+                                    <User size={14} className="text-gray-700 flex-shrink-0" />
                                     <input 
                                         type="text" 
                                         value={order.clientName}
                                         onClick={e => e.stopPropagation()}
                                         onChange={(e) => actions.updateOrder(order.id, 'clientName', e.target.value)}
-                                        className="bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full md:w-64 text-gray-700 font-medium py-1"
+                                        className="bg-transparent border-b border-transparent focus:border-black/20 outline-none w-full md:w-64 text-gray-800 font-medium py-1 placeholder-gray-500"
                                         placeholder="Имя клиента..."
                                     />
                                 </div>
                             </div>
 
-                            {/* Дэдлайн и статус */}
                             <div className="flex justify-between md:justify-end items-center gap-4 mt-2 md:mt-0">
                                 <div className="text-right flex-1 md:flex-none">
                                     <div className="flex flex-col items-end">
-                                        <div className="text-[10px] uppercase text-gray-500 font-bold mb-0.5">Дэдлайн</div>
+                                        <div className="text-[10px] uppercase text-gray-600 font-bold mb-0.5">Дэдлайн</div>
                                         {getDeadlineLabel(order.deadline)}
                                     </div>
                                     <input 
@@ -177,18 +171,18 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                                         value={order.deadline}
                                         onClick={e => e.stopPropagation()}
                                         onChange={(e) => actions.updateOrder(order.id, 'deadline', e.target.value)}
-                                        className={`w-full md:w-auto bg-transparent text-sm font-bold border-b border-transparent focus:border-red-400 outline-none text-right cursor-pointer ${!order.deadline && 'text-red-400'}`}
+                                        className={`w-full md:w-auto bg-transparent text-sm font-bold border-b border-transparent focus:border-black/20 outline-none text-right cursor-pointer text-gray-900 ${!order.deadline && 'text-red-600 opacity-60'}`}
                                     />
                                 </div>
                                 
                                 <div className="text-right min-w-[50px]">
                                     <div className="text-xl md:text-2xl font-bold leading-none text-gray-800">{progress}%</div>
-                                    <div className="text-[10px] uppercase text-gray-400">Готовность</div>
+                                    <div className="text-[10px] uppercase text-gray-600">Готовность</div>
                                 </div>
 
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); actions.deleteOrder(order.id); }}
-                                    className="p-2 hover:bg-red-500/10 rounded text-red-400 hover:text-red-600 transition"
+                                    className="p-2 hover:bg-white/40 rounded text-red-600/70 hover:text-red-700 transition"
                                 >
                                     <Trash2 size={18} />
                                 </button>
@@ -196,19 +190,18 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                         </div>
                     </div>
 
-                    {/* ТЕЛО ЗАКАЗА (ПОЗИЦИИ) */}
+                    {/* ТЕЛО ЗАКАЗА */}
                     {isOrderExpanded && (
-                        <div className="bg-white/50 p-2 md:p-4 border-t border-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="bg-white/60 p-2 md:p-4 border-t border-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
                             
-                            {/* Тулбар позиций */}
                             <div className="flex justify-between items-center mb-4 px-2">
-                                <div className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider">
+                                <div className="text-xs font-bold text-gray-600 uppercase flex items-center gap-2 tracking-wider">
                                     <FolderOpen size={14} />
                                     Состав заказа ({orderPositions.length})
                                 </div>
                                 <button 
                                     onClick={() => actions.addProduct(order.id)}
-                                    className="text-sm flex items-center gap-1 text-blue-600 font-bold hover:bg-blue-100 px-3 py-1.5 rounded transition"
+                                    className="text-sm flex items-center gap-1 text-blue-700 font-bold hover:bg-blue-100 px-3 py-1.5 rounded transition"
                                 >
                                     <Plus size={16} /> <span className="hidden md:inline">Добавить изделие</span><span className="md:hidden">Изделие</span>
                                 </button>
@@ -232,8 +225,8 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                                     />
                                 ))}
                                 {orderPositions.length === 0 && (
-                                    <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                                        В этом заказе пока нет изделий. Нажмите "Добавить изделие".
+                                    <div className="text-center py-6 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+                                        В этом заказе пока нет изделий.
                                     </div>
                                 )}
                             </div>
@@ -249,7 +242,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
         )}
       </div>
 
-      {/* --- НЕРАСПРЕДЕЛЕННЫЕ (ЕСЛИ ЕСТЬ) --- */}
+      {/* --- НЕРАСПРЕДЕЛЕННЫЕ --- */}
       {orphanProducts.length > 0 && (
           <div className="mt-12 pt-8 border-t-2 border-gray-200 border-dashed">
               <h3 className="text-lg font-bold text-gray-500 mb-4 flex items-center gap-2">
@@ -290,19 +283,19 @@ function ProductCard({
     const factColor = totalFact > totalPlan ? 'text-red-500' : 'text-green-600';
 
     return (
+        // ВАЖНО: Убрали overflow-hidden, чтобы dropdown не обрезался
         <div className={`bg-white border rounded-lg transition-all ${isExpanded ? 'shadow-md border-blue-300 ring-1 ring-blue-100' : 'border-gray-200 hover:border-blue-300'}`}>
              
-             {/* Сводная строка изделия */}
-             <div className="flex flex-col md:flex-row md:items-center p-3 md:p-4 cursor-pointer relative overflow-hidden group gap-2 md:gap-0" onClick={onToggle}>
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${totalFact >= totalPlan && totalPlan > 0 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+             {/* Сводная строка */}
+             <div className="flex flex-col md:flex-row md:items-center p-3 md:p-4 cursor-pointer relative group gap-2 md:gap-0" onClick={onToggle}>
+                {/* Цветная полоска (absolute, но теперь скругленная, чтобы не вылезать) */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${totalFact >= totalPlan && totalPlan > 0 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                 
-                {/* СТРЕЛКА (На мобильном теперь тоже видна справа) */}
                 <div className="absolute right-3 top-3 md:static md:block text-gray-400">
                     {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center pl-3 md:pl-0 pr-8 md:pr-0">
-                    {/* Название */}
                     <div className="md:col-span-5">
                         <div className="font-bold text-gray-800 text-base md:text-lg">{product.name}</div>
                         <div className="text-xs text-gray-500 flex gap-3 mt-1">
@@ -311,7 +304,6 @@ function ProductCard({
                         </div>
                     </div>
 
-                    {/* План / Факт */}
                     <div className="md:col-span-3 flex gap-4 text-sm bg-gray-50 md:bg-transparent p-2 md:p-0 rounded">
                         <div>
                             <span className="text-[10px] text-gray-400 block uppercase">План</span>
@@ -323,14 +315,12 @@ function ProductCard({
                         </div>
                     </div>
 
-                    {/* Гант даты */}
                     <div className="md:col-span-3 text-xs text-gray-400 hidden md:block">
                         {ganttItem ? (
                             <div>Расчет: {ganttItem.startDate.toLocaleDateString()} - {ganttItem.endDate.toLocaleDateString()}</div>
                         ) : <span>Нет операций</span>}
                     </div>
 
-                    {/* Кнопки */}
                     <div className="md:col-span-1 flex justify-end">
                         <button 
                             onClick={(e) => { e.stopPropagation(); actions.deleteProduct(product.id); }}
@@ -367,8 +357,8 @@ function ProductCard({
                          </div>
                     </div>
 
-                    <div className="bg-white rounded border border-gray-200 overflow-hidden">
-                        <div className="grid grid-cols-12 gap-1 md:gap-2 text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-2 uppercase tracking-wide">
+                    <div className="bg-white rounded border border-gray-200">
+                        <div className="grid grid-cols-12 gap-1 md:gap-2 text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-2 uppercase tracking-wide rounded-t">
                             <div className="col-span-1 text-center">№</div>
                             <div className="col-span-5 md:col-span-4">Операция</div>
                             <div className="hidden md:block md:col-span-3">Исполнитель</div>
@@ -409,18 +399,40 @@ function ProductCard({
                                                 <ArrowDownCircle size={10} /> {historySuggestion} мин
                                             </button>
                                         )}
-                                        {/* Мобильный выбор исполнителя (если экран маленький) */}
-                                        <div className="md:hidden mt-1">
+                                        
+                                        {/* МОБИЛЬНАЯ КНОПКА ВЫБОРА ИСПОЛНИТЕЛЯ */}
+                                        <div className="md:hidden mt-1 relative">
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); setOpenExecutorDropdown(isDropdownOpen ? null : op.id); }}
-                                                className="text-[10px] text-blue-600 underline"
+                                                className="text-[10px] text-blue-600 underline font-medium"
                                             >
-                                                {op.resourceIds?.length > 0 ? 'Исполнителей: ' + op.resourceIds.length : 'Выбрать исполнителя'}
+                                                {op.resourceIds?.length > 0 ? 'Исп: ' + op.resourceIds.length : 'Выбрать...'}
                                             </button>
+                                            
+                                            {/* DROPDOWN МОБИЛЬНЫЙ */}
+                                            {isDropdownOpen && (
+                                                <div className="absolute top-full left-0 z-50 w-48 bg-white shadow-xl border border-gray-200 rounded p-2 max-h-48 overflow-y-auto mt-1">
+                                                     <div className="flex justify-between items-center mb-1 pb-1 border-b">
+                                                         <span className="text-xs font-bold text-gray-600">Исполнители</span>
+                                                         <X size={14} onClick={(e) => {e.stopPropagation(); setOpenExecutorDropdown(null)}} className="text-gray-400"/>
+                                                     </div>
+                                                     {sortedResources.map(res => (
+                                                        <label key={res.id} className="flex items-center gap-2 p-2 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0" onClick={e => e.stopPropagation()}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={op.resourceIds?.includes(res.id)}
+                                                                onChange={() => actions.toggleResourceForOp(product.id, op.id, res.id)}
+                                                                className="w-4 h-4 rounded text-blue-600"
+                                                            />
+                                                            <span className="text-sm text-gray-700">{res.name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    {/* Десктоп выбор исполнителя */}
+                                    {/* ДЕСКТОП ВЫБОР ИСПОЛНИТЕЛЯ */}
                                     <div className="hidden md:block md:col-span-3 relative">
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); setOpenExecutorDropdown(isDropdownOpen ? null : op.id); }}
@@ -431,29 +443,30 @@ function ProductCard({
                                                 : <span className="text-gray-400">Выбрать...</span>
                                             }
                                         </button>
-                                    </div>
-
-                                    {/* Общий дропдаун (позиционируется абсолютно) */}
-                                    {isDropdownOpen && (
-                                        <div className="absolute top-10 left-10 md:left-1/2 z-50 w-48 bg-white shadow-xl border border-gray-200 rounded p-2 max-h-40 overflow-y-auto">
-                                            <div className="flex justify-between items-center mb-1 pb-1 border-b">
-                                                 <span className="text-xs font-bold">Кто делает?</span>
-                                                 <X size={12} onClick={() => setOpenExecutorDropdown(null)}/>
+                                        
+                                        {/* DROPDOWN ДЕСКТОП */}
+                                        {isDropdownOpen && (
+                                            <div className="absolute top-full left-0 z-[100] w-64 bg-white shadow-2xl border border-gray-200 rounded-lg p-2 max-h-64 overflow-y-auto mt-1">
+                                                <div className="flex justify-between items-center mb-2 pb-2 border-b">
+                                                     <span className="text-xs font-bold text-gray-500">Отметьте сотрудников</span>
+                                                     <X size={14} onClick={(e) => {e.stopPropagation(); setOpenExecutorDropdown(null)}} className="cursor-pointer hover:text-red-500"/>
+                                                </div>
+                                                {sortedResources.map(res => (
+                                                    <label key={res.id} className="flex items-center gap-2 p-1.5 hover:bg-blue-50 cursor-pointer rounded" onClick={e => e.stopPropagation()}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={op.resourceIds?.includes(res.id)}
+                                                            onChange={() => actions.toggleResourceForOp(product.id, op.id, res.id)}
+                                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-sm text-gray-700 font-medium">{res.name}</span>
+                                                    </label>
+                                                ))}
                                             </div>
-                                            {sortedResources.map(res => (
-                                                <label key={res.id} className="flex items-center gap-2 p-1 hover:bg-blue-50 cursor-pointer">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={op.resourceIds?.includes(res.id)}
-                                                        onChange={() => actions.toggleResourceForOp(product.id, op.id, res.id)}
-                                                        className="rounded text-blue-600"
-                                                    />
-                                                    <span className="text-xs">{res.name}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {isDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setOpenExecutorDropdown(null)}></div>}
+                                        )}
+                                        {/* Прозрачная подложка чтобы закрыть при клике вне */}
+                                        {isDropdownOpen && <div className="fixed inset-0 z-[90]" onClick={(e) => {e.stopPropagation(); setOpenExecutorDropdown(null)}}></div>}
+                                    </div>
 
                                     <div className="col-span-3 md:col-span-2 text-center">
                                         <input 
@@ -469,8 +482,14 @@ function ProductCard({
                                             onChange={e => actions.updateOperation(product.id, op.id, 'actualMinutes', parseFloat(e.target.value))}
                                             className="w-full md:w-16 text-center text-sm font-bold bg-yellow-50 border border-yellow-100 text-gray-800 rounded focus:outline-none focus:border-yellow-400"
                                         />
-                                        <button onClick={() => actions.deleteOperation(product.id, op.id)} className="text-gray-300 hover:text-red-500 absolute -right-4 md:-right-6">
-                                            <X size={14} />
+                                        
+                                        {/* КНОПКА УДАЛЕНИЯ ОПЕРАЦИИ (ТЕПЕРЬ ВСЕГДА ВИДНА) */}
+                                        <button 
+                                            onClick={() => actions.deleteOperation(product.id, op.id)} 
+                                            className="text-gray-400 hover:text-red-600 p-1 md:absolute md:-right-8"
+                                            title="Удалить операцию"
+                                        >
+                                            <X size={16} />
                                         </button>
                                     </div>
                                 </div>

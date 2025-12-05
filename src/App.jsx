@@ -20,7 +20,8 @@ export default function App() {
     actions, loading 
   } = useProductionData();
   
-  const { ganttItems, globalTimeline } = useSimulation(products, resources);
+  // Расчет симуляции с учетом приоритетов заказов
+  const { ganttItems, globalTimeline } = useSimulation(products, resources, orders);
 
   const resourceLoadSummary = {};
   resources.forEach(r => {
@@ -67,7 +68,7 @@ export default function App() {
         importData={importData}
       />
 
-      {/* Основной контейнер: на мобильном p-2, на ПК p-6 */}
+      {/* Основной контейнер: адаптивный отступ */}
       <div className="max-w-7xl mx-auto p-2 md:p-6">
         
         {activeTab === 'orders' && (
@@ -93,7 +94,11 @@ export default function App() {
         )}
 
         {activeTab === 'gantt' && (
-            <GanttTab ganttItems={ganttItems} />
+            <GanttTab 
+                ganttItems={ganttItems} 
+                products={products} // <-- Добавили
+                orders={orders}     // <-- Добавили
+            />
         )}
 
         {activeTab === 'reports' && (
