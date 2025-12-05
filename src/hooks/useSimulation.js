@@ -3,120 +3,155 @@ import { useMemo } from 'react';
 export const useSimulation = (products, resources, orders = []) => {
   
   const simulationResult = useMemo(() => {
-    // 1. Подготовка данных
-    // Создаем карту доступности ресурсов: { resourceId: { "2023-12-05": 8 (часов свободно) } }
-    const resourceAvailabilityMap = {};
+    // 1. Инициализация глобального таймлайна загрузки
+    const globalTimeline = {}; 
+
+    // Хелперы для учета времени
+    const getBookedHours = (resId, dateStr) => {
+        if (!globalTimeline[resId]) globalTimeline[resId] = {};
+        return globalTimeline[resId][dateStr] || 0;
+    };
+
+    const addBookedHours = (resId, dateStr, hours) => {
+        if (!globalTimeline[resId]) globalTimeline[resId] = {};
+        const current = globalTimeline[resId][dateStr] || 0;
+        // Округляем до сотых
+        globalTimeline[resId][dateStr] = Math.round((current + hours) * 100) / 100;
+    };
+
+    // 2. Сбор операций
+    let allOperations = [];
     
-    // Хелпер для получения свободного времени ресурса в конкретный день
-    const getResourceFreeHours = (resId, dateStr) => {
-        if (!resourceAvailabilityMap[resId]) resourceAvailabilityMap[resId] = {};
-        if (resourceAvailabilityMap[resId][dateStr] === undefined) {
-            // Если день еще не трогали, берем стандартную смену сотрудника
-            const res = resources.find(r => r.id === resId);
-            resourceAvailabilityMap[resId][dateStr] = res ? res.hoursPerDay : 8;
-        }
-        return resourceAvailabilityMap[resId][dateStr];
-    };
+    products.forEach(product => {
+        if (product.status === 'completed') return;
 
-    // Хелпер для бронирования времени
-    const bookResourceTime = (resId, dateStr, hoursNeeded) => {
-        const free = getResourceFreeHours(resId, dateStr);
-        const booked = Math.min(free, hoursNeeded);
-        resourceAvailabilityMap[resId][dateStr] -= booked;
-        return booked; // Возвращаем, сколько удалось забронировать
-    };
-
-    // 2. Сортировка продуктов по приоритету (Сначала те, у кого ранний дэдлайн родительского заказа)
-    // Нам нужно знать дэдлайн заказа для каждого продукта
-    const sortedProducts = [...products].map(p => {
-        const parentOrder = orders.find(o => o.id === p.orderId);
-        // Если дэдлайна нет - ставим в конец очереди (год 2099)
-        const deadline = parentOrder?.deadline ? new Date(parentOrder.deadline) : new Date('2099-12-31');
-        return { ...p, _sortDeadline: deadline };
-    }).sort((a, b) => a._sortDeadline - b._sortDeadline);
-
-    // 3. Симуляция
-    const ganttItems = [];
-    const globalTimeline = {}; // Для отчета по нагрузке
-
-    sortedProducts.forEach(product => {
-        if (product.status === 'completed') return; // Пропускаем завершенные в расчете будущего
-
-        let currentSimDate = new Date(product.startDate || new Date()); // Начинаем с даты старта или сегодня
-        // Обнуляем время до начала дня
-        currentSimDate.setHours(0,0,0,0);
-
-        let productStart = null;
-
-        // Проходим по операциям последовательно
-        const sortedOps = [...product.operations].sort((a, b) => a.sequence - b.sequence);
+        const parentOrder = orders.find(o => o.id === product.orderId);
+        const deadlineTimestamp = parentOrder?.deadline ? new Date(parentOrder.deadline).getTime() : 9999999999999;
         
-        sortedOps.forEach(op => {
-            // Сколько часов нужно выполнить (План)
-            // Если есть Факт, мы могли бы вычитать, но для Ганта планируем "Весь объем" или "Остаток".
-            // Сейчас планируем полный объем для наглядности загрузки.
-            let hoursRemaining = (op.minutesPerUnit * product.quantity) / 60;
+        let startDate = product.startDate ? new Date(product.startDate) : new Date();
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (startDate < today) startDate = today;
+
+        const quantity = parseInt(product.quantity) || 1;
+
+        product.operations.forEach(op => {
+            // Защита: Убеждаемся, что resourceIds это массив
+            const rawResourceIds = Array.isArray(op.resourceIds) ? op.resourceIds : [];
             
-            // Если операция уже выполнена (факт >= план), пропускаем её эмуляцию, время не тратим
-            if (op.actualMinutes && op.actualMinutes >= op.minutesPerUnit) {
-                hoursRemaining = 0;
-            }
+            allOperations.push({
+                ...op,
+                productName: product.name,
+                productId: product.id,
+                quantity: quantity,
+                minutesPerUnit: parseFloat(op.minutesPerUnit) || 0,
+                actualMinutes: parseFloat(op.actualMinutes) || 0,
+                productStartDate: startDate,
+                deadline: deadlineTimestamp,
+                sequence: op.sequence,
+                resourceIds: rawResourceIds // Передаем чистый массив
+            });
+        });
+    });
 
-            // Если это первая операция, фиксируем старт продукта
-            if (hoursRemaining > 0 && !productStart) {
-                productStart = new Date(currentSimDate);
-            }
+    // Сортировка (Срочные -> По порядку)
+    allOperations.sort((a, b) => {
+        if (a.deadline !== b.deadline) return a.deadline - b.deadline;
+        if (a.productId !== b.productId) return a.productId - b.productId;
+        return a.sequence - b.sequence;
+    });
 
-            // Пока работа не выполнена
-            while (hoursRemaining > 0) {
-                const dateStr = currentSimDate.toISOString().split('T')[0];
+    // 3. Расчет ("Тетрис")
+    const ganttDataMap = {}; 
+
+    allOperations.forEach(op => {
+        // --- ФОРМУЛА РАСЧЕТА ---
+        const totalMinutesRequired = op.minutesPerUnit * op.quantity;
+        const totalMinutesDone = op.actualMinutes * op.quantity;
+        
+        // Сколько осталось сделать всего (в часах)
+        let remainingMinutes = Math.max(0, totalMinutesRequired - totalMinutesDone);
+        let remainingHoursTotal = remainingMinutes / 60;
+
+        // Если работы нет, пропускаем
+        if (remainingHoursTotal <= 0.001) return;
+
+        // Проверяем количество исполнителей
+        const assignedIds = op.resourceIds.length > 0 ? op.resourceIds : [];
+        
+        // Если исполнителей нет, мы не можем запланировать работу в график (она висит в воздухе)
+        if (assignedIds.length === 0) return;
+
+        // !!! ГЛАВНОЕ ИСПРАВЛЕНИЕ !!!
+        // Делим общее время на количество людей
+        const hoursPerPerson = remainingHoursTotal / assignedIds.length;
+
+        let opStartDate = null;
+        let opEndDate = null;
+
+        // Распределяем долю каждого сотрудника
+        assignedIds.forEach(resId => {
+            const resource = resources.find(r => r.id === resId);
+            // Если ресурс удален, но висит в операции, считаем по стандарту 8ч
+            const maxDailyHours = resource ? parseFloat(resource.hoursPerDay) : 8; 
+            
+            let personalTaskHours = hoursPerPerson; // <--- Вот здесь берем уже поделенное время
+            
+            let currentDate = new Date(op.productStartDate);
+            let loopGuard = 0; 
+            
+            // Заливаем "стакан" времени для конкретного сотрудника
+            while (personalTaskHours > 0.001 && loopGuard < 365) {
+                const dateStr = currentDate.toISOString().split('T')[0];
+                const currentlyBooked = getBookedHours(resId, dateStr);
                 
-                // Ищем, кто может сделать эту работу
-                let assigned = false;
-                const capableResourceIds = op.resourceIds && op.resourceIds.length > 0 
-                    ? op.resourceIds 
-                    : resources.map(r => r.id); // Если никто не назначен, берем любого (упрощение)
+                const freeSpace = Math.max(0, maxDailyHours - currentlyBooked);
 
-                // Пробуем найти ресурс с свободным временем в этот день
-                for (let resId of capableResourceIds) {
-                    const freeHours = getResourceFreeHours(resId, dateStr);
-                    
-                    if (freeHours > 0) {
-                        const worked = bookResourceTime(resId, dateStr, hoursRemaining);
-                        hoursRemaining -= worked;
-                        
-                        // Записываем в глобальную статистику
-                        if (!globalTimeline[resId]) globalTimeline[resId] = {};
-                        if (!globalTimeline[resId][dateStr]) globalTimeline[resId][dateStr] = 0;
-                        globalTimeline[resId][dateStr] += worked;
+                if (freeSpace > 0.001) {
+                    const booking = Math.min(freeSpace, personalTaskHours);
+                    addBookedHours(resId, dateStr, booking);
+                    personalTaskHours -= booking;
 
-                        assigned = true;
-                        if (hoursRemaining <= 0.01) break; // Работа выполнена
-                    }
+                    // Фиксируем даты начала/конца работы для Ганта
+                    if (!opStartDate) opStartDate = new Date(currentDate);
+                    // Расширяем дату конца, если эта работа ушла дальше, чем у других коллег
+                    if (!opEndDate || currentDate > opEndDate) opEndDate = new Date(currentDate);
                 }
 
-                // Если в этот день никто не смог поработать или работы еще осталось -> переходим на следующий день
-                if (hoursRemaining > 0) {
-                    currentSimDate.setDate(currentSimDate.getDate() + 1);
+                if (personalTaskHours > 0.001) {
+                    currentDate.setDate(currentDate.getDate() + 1);
                 }
+                loopGuard++;
             }
         });
 
-        const productEnd = new Date(currentSimDate);
-        if (!productStart) productStart = new Date(); // Если все операции выполнены
+        // Запись итоговых дат в Гант (берем общие рамки операции по всем сотрудникам)
+        if (opStartDate && opEndDate) {
+            if (!ganttDataMap[op.productId]) {
+                ganttDataMap[op.productId] = { start: opStartDate, end: opEndDate, name: op.productName };
+            } else {
+                if (opStartDate < ganttDataMap[op.productId].start) ganttDataMap[op.productId].start = opStartDate;
+                if (opEndDate > ganttDataMap[op.productId].end) ganttDataMap[op.productId].end = opEndDate;
+            }
+        }
+    });
 
-        ganttItems.push({
-            productId: product.id,
-            productName: product.name,
-            startDate: productStart,
-            endDate: productEnd,
-            durationDays: Math.ceil((productEnd - productStart) / (1000 * 60 * 60 * 24)) + 1
-        });
+    // Формируем массив для Ганта
+    const ganttItems = Object.keys(ganttDataMap).map(pid => {
+        const item = ganttDataMap[pid];
+        const duration = Math.ceil((item.end - item.start) / (1000 * 60 * 60 * 24)) + 1;
+        return {
+            productId: parseInt(pid) || pid,
+            productName: item.name,
+            startDate: item.start,
+            endDate: item.end,
+            durationDays: duration
+        };
     });
 
     return { ganttItems, globalTimeline };
 
-  }, [products, resources, orders]);
+  }, [products, resources, orders]); // Зависимости для пересчета
 
   return simulationResult;
 };
