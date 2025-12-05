@@ -12,32 +12,27 @@ import { formatDate } from '../utils/helpers';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
-  const [products, setProducts] = useState([]); // Это "Позиции" внутри заказов
-  const [orders, setOrders] = useState([]);     // НОВОЕ: Это сами "Заказы" (Папки)
+  const [products, setProducts] = useState([]); 
+  const [orders, setOrders] = useState([]);     
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Загрузка Ресурсов
     const unsubResources = onSnapshot(collection(db, 'resources'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setResources(list.sort((a,b) => a.name.localeCompare(b.name)));
     });
 
-    // 2. Загрузка Позиций (Изделий)
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(list);
     });
 
-    // 3. НОВОЕ: Загрузка Заказов (Папок)
     const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Сортируем: сначала новые
       setOrders(list.sort((a,b) => b.createdAt - a.createdAt));
     });
 
-    // 4. Загрузка Отчетов
     const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
@@ -52,37 +47,56 @@ export const useProductionData = () => {
     };
   }, []);
 
-  // --- ACTIONS ---
+  // --- ЗАКАЗЫ (ORDERS) ---
 
-  // НОВОЕ: Создать Группу-Заказ
   const addOrder = async () => {
     const newOrder = {
-      orderNumber: 'Новый договор',
-      clientName: 'Клиент...',
+      orderNumber: '',
+      clientName: '',
       deadline: '',
       status: 'active',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      finishedAt: null // Поле для даты завершения
     };
     await addDoc(collection(db, 'orders'), newOrder);
   };
 
-  // НОВОЕ: Обновить Заказ
   const updateOrder = async (id, field, value) => {
     await updateDoc(doc(db, 'orders', id), { [field]: value });
   };
 
-  // НОВОЕ: Удалить Заказ (и предупредить, если внутри есть позиции - логика в UI)
+  // НОВОЕ: Завершить заказ (Архивировать)
+  const finishOrder = async (id) => {
+      if(confirm('Завершить этот заказ и перенести в архив?')) {
+          await updateDoc(doc(db, 'orders', id), { 
+              status: 'completed',
+              finishedAt: new Date().toISOString() // Фиксируем дату сдачи
+          });
+      }
+  };
+
+  // НОВОЕ: Вернуть в работу (из архива)
+  const restoreOrder = async (id) => {
+      if(confirm('Вернуть заказ в активную работу?')) {
+        await updateDoc(doc(db, 'orders', id), { 
+            status: 'active',
+            finishedAt: null
+        });
+      }
+  };
+
   const deleteOrder = async (id) => {
-    if(confirm('Удалить этот заказ (папку)? Позиции внутри останутся без привязки.')) {
+    if(confirm('Удалить этот заказ (папку) НАВСЕГДА?')) {
       await deleteDoc(doc(db, 'orders', id));
     }
   };
 
-  // ОБНОВЛЕНО: Создать позицию (теперь принимает orderId)
+  // --- ИЗДЕЛИЯ (PRODUCTS) ---
+
   const addProduct = async (orderId = null) => {
     const todayStr = formatDate(new Date());
     const newProduct = {
-      orderId: orderId, // Привязка к папке
+      orderId: orderId,
       name: 'Новое изделие',
       quantity: 1,
       startDate: todayStr,
@@ -98,20 +112,13 @@ export const useProductionData = () => {
     await updateDoc(productRef, { [field]: value });
   };
 
-  const toggleProductStatus = async (id) => {
-    const product = products.find(p => p.id === id);
-    if (!product) return;
-    const newStatus = product.status === 'active' ? 'completed' : 'active';
-    await updateDoc(doc(db, 'products', id), { status: newStatus });
-  };
-
   const deleteProduct = async (id) => {
-    if(confirm('Удалить эту позицию из заказа?')) {
+    if(confirm('Удалить эту позицию?')) {
       await deleteDoc(doc(db, 'products', id));
     }
   };
 
-  // --- OPERATIONS LOGIC (Без изменений, но сохраняем actualMinutes) ---
+  // --- ОПЕРАЦИИ ---
   const addOperation = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -143,7 +150,7 @@ export const useProductionData = () => {
     if (!product) return;
     const newOperations = product.operations.map(op => {
       if (op.id !== opId) return op;
-      const currentIds = op.resourceIds || [];
+      const currentIds = Array.isArray(op.resourceIds) ? op.resourceIds : [];
       const newIds = currentIds.includes(resourceId) 
         ? currentIds.filter(id => id !== resourceId) 
         : [...currentIds, resourceId];
@@ -169,12 +176,12 @@ export const useProductionData = () => {
   return {
     resources, setResources: updateResource, 
     products, setProducts,
-    orders, setOrders: updateOrder, // Экспортируем orders
+    orders, setOrders: updateOrder, 
     reports, setReports: addReport,
     loading,
     actions: {
-        addOrder, updateOrder, deleteOrder, // Экспортируем действия с заказами
-        addProduct, updateProduct, toggleProductStatus, deleteProduct,
+        addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder, // <--- Экспортируем новые функции
+        addProduct, updateProduct, deleteProduct,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
         addResource, updateResource, deleteResource,
         addReport, deleteReport

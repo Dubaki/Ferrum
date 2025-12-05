@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Plus, Trash2, ChevronDown, ChevronRight, ArrowDownCircle, 
-  Package, FolderOpen, User, X
+  Package, FolderOpen, User, X, CheckCircle, RotateCcw, Calendar
 } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../utils/constants';
 
@@ -31,20 +31,17 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
   // --- ЯРКАЯ ГРАДАЦИЯ ЦВЕТОВ ---
   const getOrderStyle = (deadlineStr) => {
       if (!deadlineStr) return 'bg-white border-gray-200';
-
       const today = new Date();
       today.setHours(0,0,0,0);
       const deadline = new Date(deadlineStr);
       deadline.setHours(0,0,0,0);
-      
       const diffTime = deadline - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      // ЯРКИЕ ЦВЕТА
-      if (diffDays <= 3) return 'bg-red-200 border-red-500 ring-1 ring-red-400'; // Горит!
-      if (diffDays <= 7) return 'bg-orange-200 border-orange-400 ring-1 ring-orange-300'; // Внимание
-      if (diffDays <= 10) return 'bg-blue-200 border-blue-400 ring-1 ring-blue-300'; // Рабочий режим
-      return 'bg-green-100 border-green-400 ring-1 ring-green-300'; // Запас есть
+      if (diffDays <= 3) return 'bg-red-200 border-red-500 ring-1 ring-red-400';
+      if (diffDays <= 7) return 'bg-orange-200 border-orange-400 ring-1 ring-orange-300';
+      if (diffDays <= 10) return 'bg-blue-200 border-blue-400 ring-1 ring-blue-300';
+      return 'bg-green-100 border-green-400 ring-1 ring-green-300';
   };
 
   const getDeadlineLabel = (deadlineStr) => {
@@ -65,26 +62,120 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
     if (!opName) return null;
     let totalMins = 0;
     let count = 0;
-    products.filter(p => p.status === 'completed').forEach(p => {
-        p.operations.forEach(op => {
-            if (op.name.toLowerCase() === opName.toLowerCase() && op.actualMinutes > 0) {
-                totalMins += op.actualMinutes;
-                count++;
-            }
-        });
+    products.filter(p => p.status === 'completed').forEach(p => { // Это можно оптимизировать, если продукты имеют флаг
+       // Пока ищем среди всех, или можно передавать завершенные отдельно
+       // Для упрощения ищем по всем, у которых есть фактическое время
+       if (p.operations) {
+            p.operations.forEach(op => {
+                if (op.name.toLowerCase() === opName.toLowerCase() && op.actualMinutes > 0) {
+                    totalMins += op.actualMinutes;
+                    count++;
+                }
+            });
+       }
     });
     return count > 0 ? Math.round(totalMins / count) : null;
   };
 
-  // --- СОРТИРОВКА ---
-  let displayedOrders = orders.filter(o => showHistory ? true : o.status === 'active');
-  displayedOrders.sort((a, b) => {
-      if (!a.deadline && !b.deadline) return 0;
-      if (!a.deadline) return 1; 
-      if (!b.deadline) return -1; 
-      return new Date(a.deadline) - new Date(b.deadline); 
-  });
+  // --- СОРТИРОВКА И ГРУППИРОВКА ---
+  const activeOrders = orders
+    .filter(o => o.status === 'active')
+    .sort((a, b) => {
+        if (!a.deadline && !b.deadline) return 0;
+        if (!a.deadline) return 1; 
+        if (!b.deadline) return -1; 
+        return new Date(a.deadline) - new Date(b.deadline); 
+    });
+
   const orphanProducts = products.filter(p => !p.orderId);
+
+  // --- ЛОГИКА ИСТОРИИ (ГРУППИРОВКА ПО МЕСЯЦАМ) ---
+  const renderHistory = () => {
+    const completedOrders = orders
+        .filter(o => o.status === 'completed')
+        .sort((a, b) => new Date(b.finishedAt || 0) - new Date(a.finishedAt || 0)); // Свежие сверху
+
+    const groupedByMonth = {};
+    completedOrders.forEach(order => {
+        const date = order.finishedAt ? new Date(order.finishedAt) : new Date(order.createdAt);
+        const key = date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        if (!groupedByMonth[key]) groupedByMonth[key] = [];
+        groupedByMonth[key].push(order);
+    });
+
+    return (
+        <div className="space-y-8 animate-in fade-in">
+            {Object.keys(groupedByMonth).map(monthKey => {
+                const monthOrders = groupedByMonth[monthKey];
+                
+                // Статистика за месяц
+                const totalMonthOrders = monthOrders.length;
+                let totalMonthFactHours = 0;
+                monthOrders.forEach(o => {
+                    const oProducts = products.filter(p => p.orderId === o.id);
+                    oProducts.forEach(p => {
+                        p.operations.forEach(op => {
+                            totalMonthFactHours += (op.actualMinutes || 0) * p.quantity;
+                        });
+                    });
+                });
+
+                return (
+                    <div key={monthKey} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        {/* Заголовок месяца */}
+                        <div className="bg-gray-100 p-4 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-gray-700 capitalize flex items-center gap-2">
+                                <Calendar size={20} />
+                                {monthKey}
+                            </h3>
+                            <div className="text-right text-xs text-gray-500">
+                                <div>Заказов сдано: <span className="font-bold text-gray-800">{totalMonthOrders}</span></div>
+                                <div>Трудозатраты: <span className="font-bold text-gray-800">{(totalMonthFactHours/60).toFixed(1)} ч</span></div>
+                            </div>
+                        </div>
+
+                        {/* Список заказов месяца */}
+                        <div className="divide-y divide-gray-100">
+                            {monthOrders.map(order => {
+                                const oProducts = products.filter(p => p.orderId === order.id);
+                                let orderFactHours = 0;
+                                oProducts.forEach(p => p.operations.forEach(op => orderFactHours += (op.actualMinutes || 0) * p.quantity));
+
+                                return (
+                                    <div key={order.id} className="p-4 flex justify-between items-center hover:bg-gray-50">
+                                        <div>
+                                            <div className="font-bold text-gray-800">{order.orderNumber || 'Без номера'}</div>
+                                            <div className="text-sm text-gray-500">{order.clientName}</div>
+                                            <div className="text-xs text-gray-400 mt-1">
+                                                Сдан: {new Date(order.finishedAt).toLocaleDateString('ru-RU')}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                                <div className="text-sm font-bold text-gray-600">{(orderFactHours/60).toFixed(1)} ч</div>
+                                                <div className="text-xs text-gray-400">Факт</div>
+                                            </div>
+                                            <button 
+                                                onClick={() => actions.restoreOrder(order.id)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded tooltip"
+                                                title="Вернуть в работу"
+                                            >
+                                                <RotateCcw size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })}
+            {completedOrders.length === 0 && (
+                <div className="text-center py-10 text-gray-400">История пуста. Завершите первый заказ!</div>
+            )}
+        </div>
+    );
+  };
 
   return (
     <div className="space-y-8 pb-20">
@@ -92,19 +183,28 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
          <div className="flex gap-4 items-center">
-             <h2 className="text-2xl font-bold text-gray-800">Портфель заказов</h2>
-             <button onClick={() => setShowHistory(!showHistory)} className="text-sm text-blue-600 hover:underline">
-               {showHistory ? 'Скрыть архив' : 'Показать архив'}
+             <h2 className="text-2xl font-bold text-gray-800">
+                 {showHistory ? 'История завершенных' : 'Портфель заказов'}
+             </h2>
+             <button 
+                onClick={() => setShowHistory(!showHistory)} 
+                className={`text-sm font-medium px-3 py-1 rounded transition ${showHistory ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50'}`}
+             >
+               {showHistory ? 'Вернуться к активным' : 'Архив / История'}
              </button>
          </div>
-         <button onClick={actions.addOrder} className="w-full md:w-auto flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-700 shadow-lg font-medium transition">
-           <Plus size={18} /> Создать новый заказ
-         </button>
+         {!showHistory && (
+            <button onClick={actions.addOrder} className="w-full md:w-auto flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-700 shadow-lg font-medium transition">
+                <Plus size={18} /> Создать новый заказ
+            </button>
+         )}
       </div>
 
-      {/* --- СПИСОК ЗАКАЗОВ --- */}
-      <div className="space-y-6">
-        {displayedOrders.map(order => {
+      {/* --- РЕЖИМ ИСТОРИИ --- */}
+      {showHistory ? renderHistory() : (
+        <div className="space-y-6">
+        {/* --- РЕЖИМ АКТИВНЫХ ЗАКАЗОВ --- */}
+        {activeOrders.map(order => {
             const isOrderExpanded = expandedOrderIds.includes(order.id);
             const orderPositions = products.filter(p => p.orderId === order.id);
             
@@ -112,12 +212,9 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
             const doneOrderHours = orderPositions.reduce((sum, p) => sum + p.operations.reduce((s, op) => s + ((op.actualMinutes || 0) * p.quantity), 0), 0) / 60;
             const progress = totalOrderHours > 0 ? Math.round((doneOrderHours / totalOrderHours) * 100) : 0;
 
-            const cardStyle = order.status === 'completed' 
-                ? 'bg-gray-100 border-gray-200 opacity-70' 
-                : getOrderStyle(order.deadline); 
+            const cardStyle = getOrderStyle(order.deadline); 
 
             return (
-                // ВАЖНО: Убран overflow-hidden, чтобы список исполнителей мог выпадать наружу
                 <div key={order.id} className={`rounded-xl shadow-md border transition-all hover:shadow-lg ${cardStyle}`}>
                     
                     {/* ШАПКА ЗАКАЗА */}
@@ -125,7 +222,6 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                         className="p-3 md:p-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-4 cursor-pointer relative"
                         onClick={() => toggleOrder(order.id)}
                     >
-                        {/* Кнопка раскрытия */}
                         <div className="absolute right-3 top-3 md:static md:block z-10">
                              <button 
                                 onClick={(e) => handleChevronClick(e, order.id)}
@@ -180,12 +276,23 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                                     <div className="text-[10px] uppercase text-gray-600">Готовность</div>
                                 </div>
 
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); actions.deleteOrder(order.id); }}
-                                    className="p-2 hover:bg-white/40 rounded text-red-600/70 hover:text-red-700 transition"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
+                                {/* КНОПКИ ДЕЙСТВИЙ */}
+                                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                                    <button 
+                                        onClick={() => actions.finishOrder(order.id)}
+                                        className="p-2 bg-green-500 text-white rounded shadow-sm hover:bg-green-600 transition"
+                                        title="Завершить заказ"
+                                    >
+                                        <CheckCircle size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => actions.deleteOrder(order.id)}
+                                        className="p-2 hover:bg-white/40 rounded text-red-600/70 hover:text-red-700 transition"
+                                        title="Удалить"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -218,7 +325,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                                         resources={resources}
                                         isStandard={isStandard}
                                         ganttItem={ganttItems.find(g => g.productId === product.id)}
-                                        getHistorySuggestion={getHistorySuggestion}
+                                        getHistorySuggestion={getHistorySuggestion} // Просто функция, не хук
                                         sortedResources={resources.sort((a,b) => a.name.localeCompare(b.name))}
                                         openExecutorDropdown={openExecutorDropdown}
                                         setOpenExecutorDropdown={setOpenExecutorDropdown}
@@ -235,15 +342,16 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 </div>
             );
         })}
-        {displayedOrders.length === 0 && (
+        {activeOrders.length === 0 && (
             <div className="text-center py-10 text-gray-400">
                 Нет активных заказов. Создайте новый!
             </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* --- НЕРАСПРЕДЕЛЕННЫЕ --- */}
-      {orphanProducts.length > 0 && (
+      {!showHistory && orphanProducts.length > 0 && (
           <div className="mt-12 pt-8 border-t-2 border-gray-200 border-dashed">
               <h3 className="text-lg font-bold text-gray-500 mb-4 flex items-center gap-2">
                   <Package size={20} /> Нераспределенные изделия (Без папки)
@@ -259,7 +367,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                           resources={resources}
                           isStandard={isStandard}
                           ganttItem={ganttItems.find(g => g.productId === product.id)}
-                          getHistorySuggestion={getHistorySuggestion}
+                          getHistorySuggestion={() => null} // Не нужно в архивных
                           sortedResources={resources}
                           openExecutorDropdown={openExecutorDropdown}
                           setOpenExecutorDropdown={setOpenExecutorDropdown}
@@ -283,12 +391,10 @@ function ProductCard({
     const factColor = totalFact > totalPlan ? 'text-red-500' : 'text-green-600';
 
     return (
-        // ВАЖНО: Убрали overflow-hidden, чтобы dropdown не обрезался
         <div className={`bg-white border rounded-lg transition-all ${isExpanded ? 'shadow-md border-blue-300 ring-1 ring-blue-100' : 'border-gray-200 hover:border-blue-300'}`}>
              
              {/* Сводная строка */}
              <div className="flex flex-col md:flex-row md:items-center p-3 md:p-4 cursor-pointer relative group gap-2 md:gap-0" onClick={onToggle}>
-                {/* Цветная полоска (absolute, но теперь скругленная, чтобы не вылезать) */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${totalFact >= totalPlan && totalPlan > 0 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                 
                 <div className="absolute right-3 top-3 md:static md:block text-gray-400">
@@ -368,7 +474,7 @@ function ProductCard({
 
                         {product.operations.map((op) => {
                             const isDropdownOpen = openExecutorDropdown === op.id;
-                            const historySuggestion = getHistorySuggestion(op.name);
+                            const historySuggestion = getHistorySuggestion && getHistorySuggestion(op.name);
 
                             return (
                                 <div key={op.id} className="grid grid-cols-12 gap-1 md:gap-2 items-center px-2 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 relative">
@@ -400,7 +506,6 @@ function ProductCard({
                                             </button>
                                         )}
                                         
-                                        {/* МОБИЛЬНАЯ КНОПКА ВЫБОРА ИСПОЛНИТЕЛЯ */}
                                         <div className="md:hidden mt-1 relative">
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); setOpenExecutorDropdown(isDropdownOpen ? null : op.id); }}
@@ -409,7 +514,6 @@ function ProductCard({
                                                 {op.resourceIds?.length > 0 ? 'Исп: ' + op.resourceIds.length : 'Выбрать...'}
                                             </button>
                                             
-                                            {/* DROPDOWN МОБИЛЬНЫЙ */}
                                             {isDropdownOpen && (
                                                 <div className="absolute top-full left-0 z-50 w-48 bg-white shadow-xl border border-gray-200 rounded p-2 max-h-48 overflow-y-auto mt-1">
                                                      <div className="flex justify-between items-center mb-1 pb-1 border-b">
@@ -432,7 +536,6 @@ function ProductCard({
                                         </div>
                                     </div>
 
-                                    {/* ДЕСКТОП ВЫБОР ИСПОЛНИТЕЛЯ */}
                                     <div className="hidden md:block md:col-span-3 relative">
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); setOpenExecutorDropdown(isDropdownOpen ? null : op.id); }}
@@ -444,7 +547,6 @@ function ProductCard({
                                             }
                                         </button>
                                         
-                                        {/* DROPDOWN ДЕСКТОП */}
                                         {isDropdownOpen && (
                                             <div className="absolute top-full left-0 z-[100] w-64 bg-white shadow-2xl border border-gray-200 rounded-lg p-2 max-h-64 overflow-y-auto mt-1">
                                                 <div className="flex justify-between items-center mb-2 pb-2 border-b">
@@ -464,7 +566,6 @@ function ProductCard({
                                                 ))}
                                             </div>
                                         )}
-                                        {/* Прозрачная подложка чтобы закрыть при клике вне */}
                                         {isDropdownOpen && <div className="fixed inset-0 z-[90]" onClick={(e) => {e.stopPropagation(); setOpenExecutorDropdown(null)}}></div>}
                                     </div>
 
@@ -483,7 +584,6 @@ function ProductCard({
                                             className="w-full md:w-16 text-center text-sm font-bold bg-yellow-50 border border-yellow-100 text-gray-800 rounded focus:outline-none focus:border-yellow-400"
                                         />
                                         
-                                        {/* КНОПКА УДАЛЕНИЯ ОПЕРАЦИИ (ТЕПЕРЬ ВСЕГДА ВИДНА) */}
                                         <button 
                                             onClick={() => actions.deleteOperation(product.id, op.id)} 
                                             className="text-gray-400 hover:text-red-600 p-1 md:absolute md:-right-8"
