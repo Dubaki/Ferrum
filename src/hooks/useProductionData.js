@@ -47,143 +47,132 @@ export const useProductionData = () => {
     };
   }, []);
 
-  // --- ЗАКАЗЫ (ORDERS) ---
-
+  // --- ЗАКАЗЫ ---
   const addOrder = async () => {
-    const newOrder = {
-      orderNumber: '',
-      clientName: '',
-      deadline: '',
-      status: 'active',
-      createdAt: Date.now(),
-      finishedAt: null // Поле для даты завершения
-    };
-    await addDoc(collection(db, 'orders'), newOrder);
+    await addDoc(collection(db, 'orders'), {
+      orderNumber: '', clientName: '', deadline: '', status: 'active',
+      createdAt: Date.now(), finishedAt: null
+    });
   };
-
-  const updateOrder = async (id, field, value) => {
-    await updateDoc(doc(db, 'orders', id), { [field]: value });
-  };
-
-  // НОВОЕ: Завершить заказ (Архивировать)
+  const updateOrder = async (id, field, value) => updateDoc(doc(db, 'orders', id), { [field]: value });
   const finishOrder = async (id) => {
-      if(confirm('Завершить этот заказ и перенести в архив?')) {
-          await updateDoc(doc(db, 'orders', id), { 
-              status: 'completed',
-              finishedAt: new Date().toISOString() // Фиксируем дату сдачи
-          });
+      if(confirm('Завершить заказ и перенести в отчеты?')) {
+        await updateDoc(doc(db, 'orders', id), { status: 'completed', finishedAt: new Date().toISOString() });
       }
   };
-
-  // НОВОЕ: Вернуть в работу (из архива)
   const restoreOrder = async (id) => {
       if(confirm('Вернуть заказ в активную работу?')) {
-        await updateDoc(doc(db, 'orders', id), { 
-            status: 'active',
-            finishedAt: null
-        });
+        await updateDoc(doc(db, 'orders', id), { status: 'active', finishedAt: null });
       }
   };
-
   const deleteOrder = async (id) => {
-    if(confirm('Удалить этот заказ (папку) НАВСЕГДА?')) {
-      await deleteDoc(doc(db, 'orders', id));
-    }
+    if(confirm('Удалить заказ навсегда?')) await deleteDoc(doc(db, 'orders', id));
   };
 
-  // --- ИЗДЕЛИЯ (PRODUCTS) ---
-
+  // --- ИЗДЕЛИЯ ---
   const addProduct = async (orderId = null) => {
     const todayStr = formatDate(new Date());
-    const newProduct = {
-      orderId: orderId,
-      name: 'Новое изделие',
-      quantity: 1,
-      startDate: todayStr,
-      status: 'active',
-      operations: [],
-      createdAt: Date.now()
-    };
-    await addDoc(collection(db, 'products'), newProduct);
+    await addDoc(collection(db, 'products'), {
+      orderId: orderId, name: 'Новое изделие', quantity: 1, startDate: todayStr,
+      status: 'active', operations: [], createdAt: Date.now()
+    });
   };
-
-  const updateProduct = async (id, field, value) => {
-    const productRef = doc(db, 'products', id);
-    await updateDoc(productRef, { [field]: value });
-  };
-
-  const deleteProduct = async (id) => {
-    if(confirm('Удалить эту позицию?')) {
-      await deleteDoc(doc(db, 'products', id));
-    }
-  };
+  const updateProduct = async (id, field, value) => updateDoc(doc(db, 'products', id), { [field]: value });
+  const deleteProduct = async (id) => { if(confirm('Удалить позицию?')) await deleteDoc(doc(db, 'products', id)); };
 
   // --- ОПЕРАЦИИ ---
   const addOperation = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const maxSeq = product.operations.length > 0 ? Math.max(...product.operations.map(o => o.sequence)) : 0;
-    
-    const newOperation = {
-      id: Date.now(),
-      name: 'Сварка',
-      resourceIds: [],
-      minutesPerUnit: 60,
-      actualMinutes: 0,
-      sequence: maxSeq + 1
-    };
-    const newOperations = [...product.operations, newOperation];
-    await updateDoc(doc(db, 'products', productId), { operations: newOperations });
+    const newOps = [...product.operations, {
+      id: Date.now(), name: 'Сварка', resourceIds: [], minutesPerUnit: 60, actualMinutes: 0, sequence: maxSeq + 1
+    }];
+    await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
-
   const updateOperation = async (productId, opId, field, value) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    const newOperations = product.operations.map(op => 
-      op.id === opId ? { ...op, [field]: value } : op
-    );
-    await updateDoc(doc(db, 'products', productId), { operations: newOperations });
+    const newOps = product.operations.map(op => op.id === opId ? { ...op, [field]: value } : op);
+    await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
-
   const toggleResourceForOp = async (productId, opId, resourceId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    const newOperations = product.operations.map(op => {
-      if (op.id !== opId) return op;
-      const currentIds = Array.isArray(op.resourceIds) ? op.resourceIds : [];
-      const newIds = currentIds.includes(resourceId) 
-        ? currentIds.filter(id => id !== resourceId) 
-        : [...currentIds, resourceId];
-      return { ...op, resourceIds: newIds };
+    const newOps = product.operations.map(op => {
+        if (op.id !== opId) return op;
+        const cIds = Array.isArray(op.resourceIds) ? op.resourceIds : [];
+        return { ...op, resourceIds: cIds.includes(resourceId) ? cIds.filter(i => i !== resourceId) : [...cIds, resourceId] };
     });
-    await updateDoc(doc(db, 'products', productId), { operations: newOperations });
+    await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
-
   const deleteOperation = async (productId, opId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    const newOperations = product.operations.filter(op => op.id !== opId);
-    await updateDoc(doc(db, 'products', productId), { operations: newOperations });
+    const newOps = product.operations.filter(op => op.id !== opId);
+    await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
 
-  // --- RESOURCES & REPORTS ---
-  const addResource = async () => addDoc(collection(db, 'resources'), { name: 'Новый', hoursPerDay: 8 });
+  // --- РЕСУРСЫ ---
+  const addResource = async (data) => addDoc(collection(db, 'resources'), { 
+      name: data.name || 'Новый сотрудник', 
+      position: data.position || 'Рабочий',
+      phone: data.phone || '',
+      address: data.address || '',
+      dob: data.dob || '',
+      photoUrl: data.photoUrl || '',
+      hoursPerDay: 8, 
+      scheduleOverrides: {},
+      baseRate: parseFloat(data.baseRate) || 3000,
+      employmentDate: data.employmentDate || new Date().toISOString().split('T')[0],
+      dailyEfficiency: {},
+      status: 'active'
+  });
+
   const updateResource = async (id, field, value) => updateDoc(doc(db, 'resources', id), { [field]: value });
-  const deleteResource = async (id) => deleteDoc(doc(db, 'resources', id));
+  const updateResourceSchedule = async (id, dateStr, hours) => {
+      const res = resources.find(r => r.id === id);
+      if(!res) return;
+      const currentSchedule = res.scheduleOverrides || {};
+      const newSchedule = { ...currentSchedule, [dateStr]: parseFloat(hours) };
+      await updateDoc(doc(db, 'resources', id), { scheduleOverrides: newSchedule });
+  };
+  const updateResourceEfficiency = async (id, dateStr, percent) => {
+      const res = resources.find(r => r.id === id);
+      if(!res) return;
+      const currentEff = res.dailyEfficiency || {};
+      const newEff = { ...currentEff, [dateStr]: parseFloat(percent) };
+      await updateDoc(doc(db, 'resources', id), { dailyEfficiency: newEff });
+  };
+
+  const fireResource = async (id) => {
+      if(confirm('Уволить сотрудника? Он будет перенесен в архив.')) {
+          await updateDoc(doc(db, 'resources', id), { 
+              status: 'fired', 
+              firedAt: new Date().toISOString() 
+          });
+      }
+  };
+
+  const deleteResource = async (id) => {
+      if(confirm('ВНИМАНИЕ: Удалить сотрудника навсегда? История по нему может пропасть.')) {
+          await deleteDoc(doc(db, 'resources', id));
+      }
+  };
+
   const addReport = async (data) => addDoc(collection(db, 'reports'), data);
   const deleteReport = async (id) => deleteDoc(doc(db, 'reports', id));
 
   return {
-    resources, setResources: updateResource, 
-    products, setProducts,
-    orders, setOrders: updateOrder, 
-    reports, setReports: addReport,
-    loading,
+    resources, setResources: updateResource, updateResourceSchedule, updateResourceEfficiency,
+    products, setProducts, orders, setOrders: updateOrder, 
+    reports, setReports: addReport, loading,
     actions: {
-        addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder, // <--- Экспортируем новые функции
+        addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
         addProduct, updateProduct, deleteProduct,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
-        addResource, updateResource, deleteResource,
+        addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, 
+        fireResource, deleteResource, // Добавили fireResource
         addReport, deleteReport
     }
   };

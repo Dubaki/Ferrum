@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ChevronDown, ChevronRight, Folder, Calendar } from 'lucide-react';
 
 export default function GanttTab({ ganttItems, products, orders = [] }) {
-  // Настройки отображения
-  const dayWidth = 40; // ширина колонки дня в пикселях
-  const daysToRender = 60; // сколько дней показывать вперед
+  // Настройки сетки
+  const colWidth = 44; // ширина дня
+  const sidebarWidth = 280; // ширина левой колонки
+  const daysToRender = 60; // горизонт планирования
+
   const [expandedOrders, setExpandedOrders] = useState([]);
 
-  // Генерируем массив дат для шапки
+  // 1. Генерируем даты календаря
   const startDate = new Date();
   startDate.setHours(0,0,0,0);
-  startDate.setDate(startDate.getDate() - 3); // Показываем пару дней прошлого
+  startDate.setDate(startDate.getDate() - 3); // Начинаем чуть раньше сегодня
 
   const calendarDays = Array.from({ length: daysToRender }, (_, i) => {
     const d = new Date(startDate);
@@ -18,173 +20,218 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
     return d;
   });
 
-  const toggleOrder = (orderId) => {
-    setExpandedOrders(prev => prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]);
+  // 2. Подготовка данных
+  const preparedOrders = useMemo(() => {
+      const active = orders
+        .filter(o => o.status === 'active')
+        .sort((a,b) => (a.deadline && b.deadline ? new Date(a.deadline) - new Date(b.deadline) : 0));
+
+      return active.map(order => {
+          const orderProducts = products.filter(p => p.orderId === order.id);
+          
+          let minStart = null;
+          let maxEnd = null;
+          let totalRemainingMins = 0;
+
+          orderProducts.forEach(prod => {
+              // Считаем остаток часов (План - Факт)
+              prod.operations.forEach(op => {
+                  const plan = op.minutesPerUnit * prod.quantity;
+                  const fact = (op.actualMinutes || 0) * prod.quantity;
+                  totalRemainingMins += Math.max(0, plan - fact);
+              });
+
+              // Ищем границы дат
+              const item = ganttItems.find(g => g.productId === prod.id);
+              if (item) {
+                  if (!minStart || item.startDate < minStart) minStart = item.startDate;
+                  if (!maxEnd || item.endDate > maxEnd) maxEnd = item.endDate;
+              }
+          });
+
+          return {
+              ...order,
+              products: orderProducts,
+              ganttStart: minStart,
+              ganttEnd: maxEnd,
+              remainingHours: Math.round(totalRemainingMins / 60),
+              durationDays: minStart && maxEnd 
+                ? Math.ceil((maxEnd - minStart) / (1000 * 60 * 60 * 24)) + 1 
+                : 0
+          };
+      });
+  }, [orders, products, ganttItems]);
+
+  const toggleOrder = (id) => {
+    setExpandedOrders(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  // Хелпер для расчета позиции и ширины полоски
-  const getBarStyles = (start, end) => {
-      if (!start || !end) return { left: 0, width: 0, display: 'none' };
+  // Хелпер стиля полоски
+  const getBarStyle = (start, end) => {
+      if (!start || !end) return { display: 'none' };
       
       const startOffset = Math.ceil((new Date(start) - startDate) / (1000 * 60 * 60 * 24));
-      const duration = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1; // +1 чтобы захватить день конца
+      const duration = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1;
       
+      if (startOffset + duration < 0) return { display: 'none' };
+
+      const left = Math.max(0, startOffset * colWidth);
+      const width = duration * colWidth;
+
       return {
-          left: `${startOffset * dayWidth}px`,
-          width: `${Math.max(duration, 1) * dayWidth}px`
+          left: `${left}px`,
+          width: `${width}px`
       };
   };
 
-  // Хелпер для расчета "Фактической" полоски (примерная оценка)
-  // Мы просто суммируем фактические часы и переводим их в дни (грубо / 8 часов)
-  // Чтобы показать "сколько мы уже наработали" относительно старта.
-  const getFactBarWidth = (product) => {
-      const totalFactHours = product.operations.reduce((acc, op) => acc + ((op.actualMinutes || 0) * product.quantity), 0) / 60;
-      if (totalFactHours === 0) return 0;
-      
-      // Допустим, 1 рабочий день = 8 часов.
-      const daysWorked = totalFactHours / 8;
-      return `${daysWorked * dayWidth}px`;
-  };
-
-  // Фильтруем активные заказы и сортируем
-  const activeOrders = orders
-    .filter(o => o.status === 'active')
-    .sort((a,b) => (a.deadline && b.deadline ? new Date(a.deadline) - new Date(b.deadline) : 0));
+  // Позиция линии "Сегодня"
+  const todayOffset = 3 * colWidth + (colWidth / 2);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col h-[calc(100vh-140px)]">
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col h-[calc(100vh-140px)] overflow-hidden fade-in relative">
       
-      {/* 1. Верхняя панель (Легенда) */}
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
-          <h2 className="font-bold text-lg text-gray-700">График производства</h2>
-          <div className="flex gap-4 text-xs font-medium">
+      {/* Легенда */}
+      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white z-20">
+          <h2 className="font-bold text-xl text-slate-800 flex items-center gap-2">
+              <Calendar className="text-indigo-600" /> График производства
+          </h2>
+          <div className="flex gap-6 text-xs font-bold uppercase tracking-wider text-slate-500">
               <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                  <span>План (Расчет по ресурсам)</span>
+                  <div className="w-3 h-3 bg-indigo-500 rounded-sm"></div>
+                  <span>Остаток работы (ч)</span>
               </div>
               <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-yellow-400 rounded"></div>
-                  <span>Факт (Отработано)</span>
+                  <div className="w-0.5 h-4 bg-red-500 border-l border-dashed border-red-500"></div>
+                  <span>Сегодня</span>
               </div>
           </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* Скролл-контейнер */}
+      <div className="flex-1 overflow-auto custom-scrollbar relative">
           
-          {/* 2. Левая колонка (Список заказов) */}
-          <div className="w-1/3 md:w-1/4 border-r border-gray-200 overflow-y-auto bg-white z-10 shadow-lg">
-              <div className="h-10 border-b border-gray-200 bg-gray-100 flex items-center px-4 font-bold text-xs text-gray-500 uppercase sticky top-0">
-                  Заказ / Изделие
-              </div>
+          <div className="inline-block min-w-full relative">
               
-              {activeOrders.map(order => {
-                  const isExpanded = expandedOrders.includes(order.id);
-                  const orderProducts = products.filter(p => p.orderId === order.id);
-
-                  return (
-                      <div key={order.id} className="border-b border-gray-100">
-                          {/* Строка ЗАКАЗА */}
-                          <div 
-                            className="flex items-center gap-2 px-3 py-3 hover:bg-gray-50 cursor-pointer font-bold text-sm text-gray-800"
-                            onClick={() => toggleOrder(order.id)}
-                          >
-                              {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                              <Folder size={16} className="text-gray-400" />
-                              <div className="truncate flex-1">
-                                  {order.orderNumber}
-                                  <div className="text-[10px] text-gray-400 font-normal">{order.clientName}</div>
-                              </div>
-                          </div>
-
-                          {/* Список ИЗДЕЛИЙ */}
-                          {isExpanded && orderProducts.map(prod => (
-                              <div key={prod.id} className="pl-10 pr-2 py-2 text-xs text-gray-600 border-t border-gray-50 hover:bg-blue-50 h-12 flex items-center">
-                                  <span className="truncate">{prod.name}</span>
-                                  <span className="ml-auto bg-gray-100 px-1 rounded text-[10px]">{prod.quantity} шт</span>
-                              </div>
-                          ))}
-                          {isExpanded && orderProducts.length === 0 && (
-                             <div className="pl-10 py-2 text-[10px] text-gray-400 italic">Нет изделий</div>
-                          )}
-                      </div>
-                  );
-              })}
-          </div>
-
-          {/* 3. Правая часть (Диаграмма Ганта) */}
-          <div className="flex-1 overflow-auto relative bg-slate-50">
-              
-              {/* Сетка календаря (Фон) */}
-              <div className="absolute top-0 bottom-0 left-0 flex h-full" style={{ width: `${daysToRender * dayWidth}px` }}>
+              {/* ШАПКА КАЛЕНДАРЯ */}
+              <div className="flex sticky top-0 z-30 bg-slate-50 shadow-sm border-b border-slate-200 h-12">
+                  <div 
+                    className="sticky left-0 z-40 bg-slate-100 border-r border-slate-200 flex items-center px-4 font-bold text-xs text-slate-500 uppercase tracking-widest shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]"
+                    style={{ width: sidebarWidth, minWidth: sidebarWidth }}
+                  >
+                      Заказ / Изделие
+                  </div>
+                  
                   {calendarDays.map((day, i) => {
-                       const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                       return (
-                           <div 
-                             key={i} 
-                             className={`h-full border-r border-gray-200 box-border flex-shrink-0 flex flex-col items-center justify-start pt-2 text-[10px] text-gray-400 ${isWeekend ? 'bg-gray-100/50' : ''}`}
-                             style={{ width: `${dayWidth}px` }}
-                           >
-                               <span className="font-bold text-gray-600">{day.getDate()}</span>
-                               <span>{day.toLocaleDateString('ru-RU', { weekday: 'short' })}</span>
-                           </div>
-                       );
+                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                      const isToday = i === 3; 
+                      return (
+                          <div 
+                            key={i} 
+                            className={`flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-200/60 text-xs 
+                                ${isToday ? 'bg-blue-50 text-blue-700' : isWeekend ? 'bg-slate-100/50 text-slate-400' : 'text-slate-600'}
+                            `}
+                            style={{ width: colWidth }}
+                          >
+                              <span className="font-bold">{day.getDate()}</span>
+                              <span className="text-[9px] uppercase">{day.toLocaleDateString('ru-RU', { weekday: 'short' })}</span>
+                          </div>
+                      );
                   })}
               </div>
 
-              {/* Полоски (Контент) */}
-              <div className="absolute top-10 left-0 w-full">
-                  {activeOrders.map(order => {
-                      const isExpanded = expandedOrders.includes(order.id);
-                      const orderProducts = products.filter(p => p.orderId === order.id);
-                      
-                      // Рендерим пустую строку высотой с заголовок заказа, чтобы выровнять сетку
-                      // Можно добавить общую полоску заказа тут, если нужно
-                      const orderRow = (
-                          <div key={'row-'+order.id} className="h-[46px] w-full border-b border-transparent relative"> 
-                              {/* Тут можно нарисовать сводную полоску заказа */}
-                          </div>
-                      );
+              {/* ЛИНИЯ СЕГОДНЯ */}
+              <div 
+                className="absolute top-12 bottom-0 border-l-2 border-red-400 border-dashed z-10 pointer-events-none opacity-60"
+                style={{ left: sidebarWidth + todayOffset }}
+              ></div>
 
-                      if (!isExpanded) return orderRow;
+              {/* ТЕЛО ТАБЛИЦЫ */}
+              <div className="relative z-0">
+                  {preparedOrders.map(order => {
+                      const isExpanded = expandedOrders.includes(order.id);
+                      const barStyle = getBarStyle(order.ganttStart, order.ganttEnd);
 
                       return (
-                          <React.Fragment key={order.id}>
-                              {orderRow}
-                              {orderProducts.map(prod => {
-                                  const simItem = ganttItems.find(g => g.productId === prod.id);
-                                  const planStyle = simItem ? getBarStyles(simItem.startDate, simItem.endDate) : { display: 'none' };
-                                  const factWidth = getFactBarWidth(prod);
-
-                                  return (
-                                      <div key={prod.id} className="h-12 border-b border-gray-100/50 w-full relative group">
-                                          {/* План (Синяя полоска) */}
-                                          {simItem && (
-                                              <div 
-                                                className="absolute top-2 h-4 bg-blue-500 rounded-sm shadow-sm opacity-80 text-[9px] text-white flex items-center pl-1 whitespace-nowrap overflow-hidden z-10"
-                                                style={planStyle}
-                                                title={`План: ${simItem.startDate.toLocaleDateString()} - ${simItem.endDate.toLocaleDateString()}`}
-                                              >
-                                                  {simItem.durationDays} дн.
-                                              </div>
-                                          )}
-
-                                          {/* Факт (Желтая полоска поверх или снизу) */}
-                                          {factWidth !== 0 && planStyle.left && (
-                                              <div 
-                                                className="absolute top-6 h-2 bg-yellow-400 rounded-sm shadow-sm z-20 border border-yellow-500"
-                                                style={{ left: planStyle.left, width: factWidth }}
-                                                title="Фактически отработанное время"
-                                              ></div>
-                                          )}
+                          <div key={order.id} className="group">
+                              
+                              {/* СТРОКА ЗАКАЗА */}
+                              <div className="flex h-14 border-b border-slate-100 hover:bg-slate-50 transition-colors bg-white">
+                                  
+                                  <div 
+                                    className="sticky left-0 z-20 flex items-center px-4 border-r border-slate-200 bg-white group-hover:bg-slate-50 transition-colors shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)] cursor-pointer"
+                                    style={{ width: sidebarWidth, minWidth: sidebarWidth }}
+                                    onClick={() => toggleOrder(order.id)}
+                                  >
+                                      <button className="mr-2 text-slate-400 hover:text-indigo-600 transition">
+                                          {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
+                                      </button>
+                                      <Folder size={18} className="text-indigo-500 mr-2" />
+                                      <div className="overflow-hidden">
+                                          <div className="font-bold text-slate-800 text-sm truncate">{order.orderNumber}</div>
+                                          <div className="text-[10px] text-slate-400 truncate">{order.clientName}</div>
                                       </div>
-                                  );
-                              })}
-                          </React.Fragment>
+                                  </div>
+
+                                  <div className="flex-1 relative">
+                                      <div className="absolute inset-0 flex h-full pointer-events-none">
+                                          {calendarDays.map((d, i) => (
+                                              <div 
+                                                key={i} 
+                                                className={`h-full border-r border-slate-100 flex-shrink-0 ${(d.getDay()===0||d.getDay()===6) ? 'bg-slate-50/50' : ''}`}
+                                                style={{ width: colWidth }}
+                                              ></div>
+                                          ))}
+                                      </div>
+
+                                      {/* ПОЛОСКА ЗАКАЗА */}
+                                      <div className="absolute top-1/2 -translate-y-1/2 h-8 rounded-lg shadow-md bg-indigo-500 hover:bg-indigo-600 transition-colors z-10 flex items-center px-2 overflow-hidden cursor-help group/bar"
+                                           style={barStyle}
+                                           title={`Осталось работы: ${order.remainingHours} ч\nКалендарный срок: ${order.durationDays} дн.\nФиниш: ${order.ganttEnd?.toLocaleDateString()}`}
+                                      >
+                                          {/* НОВОЕ: Отображение часов внутри полоски */}
+                                          <span className="text-white text-xs font-bold whitespace-nowrap drop-shadow-md flex items-center gap-1">
+                                              {order.remainingHours > 0 
+                                                ? `⏳ ${order.remainingHours} ч.` 
+                                                : '✅ Готово'
+                                              }
+                                          </span>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              {/* СПИСОК ИЗДЕЛИЙ */}
+                              {isExpanded && order.products.map(prod => (
+                                  <div key={prod.id} className="flex h-10 border-b border-slate-50 bg-slate-50/30 hover:bg-slate-100/50 transition-colors">
+                                      <div 
+                                        className="sticky left-0 z-10 flex items-center pl-12 pr-4 border-r border-slate-200/50 text-xs text-slate-600 bg-slate-50/30"
+                                        style={{ width: sidebarWidth, minWidth: sidebarWidth }}
+                                      >
+                                          <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mr-3"></div>
+                                          <span className="truncate flex-1">{prod.name}</span>
+                                          <span className="text-slate-400 ml-2">{prod.quantity}шт</span>
+                                      </div>
+                                      
+                                      <div className="flex-1 flex">
+                                          {calendarDays.map((d, i) => (
+                                              <div 
+                                                key={i} 
+                                                className={`h-full border-r border-slate-100/50 flex-shrink-0`}
+                                                style={{ width: colWidth }}
+                                              ></div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
                       );
                   })}
+                  
+                  {preparedOrders.length === 0 && (
+                      <div className="p-10 text-center text-slate-400">
+                          Нет активных заказов для отображения на графике.
+                      </div>
+                  )}
               </div>
-
           </div>
       </div>
     </div>

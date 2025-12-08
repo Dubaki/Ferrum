@@ -2,58 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- СТИЛИ ДЛЯ ПЕЧАТИ --- */
-@media print {
-  /* Скрываем всё, что имеет класс no-print */
-  .no-print {
-    display: none !important;
-  }
+/* Глобальный фон приложения */
+body {
+  background-color: #f8fafc; /* Slate-50 */
+  color: #0f172a; /* Slate-900 */
+}
 
-  /* Убираем фоны и тени для экономии чернил */
-  body, .bg-gray-50, .bg-white {
-    background-color: white !important;
-    color: black !important;
-  }
-  
-  .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
-    box-shadow: none !important;
-  }
+/* Красивые скроллбары (как в macOS) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 
-  /* Разворачиваем таблицы, чтобы не было прокрутки */
-  .overflow-x-auto, .overflow-y-auto {
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-  }
+/* Убираем стрелочки у input type="number" */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
 
-  /* Уменьшаем отступы, чтобы влезло больше данных */
-  .p-6, .p-5 {
-    padding: 0 !important;
-  }
-  
-  .max-w-7xl {
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
+/* Плавное появление контента */
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
 
-  /* Принудительно черный текст */
-  .text-gray-500, .text-gray-600, .text-gray-400 {
-    color: #333 !important;
-  }
-  
-  /* Убираем красивые бордеры */
-  .rounded-xl, .rounded-lg {
-    border-radius: 0 !important;
-    border: 1px solid #ddd !important;
-  }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Эффект нажатия для всех кнопок */
+button:active {
+  transform: scale(0.97);
 }
