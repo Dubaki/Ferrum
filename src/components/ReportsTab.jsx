@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { DollarSign, Calculator, CheckCircle } from 'lucide-react';
+import { DollarSign, Calculator } from 'lucide-react';
 
 // Импорт новых компонентов
 import { TabButton } from './reports/SharedComponents';
 import CombinedArchiveView from './reports/CombinedArchiveView';
-import MasterEfficiencyView from './reports/MasterEfficiencyView';
 import SalaryView from './reports/SalaryView';
 
 export default function ReportsTab({ reports, actions, products, orders, resources }) {
@@ -13,18 +12,14 @@ export default function ReportsTab({ reports, actions, products, orders, resourc
   return (
     <div className="fade-in space-y-6">
        
-       {/* Навигация (Segmented Control Container) */}
-       <div className="bg-slate-100 p-1.5 rounded-xl flex overflow-x-auto shadow-inner">
+       {/* Навигация */}
+       <div className="bg-slate-100 p-1.5 rounded-xl flex overflow-x-auto shadow-inner max-w-2xl mx-auto">
           <TabButton 
-             id="efficiency" label="Ввод КТУ" icon={CheckCircle} 
+             id="salary" label="Зарплатная ведомость" icon={DollarSign} 
              active={activeSubTab} set={setActiveSubTab} 
           />
           <TabButton 
-             id="salary" label="Ведомость" icon={DollarSign} 
-             active={activeSubTab} set={setActiveSubTab} 
-          />
-          <TabButton 
-             id="costing" label="Архив" icon={Calculator} 
+             id="costing" label="Архив и Себестоимость" icon={Calculator} 
              active={activeSubTab} set={setActiveSubTab} 
           />
        </div>
@@ -35,12 +30,6 @@ export default function ReportsTab({ reports, actions, products, orders, resourc
               <CombinedArchiveView 
                   orders={orders} 
                   products={products} 
-                  resources={resources} 
-                  actions={actions} 
-              />
-          )}
-          {activeSubTab === 'efficiency' && (
-              <MasterEfficiencyView 
                   resources={resources} 
                   actions={actions} 
               />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Calendar, Thermometer, MinusCircle, HelpCircle } from 'lucide-react';
 
 export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
     const [viewDate, setViewDate] = useState(new Date(initialDate));
@@ -15,33 +15,75 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
     const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
 
     // Подготовка данных
+    let ktuSum = 0; let ktuCount = 0;
+
     const data = days.map(day => {
         const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         const dateObj = new Date(dateStr);
         const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        
+        // Читаем данные
         const override = resource.scheduleOverrides?.[dateStr];
-        const worked = override !== undefined ? override > 0 : !isWeekend;
+        const reason = resource.scheduleReasons?.[dateStr]; // Причина отсутствия
+        const standardHours = resource.hoursPerDay || 8;
+        const isStandardWorkDay = resource.workWeekends ? true : !isWeekend;
+        
+        let workedHours = 0;
+        if (override !== undefined) workedHours = override;
+        else if (isStandardWorkDay) workedHours = standardHours;
+        
+        const worked = workedHours > 0;
 
-        const baseRate = parseFloat(resource.baseRate) || 0;
+        // Ставка
+        const history = resource.rateHistory || [];
+        const sortedHistory = [...history].sort((a,b) => new Date(a.date) - new Date(b.date));
+        const applicableRateEntry = sortedHistory.reverse().find(h => new Date(h.date) <= dateObj);
+        const currentRate = applicableRateEntry ? parseFloat(applicableRateEntry.rate) : (parseFloat(resource.baseRate) || 0);
+
+        const hourlyRate = currentRate / standardHours;
         let basePay = 0, tbBonus = 0, ktuBonus = 0;
+
         const probationEnd = new Date(resource.employmentDate);
         probationEnd.setDate(probationEnd.getDate() + 7);
-        const isViolated = resource.safetyViolations?.[dateStr];
+        const violation = resource.safetyViolations?.[dateStr];
         const ktu = (resource.dailyEfficiency?.[dateStr]) || 0;
 
-        let statusSymbol = worked ? "✓" : "";
-        if (override === 0) statusSymbol = "✗"; // Б/О
-        if (!worked && !override) statusSymbol = ""; // Выходной
-
+        // --- ЛОГИКА СТАТУСА (ИКОНКИ) ---
+        let statusContent = null; 
+        
         if (worked) {
-            basePay = baseRate;
-            if (dateObj > probationEnd && !isViolated) tbBonus = baseRate * 0.22;
-            ktuBonus = baseRate * (ktu / 100);
+            statusContent = <span className="font-bold text-slate-700">{workedHours}</span>;
+            basePay = hourlyRate * workedHours;
+            
+            if (dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
+            ktuBonus = basePay * (ktu / 100);
+            ktuSum += ktu; ktuCount++;
+        } else {
+            // Если не работал - проверяем причину
+            if (reason === 'sick') {
+                statusContent = (
+                    <div className="flex justify-center cursor-help" title="Болел">
+                        <Thermometer size={14} className="text-red-500"/>
+                    </div>
+                );
+            } else if (reason === 'absent') {
+                statusContent = (
+                    <div className="flex justify-center cursor-help" title="Прогул / Отгул">
+                        <MinusCircle size={14} className="text-slate-400"/>
+                    </div>
+                );
+            } else if (override === 0) {
+                // Если просто стоит 0 без причины (ручной выходной)
+                statusContent = <span className="text-slate-300 text-[10px]">-</span>;
+            } else {
+                // Стандартный выходной
+                statusContent = ""; 
+            }
         }
 
         return {
             day, weekday: dateObj.toLocaleDateString('ru-RU', {weekday: 'short'}),
-            isWeekend, worked, statusSymbol, isViolated,
+            isWeekend, worked, statusContent, violation,
             basePay, tbBonus, ktuBonus,
             total: basePay + tbBonus + ktuBonus,
             ktuPercent: ktu
@@ -52,133 +94,79 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
     const totalTb = data.reduce((acc, d) => acc + d.tbBonus, 0);
     const totalKtu = data.reduce((acc, d) => acc + d.ktuBonus, 0);
     const totalMonth = totalBase + totalTb + totalKtu;
+    const avgKtu = ktuCount > 0 ? Math.round(ktuSum / ktuCount) : 0;
 
     return (
-        // 1. Изменено: items-start и pt-10 поднимают окно наверх. h-auto позволяет ему растягиваться.
-        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-slate-900/60 backdrop-blur-sm pt-10 pb-10 px-4 animate-in fade-in duration-200 overflow-y-auto">
+        // ИСПРАВЛЕНО: items-center + h-screen (Чтобы было по центру экрана независимо от скролла)
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[98vw] flex flex-col ring-1 ring-white/20 relative">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[98vw] flex flex-col ring-1 ring-white/20 relative max-h-[90vh]">
                 
-                {/* Шапка Модалки */}
-                <div className="bg-slate-900 text-white p-4 rounded-t-3xl flex justify-between items-center shadow-lg z-20">
+                {/* Шапка */}
+                <div className="bg-slate-900 text-white p-4 rounded-t-3xl flex justify-between items-center shadow-lg z-20 shrink-0">
                      <div className="flex items-center gap-3">
-                         <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-bold shadow-lg shadow-indigo-500/50">
-                             {resource.name.charAt(0)}
-                         </div>
-                         <div>
-                             <h3 className="font-bold text-lg leading-tight">{resource.name}</h3>
-                             <p className="text-[10px] text-indigo-200 font-medium tracking-wide uppercase">Расчетный лист</p>
-                         </div>
+                         <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-bold shadow-lg shadow-indigo-500/50">{resource.name.charAt(0)}</div>
+                         <div><h3 className="font-bold text-lg leading-tight">{resource.name}</h3><p className="text-[10px] text-indigo-200 font-medium uppercase">Расчетный лист</p></div>
                      </div>
                      <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><X size={20}/></button>
                 </div>
 
-                {/* Навигация */}
-                <div className="flex items-center justify-between bg-white px-4 py-3 border-b border-slate-100">
-                    <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-50 rounded-lg border border-slate-200 text-slate-500 transition"><ChevronLeft size={20}/></button>
-                    <div className="flex items-center gap-2 font-bold text-slate-800 capitalize bg-slate-50 px-4 py-1 rounded-lg border border-slate-100">
-                        <Calendar size={16} className="text-indigo-500"/> {monthName}
-                    </div>
-                    <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-50 rounded-lg border border-slate-200 text-slate-500 transition"><ChevronRight size={20}/></button>
+                <div className="flex items-center justify-between bg-white px-4 py-3 border-b border-slate-100 shrink-0">
+                    <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-50 rounded-lg border border-slate-200 text-slate-500"><ChevronLeft size={20}/></button>
+                    <div className="flex items-center gap-2 font-bold text-slate-800 capitalize bg-slate-50 px-4 py-1 rounded-lg border border-slate-100"><Calendar size={16} className="text-indigo-500"/> {monthName}</div>
+                    <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-50 rounded-lg border border-slate-200 text-slate-500"><ChevronRight size={20}/></button>
                 </div>
                 
                 {/* ТАБЛИЦА */}
-                <div className="overflow-x-auto custom-scrollbar bg-slate-50/50 p-2 rounded-b-3xl">
-                    <table className="w-full text-xs border-collapse text-center whitespace-nowrap bg-white shadow-sm rounded-xl overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar bg-slate-50/50 p-2 rounded-b-3xl flex-1">
+                    <table className="w-full text-[10px] border-collapse text-center whitespace-nowrap bg-white shadow-sm rounded-xl overflow-hidden table-fixed">
                         <thead className="bg-slate-100">
                             <tr>
-                                {/* Уменьшены отступы (p-2) для компактности */}
-                                <th className="p-2 border-b border-r border-slate-200 bg-slate-100 min-w-[100px] text-left font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-10">
-                                    Параметр
-                                </th>
-                                {data.map(d => (
-                                    <th key={d.day} className={`p-1 border-b border-r border-slate-200 min-w-[32px] ${d.isWeekend ? 'bg-rose-50/50' : ''}`}>
-                                        <div className={`text-sm font-bold ${d.isWeekend ? 'text-rose-500' : 'text-slate-700'}`}>{d.day}</div>
-                                        <div className={`text-[9px] uppercase font-bold ${d.isWeekend ? 'text-rose-300' : 'text-slate-400'}`}>{d.weekday}</div>
-                                    </th>
-                                ))}
-                                <th className="p-2 border-b border-l border-slate-200 bg-slate-100 font-bold min-w-[80px] text-slate-700">ИТОГО</th>
+                                <th className="p-2 border-b border-r border-slate-200 bg-slate-100 w-24 text-left font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-10">Параметр</th>
+                                {data.map(d => (<th key={d.day} className={`p-1 border-b border-r border-slate-200 ${d.isWeekend ? 'bg-rose-50/50' : ''}`}><div className={`font-bold ${d.isWeekend ? 'text-rose-500' : 'text-slate-700'}`}>{d.day}</div><div className={`text-[8px] uppercase font-bold ${d.isWeekend ? 'text-rose-300' : 'text-slate-400'}`}>{d.weekday}</div></th>))}
+                                <th className="p-2 border-b border-l border-slate-200 bg-slate-100 font-bold w-20 text-slate-700">ИТОГО</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {/* Строка 1: Статус */}
+                        <tbody className="bg-white">
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)]">
-                                    Присутствие
-                                </td>
-                                {data.map(d => (
-                                    <td key={d.day} className={`p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>
-                                        {d.statusSymbol === '✓' ? (
-                                            <div className="w-2 h-2 bg-emerald-500 rounded-full mx-auto shadow-sm shadow-emerald-200"></div>
-                                        ) : (
-                                            <span className="text-[10px] font-bold text-slate-300">{d.statusSymbol}</span>
-                                        )}
-                                    </td>
-                                ))}
-                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-400">-</td>
+                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">Часы / Причина</td>
+                                {data.map(d => (<td key={d.day} className={`p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.statusContent}</td>))}
+                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-800">-</td>
                             </tr>
-
-                            {/* Строка 2: Оклад */}
+                            
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)]">
-                                    Оклад
-                                </td>
-                                {data.map(d => (
-                                    <td key={d.day} className={`p-1 border-b border-r border-slate-100 text-slate-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>
-                                        {d.basePay > 0 ? Math.round(d.basePay) : ''}
-                                    </td>
-                                ))}
+                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">Оклад</td>
+                                {data.map(d => (<td key={d.day} className={`p-1 border-b border-r border-slate-100 text-slate-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.basePay > 0 ? Math.round(d.basePay) : ''}</td>))}
                                 <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-800">{Math.round(totalBase)}</td>
                             </tr>
 
-                            {/* Строка 3: ТБ */}
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)]">
-                                    Бонус ТБ
-                                </td>
+                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">ТБ (22%)</td>
                                 {data.map(d => {
-                                    if(d.isViolated) return <td key={d.day} className="border-b border-r border-slate-100 bg-rose-100"><div className="text-[8px] font-bold text-rose-600">НАРУШ.</div></td>;
-                                    return (
-                                        <td key={d.day} className={`p-1 border-b border-r border-slate-100 text-emerald-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>
-                                            {d.tbBonus > 0 ? Math.round(d.tbBonus) : ''}
+                                    if(d.violation) return (
+                                        <td key={d.day} 
+                                            className="border-b border-r border-slate-100 bg-red-100 cursor-help relative group"
+                                            title={d.violation.comment}
+                                            onClick={() => alert(d.violation.comment)}
+                                        >
+                                            <div className="text-[8px] font-bold text-red-600">НЕТ</div>
                                         </td>
                                     );
+                                    return <td key={d.day} className={`p-1 border-b border-r border-slate-100 text-emerald-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.tbBonus > 0 ? Math.round(d.tbBonus) : ''}</td>
                                 })}
                                 <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-emerald-600">+{Math.round(totalTb)}</td>
                             </tr>
 
-                            {/* Строка 4: КТУ (Улучшена видимость) */}
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)]">
-                                    КТУ
-                                </td>
-                                {data.map(d => (
-                                    <td key={d.day} className={`p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>
-                                        {d.ktuBonus > 0 && (
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-indigo-600 font-bold">{Math.round(d.ktuBonus)}</span>
-                                                {/* 3. Изменено: Яркий стиль для процентов */}
-                                                <span className="text-[9px] text-indigo-700 bg-indigo-100 px-1 rounded font-bold mt-0.5">{d.ktuPercent}%</span>
-                                            </div>
-                                        )}
-                                    </td>
-                                ))}
-                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-indigo-600">+{Math.round(totalKtu)}</td>
+                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">КТУ</td>
+                                {data.map(d => (<td key={d.day} className={`p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.ktuBonus > 0 && <span className="text-indigo-600 font-bold">{Math.round(d.ktuBonus)}</span>}</td>))}
+                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-indigo-600 flex flex-col items-end"><span>+{Math.round(totalKtu)}</span><span className="text-[8px] text-slate-400">ср. {avgKtu}%</span></td>
                             </tr>
 
-                            {/* Строка 5: ИТОГО */}
                             <tr className="bg-slate-900 text-white">
-                                <td className="p-2 border-r border-slate-700 bg-slate-900 sticky left-0 z-10 font-bold text-left shadow-[4px_0_24px_-2px_rgba(0,0,0,0.5)]">
-                                    СУММА
-                                </td>
-                                {data.map(d => (
-                                    <td key={d.day} className="p-1 border-r border-slate-800 font-bold text-emerald-300">
-                                        {d.total > 0 ? Math.round(d.total) : ''}
-                                    </td>
-                                ))}
-                                <td className="p-2 border-l border-slate-700 bg-slate-800 font-bold text-sm text-emerald-400">
-                                    {Math.round(totalMonth).toLocaleString()}
-                                </td>
+                                <td className="p-2 border-r border-slate-700 bg-slate-900 sticky left-0 z-10 font-bold text-left shadow-[4px_0_24px_-2px_rgba(0,0,0,0.5)]">СУММА</td>
+                                {data.map(d => (<td key={d.day} className="p-1 border-r border-slate-800 font-bold">{d.total > 0 ? Math.round(d.total) : ''}</td>))}
+                                <td className="p-2 border-l border-slate-700 bg-slate-800 font-bold text-xs text-emerald-400">{Math.round(totalMonth).toLocaleString()}</td>
                             </tr>
                         </tbody>
                     </table>

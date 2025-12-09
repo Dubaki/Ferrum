@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User } from 'lucide-react';
 
 export default function CombinedArchiveView({ orders, products, resources, actions }) {
     const completedOrders = useMemo(() => orders
@@ -26,8 +26,8 @@ export default function CombinedArchiveView({ orders, products, resources, actio
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800 flex gap-3 items-start">
                 <AlertCircle className="shrink-0 mt-0.5" size={20} />
                 <div>
-                    <p className="font-bold mb-1">Управление архивом</p>
-                    <p>Это единый раздел для просмотра истории. Если нашли ошибку, нажмите <RotateCcw size={12} className="inline"/> <b>"Вернуть в работу"</b>, исправьте данные в разделе "Заказы" и сдайте заказ снова.</p>
+                    <p className="font-bold mb-1">Архив производства</p>
+                    <p>Здесь рассчитывается точная себестоимость труда. Расчет: <b>(Сумма часовых ставок всех исполнителей) × (Фактическое время)</b>.</p>
                 </div>
             </div>
 
@@ -58,37 +58,59 @@ export default function CombinedArchiveView({ orders, products, resources, actio
 function ArchiveOrderRow({ order, products, resources, actions }) {
     const [isExpanded, setIsExpanded] = useState(false);
     
-    const { orderLaborCost, orderTotalMinutes, productCosts } = useMemo(() => {
+    // Детальный расчет по операциям
+    const { orderLaborCost, orderTotalMinutes, productDetails } = useMemo(() => {
         const oProducts = products.filter(p => p.orderId === order.id);
         let totalCost = 0;
         let totalMins = 0;
-        const pCosts = [];
+        
+        const details = oProducts.map(prod => {
+            const ops = prod.operations.map(op => {
+                const totalFactMins = (op.actualMinutes || 0) * prod.quantity;
+                totalMins += totalFactMins;
+                
+                // Находим имена исполнителей
+                const executors = (op.resourceIds || []).map(rid => {
+                    const res = resources.find(r => r.id === rid);
+                    return res ? res.name : 'Неизвестный';
+                });
 
-        oProducts.forEach(p => {
-            let pCost = 0;
-            p.operations.forEach(op => {
-                const actualTimeHours = (op.actualMinutes || 0) * p.quantity / 60;
-                totalMins += (op.actualMinutes || 0) * p.quantity;
+                // --- ИСПРАВЛЕННЫЙ РАСЧЕТ СТОИМОСТИ ---
+                let opCost = 0;
+                if (totalFactMins > 0 && op.resourceIds && op.resourceIds.length > 0) {
+                    let totalHourlyRateOfTeam = 0; // Сумма часовых ставок всей бригады
 
-                if (actualTimeHours > 0 && op.resourceIds?.length > 0) {
-                    let totalRate = 0; 
-                    let count = 0;
                     op.resourceIds.forEach(rid => {
                         const res = resources.find(r => r.id === rid);
-                        if (res) { 
-                            totalRate += (parseFloat(res.baseRate) || 0) / 8; 
-                            count++; 
+                        if (res) {
+                            // Дневная ставка / 8 часов = Часовая ставка этого сотрудника
+                            const hourlyRate = (parseFloat(res.baseRate) || 0) / 8;
+                            totalHourlyRateOfTeam += hourlyRate;
                         }
                     });
-                    const avgHourlyRate = count > 0 ? totalRate / count : 0;
-                    pCost += actualTimeHours * avgHourlyRate;
+
+                    // Стоимость = Время (в часах) * Суммарная стоимость часа бригады
+                    opCost = (totalFactMins / 60) * totalHourlyRateOfTeam;
                 }
+                
+                totalCost += opCost;
+
+                return {
+                    name: op.name,
+                    factMins: totalFactMins,
+                    executors: executors,
+                    cost: opCost
+                };
             });
-            totalCost += pCost;
-            pCosts.push({ ...p, cost: pCost });
+
+            return {
+                name: prod.name,
+                quantity: prod.quantity,
+                operations: ops
+            };
         });
 
-        return { orderLaborCost: totalCost, orderTotalMinutes: totalMins, productCosts: pCosts };
+        return { orderLaborCost: totalCost, orderTotalMinutes: totalMins, productDetails: details };
     }, [products, resources, order.id]);
 
     return (
@@ -126,17 +148,36 @@ function ArchiveOrderRow({ order, products, resources, actions }) {
                 </div>
             </div>
 
+            {/* ДЕТАЛИЗАЦИЯ */}
             {isExpanded && (
-                <div className="bg-gray-50/80 p-4 border-t border-gray-100 pl-4 md:pl-12 animate-in slide-in-from-top-2">
-                     <div className="space-y-2">
-                        {productCosts.map(prod => (
-                             <div key={prod.id} className="flex justify-between items-center text-sm bg-white p-3 rounded border border-gray-200 shadow-sm">
-                                 <div>
-                                    <div className="font-bold text-gray-700">{prod.name}</div>
-                                    <div className="text-xs text-gray-400">{prod.quantity} шт.</div>
+                <div className="bg-slate-50/80 p-4 border-t border-gray-100 pl-4 md:pl-12 animate-in slide-in-from-top-2">
+                     <div className="space-y-4">
+                        {productDetails.map((prod, idx) => (
+                             <div key={idx} className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                                 <div className="font-bold text-gray-700 mb-2 border-b border-gray-100 pb-1">
+                                     {prod.name} <span className="text-xs text-gray-400 font-normal">x{prod.quantity} шт.</span>
                                  </div>
-                                 <div className="font-mono font-medium bg-gray-100 px-2 py-1 rounded">
-                                    {Math.round(prod.cost).toLocaleString()} ₽
+                                 
+                                 <div className="space-y-1">
+                                     {prod.operations.map((op, opIdx) => (
+                                         <div key={opIdx} className="flex justify-between items-center text-xs text-gray-600 py-1 hover:bg-slate-50 rounded px-1">
+                                             <div className="flex-1 font-medium">{op.name}</div>
+                                             
+                                             <div className="flex-1 flex items-center gap-2 text-gray-500">
+                                                 <User size={10} /> 
+                                                 {op.executors.length > 0 ? op.executors.join(', ') : '—'}
+                                             </div>
+                                             
+                                             <div className="flex items-center gap-4 text-right">
+                                                 <div className="w-16 flex items-center gap-1 justify-end">
+                                                     <Clock size={10} className="text-slate-300"/> {(op.factMins/60).toFixed(1)}ч
+                                                 </div>
+                                                 <div className="w-20 font-bold font-mono text-slate-800 text-right">
+                                                     {Math.round(op.cost).toLocaleString()} ₽
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     ))}
                                  </div>
                              </div>
                         ))}

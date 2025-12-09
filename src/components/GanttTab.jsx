@@ -20,7 +20,7 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
     return d;
   });
 
-  // 2. Подготовка данных
+  // 2. Подготовка данных: Агрегируем время по Заказам
   const preparedOrders = useMemo(() => {
       const active = orders
         .filter(o => o.status === 'active')
@@ -32,16 +32,23 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
           let minStart = null;
           let maxEnd = null;
           let totalRemainingMins = 0;
+          let hasPlan = false; // Проверка, есть ли вообще план
 
           orderProducts.forEach(prod => {
-              // Считаем остаток часов (План - Факт)
+              // Считаем остаток часов СТРОГО по каждой операции
               prod.operations.forEach(op => {
-                  const plan = op.minutesPerUnit * prod.quantity;
+                  const plan = (op.minutesPerUnit || 0) * prod.quantity;
                   const fact = (op.actualMinutes || 0) * prod.quantity;
-                  totalRemainingMins += Math.max(0, plan - fact);
+                  
+                  if (plan > 0) hasPlan = true;
+                  
+                  // Если факт меньше плана, добавляем разницу в остаток
+                  if (fact < plan) {
+                      totalRemainingMins += (plan - fact);
+                  }
               });
 
-              // Ищем границы дат
+              // Ищем границы дат для отрисовки полоски
               const item = ganttItems.find(g => g.productId === prod.id);
               if (item) {
                   if (!minStart || item.startDate < minStart) minStart = item.startDate;
@@ -49,12 +56,18 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
               }
           });
 
+          // Если плана нет вообще (0 мин), считаем остаток 0, но это не "Готово", а "Нет плана"
+          // Но для простоты: если remaining > 0, значит работа есть.
+          
+          const remainingHours = Math.ceil(totalRemainingMins / 60);
+
           return {
               ...order,
               products: orderProducts,
               ganttStart: minStart,
               ganttEnd: maxEnd,
-              remainingHours: Math.round(totalRemainingMins / 60),
+              remainingHours: remainingHours,
+              isFullyComplete: hasPlan && remainingHours <= 0,
               durationDays: minStart && maxEnd 
                 ? Math.ceil((maxEnd - minStart) / (1000 * 60 * 60 * 24)) + 1 
                 : 0
@@ -98,7 +111,11 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
           <div className="flex gap-6 text-xs font-bold uppercase tracking-wider text-slate-500">
               <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-indigo-500 rounded-sm"></div>
-                  <span>Остаток работы (ч)</span>
+                  <span>В работе</span>
+              </div>
+              <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
+                  <span>Готов к сдаче</span>
               </div>
               <div className="flex items-center gap-2">
                   <div className="w-0.5 h-4 bg-red-500 border-l border-dashed border-red-500"></div>
@@ -128,7 +145,7 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
                           <div 
                             key={i} 
                             className={`flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-200/60 text-xs 
-                                ${isToday ? 'bg-blue-50 text-blue-700' : isWeekend ? 'bg-slate-100/50 text-slate-400' : 'text-slate-600'}
+                                ${isToday ? 'bg-blue-50 text-blue-700' : isWeekend ? 'bg-rose-50/50 text-rose-400' : 'text-slate-600'}
                             `}
                             style={{ width: colWidth }}
                           >
@@ -150,6 +167,9 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
                   {preparedOrders.map(order => {
                       const isExpanded = expandedOrders.includes(order.id);
                       const barStyle = getBarStyle(order.ganttStart, order.ganttEnd);
+                      
+                      // Цвет полоски: Зеленый если готов, Индиго если в работе
+                      const barColor = order.isFullyComplete ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-500 hover:bg-indigo-600';
 
                       return (
                           <div key={order.id} className="group">
@@ -165,7 +185,7 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
                                       <button className="mr-2 text-slate-400 hover:text-indigo-600 transition">
                                           {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
                                       </button>
-                                      <Folder size={18} className="text-indigo-500 mr-2" />
+                                      <Folder size={18} className={`mr-2 ${order.isFullyComplete ? 'text-emerald-500' : 'text-indigo-500'}`} />
                                       <div className="overflow-hidden">
                                           <div className="font-bold text-slate-800 text-sm truncate">{order.orderNumber}</div>
                                           <div className="text-[10px] text-slate-400 truncate">{order.clientName}</div>
@@ -177,22 +197,21 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
                                           {calendarDays.map((d, i) => (
                                               <div 
                                                 key={i} 
-                                                className={`h-full border-r border-slate-100 flex-shrink-0 ${(d.getDay()===0||d.getDay()===6) ? 'bg-slate-50/50' : ''}`}
+                                                className={`h-full border-r border-slate-100 flex-shrink-0 ${(d.getDay()===0||d.getDay()===6) ? 'bg-rose-50/20' : ''}`}
                                                 style={{ width: colWidth }}
                                               ></div>
                                           ))}
                                       </div>
 
                                       {/* ПОЛОСКА ЗАКАЗА */}
-                                      <div className="absolute top-1/2 -translate-y-1/2 h-8 rounded-lg shadow-md bg-indigo-500 hover:bg-indigo-600 transition-colors z-10 flex items-center px-2 overflow-hidden cursor-help group/bar"
+                                      <div className={`absolute top-1/2 -translate-y-1/2 h-8 rounded-lg shadow-md transition-colors z-10 flex items-center px-2 overflow-hidden cursor-help group/bar ${barColor}`}
                                            style={barStyle}
                                            title={`Осталось работы: ${order.remainingHours} ч\nКалендарный срок: ${order.durationDays} дн.\nФиниш: ${order.ganttEnd?.toLocaleDateString()}`}
                                       >
-                                          {/* НОВОЕ: Отображение часов внутри полоски */}
                                           <span className="text-white text-xs font-bold whitespace-nowrap drop-shadow-md flex items-center gap-1">
-                                              {order.remainingHours > 0 
-                                                ? `⏳ ${order.remainingHours} ч.` 
-                                                : '✅ Готово'
+                                              {order.isFullyComplete 
+                                                ? '✅ Готов' 
+                                                : `⏳ ${order.remainingHours} ч.`
                                               }
                                           </span>
                                       </div>
@@ -215,7 +234,7 @@ export default function GanttTab({ ganttItems, products, orders = [] }) {
                                           {calendarDays.map((d, i) => (
                                               <div 
                                                 key={i} 
-                                                className={`h-full border-r border-slate-100/50 flex-shrink-0`}
+                                                className={`h-full border-r border-slate-100/50 flex-shrink-0 ${(d.getDay()===0||d.getDay()===6) ? 'bg-rose-50/20' : ''}`}
                                                 style={{ width: colWidth }}
                                               ></div>
                                           ))}

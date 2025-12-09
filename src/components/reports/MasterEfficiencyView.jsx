@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save } from 'lucide-react';
 import { KtuInput } from './SharedComponents';
 
 export default function MasterEfficiencyView({ resources, actions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [showTable, setShowTable] = useState(false);
+    
+    // Состояние для модалки нарушения ТБ
+    const [safetyModal, setSafetyModal] = useState(null); // { resId, dateStr, currentComment }
 
     const shiftDate = (days) => {
         const d = new Date(currentDate);
@@ -17,9 +20,30 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const monthDays = Array.from({length: daysInMonth}, (_, i) => i + 1);
 
+    const handleSafetyClick = (res) => {
+        const violation = res.safetyViolations?.[dateStr];
+        const isViolated = violation?.violated;
+        
+        if (!isViolated) {
+            // Открываем модалку для ввода причины
+            setSafetyModal({ 
+                resId: res.id, 
+                dateStr: dateStr, 
+                name: res.name,
+                comment: '' 
+            });
+        } else {
+            // Снимаем нарушение
+            if(confirm("Снять нарушение ТБ?")) {
+                actions.updateResourceSafety(res.id, dateStr, null);
+            }
+        }
+    };
+
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6 relative">
             
+            {/* Навигация */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
                     <button onClick={() => shiftDate(-1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronLeft size={20}/></button>
@@ -35,11 +59,11 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     className="flex items-center gap-2 text-sm font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition"
                 >
                     {showTable ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                    {showTable ? 'Скрыть сводную таблицу' : 'Показать сводку за месяц'}
+                    {showTable ? 'Скрыть таблицу' : 'Показать сводку'}
                 </button>
             </div>
 
-            {/* Сводная таблица (вкладка мастера) */}
+            {/* Сводная таблица */}
             {showTable && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto animate-in fade-in slide-in-from-top-4">
                     <div className="p-4 border-b border-gray-200 bg-gray-50 text-xs font-bold text-gray-500 uppercase">
@@ -74,10 +98,12 @@ export default function MasterEfficiencyView({ resources, actions }) {
                 </div>
             )}
 
+            {/* Карточки ввода */}
             <div className="grid gap-3">
                 {resources.map(res => {
                     const currentEff = (res.dailyEfficiency && res.dailyEfficiency[dateStr]) || 0;
-                    const isSafetyViolated = res.safetyViolations && res.safetyViolations[dateStr];
+                    const violation = res.safetyViolations?.[dateStr];
+                    const isSafetyViolated = violation?.violated;
                     const isKtuDisabled = res.ktuEligible === false; 
 
                     return (
@@ -92,24 +118,21 @@ export default function MasterEfficiencyView({ resources, actions }) {
                                 </div>
                                 <div>
                                     <div className="font-bold text-gray-800 text-base">{res.name}</div>
-                                    <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                                        {isKtuDisabled ? 'КТУ не предусмотрен' : 'Коэффициент участия'}
-                                    </div>
+                                    {isSafetyViolated 
+                                        ? <div className="text-[10px] text-red-600 font-bold uppercase">{violation.comment || 'Нарушение ТБ'}</div>
+                                        : <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{isKtuDisabled ? 'КТУ не предусмотрен' : 'Коэффициент участия'}</div>
+                                    }
                                 </div>
                             </div>
                             
                             <div className="flex items-center gap-6">
                                 <button 
-                                    onClick={() => {
-                                        const currentViolations = res.safetyViolations || {};
-                                        const newViolations = { ...currentViolations, [dateStr]: !isSafetyViolated };
-                                        actions.updateResource(res.id, 'safetyViolations', newViolations);
-                                    }}
+                                    onClick={() => handleSafetyClick(res)}
                                     className={`flex flex-col items-center gap-1 transition ${isSafetyViolated ? 'text-red-600 opacity-100' : 'text-gray-300 hover:text-gray-400'}`}
-                                    title="Нарушение техники безопасности (Аннулирует бонус 22%)"
+                                    title="Нарушение техники безопасности"
                                 >
                                     <Shield size={24} fill={isSafetyViolated ? "currentColor" : "none"} />
-                                    <span className="text-[9px] font-bold uppercase">{isSafetyViolated ? 'Нарушение!' : 'ТБ Соблюдено'}</span>
+                                    <span className="text-[9px] font-bold uppercase">{isSafetyViolated ? 'Снять' : 'ТБ OK'}</span>
                                 </button>
 
                                 <div className={`flex items-center gap-2 ${isKtuDisabled ? 'opacity-30 pointer-events-none' : ''}`}>
@@ -126,6 +149,42 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     );
                 })}
             </div>
+
+            {/* МОДАЛКА НАРУШЕНИЯ ТБ */}
+            {safetyModal && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+                        <div className="bg-red-600 p-4 text-white flex justify-between items-center">
+                            <h3 className="font-bold flex items-center gap-2"><ShieldAlert size={20}/> Нарушение ТБ</h3>
+                            <button onClick={() => setSafetyModal(null)}><X size={20}/></button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-slate-600 mb-2 font-medium">Сотрудник: <span className="font-bold text-slate-800">{safetyModal.name}</span></p>
+                            <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Причина / Комментарий</label>
+                            <input 
+                                type="text" 
+                                autoFocus
+                                value={safetyModal.comment}
+                                onChange={(e) => setSafetyModal({...safetyModal, comment: e.target.value})}
+                                className="w-full border-2 border-red-100 rounded-lg p-3 text-slate-800 focus:border-red-500 outline-none"
+                                placeholder="Например: Без каски"
+                            />
+                            <div className="flex gap-2 mt-4">
+                                <button onClick={() => setSafetyModal(null)} className="flex-1 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition">Отмена</button>
+                                <button 
+                                    onClick={() => {
+                                        actions.updateResourceSafety(safetyModal.resId, safetyModal.dateStr, { violated: true, comment: safetyModal.comment });
+                                        setSafetyModal(null);
+                                    }} 
+                                    className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-lg"
+                                >
+                                    Подтвердить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
