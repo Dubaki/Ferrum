@@ -1,148 +1,148 @@
-import React from 'react';
-import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, PenTool, Truck } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
+
+// AddProductModal убрали отсюда, чтобы починить визуальный баг
 
 export default function OrderCard({ 
     order, products, actions, resources, isExpanded, onToggle, 
     openExecutorDropdown, setOpenExecutorDropdown, 
-    isStatusMenuOpen, onToggleStatusMenu, onOpenSettings 
+    isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
+    onAddProduct // Новое свойство: функция от родителя
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
+    const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
     
-    // Прогресс
-    let totalOps = 0; let doneOps = 0;
-    orderPositions.forEach(p => p.operations.forEach(op => {
-        totalOps++; if ((op.actualMinutes || 0) > 0) doneOps++;
-    }));
-    const progress = totalOps > 0 ? Math.round((doneOps / totalOps) * 100) : 0;
+    // --- АНАЛИТИКА ТРУДОЧАСОВ ---
+    let totalPlanMins = 0;
+    let totalFactMins = 0;
+    orderPositions.forEach(p => {
+        p.operations.forEach(op => {
+            const qty = p.quantity || 1;
+            totalPlanMins += (op.minutesPerUnit || 0) * qty;
+            totalFactMins += (op.actualMinutes || 0); 
+        });
+    });
 
-    // --- ЛОГИКА ТАЙМЕРОВ СНАБЖЕНИЯ ---
+    const remainingMins = Math.max(0, totalPlanMins - totalFactMins);
+    const remainingManHours = (remainingMins / 60).toFixed(1);
+    const progress = totalPlanMins > 0 ? Math.round((totalFactMins / totalPlanMins) * 100) : 0;
+
+    // --- РАСЧЕТ РАБОЧИХ ДНЕЙ ---
+    const getWorkDays = (start, end) => {
+        let count = 0;
+        let cur = new Date(start);
+        const endDate = new Date(end);
+        cur.setHours(0,0,0,0);
+        endDate.setHours(0,0,0,0);
+        while (cur <= endDate) {
+            const day = cur.getDay();
+            if (day !== 0 && day !== 6) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    };
+
+    // --- ДЕДЛАЙН И ЧАСЫ ---
+    const calculateDeadlineInfo = (dateStr) => {
+        if (!dateStr) return { days: null, color: 'text-slate-400', label: 'Нет срока', border: 'border-l-4 border-slate-400 bg-white' };
+        
+        const today = new Date();
+        const target = new Date(dateStr);
+        const diffTime = target - today;
+        const diffCalendarDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffCalendarDays < 0) {
+            return { 
+                text: `${diffCalendarDays}`, 
+                sub: 'ПРОСРОЧЕНО',
+                color: 'text-red-600', 
+                border: 'border-l-[6px] border-l-red-600 border-y border-r border-red-200 bg-red-50/60 shadow-red-100',
+                isLate: true
+            };
+        }
+
+        const workDays = getWorkDays(today, target);
+        const availableHours = workDays * 8; 
+
+        let color = 'text-emerald-600';
+        let border = 'border-l-[6px] border-l-emerald-500 border-emerald-200 bg-emerald-50/30 shadow-emerald-100';
+
+        if (workDays <= 3) { color = 'text-orange-600'; border = 'border-l-[6px] border-l-orange-500 border-orange-200 bg-orange-50/60 shadow-orange-100'; }
+        else if (workDays <= 10) { color = 'text-yellow-600'; border = 'border-l-[6px] border-l-yellow-400 border-yellow-200 bg-yellow-50/40 shadow-yellow-100'; }
+
+        return { 
+            text: `${workDays}`, 
+            sub: 'ОСТАЛОСЬ',
+            color, border, availableHours, workDays
+        };
+    };
+
     const getCountdown = (dateStr) => {
         if (!dateStr) return null;
-        const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
-        return diff;
+        return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
     };
 
+    const dlInfo = calculateDeadlineInfo(order.deadline);
     const drawDiff = getCountdown(order.drawingsDeadline);
     const matDiff = getCountdown(order.materialsDeadline);
-
-    // Рамки и Сроки
-    const calculateDeadline = (dateStr) => {
-        if (!dateStr) return { days: null, color: 'text-slate-400', label: 'Нет срока', border: 'border-l-4 border-slate-400 bg-white' };
-        const daysLeft = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
-        
-        if (daysLeft < 0) return { days: Math.abs(daysLeft), color: 'text-red-600', label: 'ПРОСРОЧЕНО', border: 'border-l-[6px] border-l-red-600 border-y border-r border-red-200 bg-red-50/60 shadow-red-100' };
-        if (daysLeft === 0) return { days: 0, color: 'text-red-600 animate-pulse', label: 'СЕГОДНЯ', border: 'border-l-[6px] border-l-red-600 border-red-200 bg-red-50/60' };
-        if (daysLeft <= 3) return { days: daysLeft, color: 'text-orange-600', label: 'ОСТАЛОСЬ', border: 'border-l-[6px] border-l-orange-500 border-orange-200 bg-orange-50/60 shadow-orange-100' };
-        if (daysLeft <= 10) return { days: daysLeft, color: 'text-yellow-600', label: 'ОСТАЛОСЬ', border: 'border-l-[6px] border-l-yellow-400 border-yellow-200 bg-yellow-50/40 shadow-yellow-100' };
-        return { days: daysLeft, color: 'text-emerald-600', label: 'ОСТАЛОСЬ', border: 'border-l-[6px] border-l-emerald-500 border-emerald-200 bg-emerald-50/30 shadow-emerald-100' };
-    };
-
-    const dlInfo = calculateDeadline(order.deadline);
     const currentStatus = ORDER_STATUSES.find(s => s.id === order.customStatus) || ORDER_STATUSES[0];
 
-    const getLastStatusTime = () => {
-        const history = order.statusHistory || [];
-        if (history.length === 0) return '0 ч.';
-        const sorted = [...history].sort((a,b) => a.timestamp - b.timestamp);
-        const lastEntry = sorted[sorted.length - 1];
-        const diffMs = Date.now() - lastEntry.timestamp;
-        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        if (days > 0) return `${days} дн. ${hours} ч.`;
-        return `${hours} ч.`;
+    const handleStatusChange = (statusId) => {
+        if (statusId === 'metal' && !order.materialsDeadline) return alert("Сначала укажите дату поставки металла в настройках!");
+        if (statusId === 'drawings' && !order.drawingsDeadline) return alert("Сначала укажите дату готовности КМД в настройках!");
+        actions.updateOrder(order.id, 'customStatus', statusId);
     };
 
     return (
         <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${dlInfo.border} 
-            ${isStatusMenuOpen ? 'z-50' : (isExpanded ? 'shadow-xl scale-[1.01] z-10' : 'hover:shadow-md')}
+            ${isStatusMenuOpen || showDeadlineDetails ? 'z-50' : (isExpanded ? 'shadow-xl scale-[1.01] z-10' : 'hover:shadow-md')}
         `}>
             
-            <div className="p-4 flex flex-col md:flex-row gap-4 relative" onClick={onToggle}>
+            <div className="p-4 flex flex-col md:flex-row gap-4 relative items-center" onClick={onToggle}>
                 
                 {/* 1. ЛЕВАЯ ЧАСТЬ */}
-                <div className="flex items-center gap-4 flex-1 min-w-0 z-10">
-                    <button 
-                        onClick={onOpenSettings}
-                        className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-lg shrink-0 border border-slate-700 group"
-                        title="Настройки заказа"
-                    >
-                        <Settings size={22} className="group-active:scale-95" />
+                <div className="flex items-center gap-4 flex-1 min-w-0 z-10 w-full md:w-auto">
+                    <button onClick={onOpenSettings} className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
+                        <Settings size={18} />
                     </button>
-                    
                     <button className={`hidden md:block p-1 rounded-full transition-colors ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
                         {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
                     </button>
-
-                    <div className="flex flex-col flex-1 min-w-0 justify-center">
-                        <div className="font-black text-2xl text-slate-800 uppercase tracking-tight leading-none truncate">
-                            {order.orderNumber || 'БЕЗ НОМЕРА'}
-                        </div>
-                        <div className="text-sm text-slate-500 font-bold flex items-center gap-2 mt-1 truncate">
-                            <User size={14} className="text-slate-400"/> {order.clientName || 'Клиент не указан'}
-                        </div>
+                    <div className="flex flex-col min-w-0">
+                        <div className="font-black text-xl text-slate-800 uppercase tracking-tight leading-none truncate">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
+                        <div className="text-xs text-slate-500 font-bold flex items-center gap-1 mt-1 truncate uppercase tracking-wider"><User size={12} className="text-slate-400"/> {order.clientName || 'Нет клиента'}</div>
                     </div>
                 </div>
 
-                {/* 2. НОВЫЙ БЛОК: СТАТУС СНАБЖЕНИЯ И КМД (В ЦЕНТРЕ) */}
-                <div className="flex items-center gap-3 z-20" onClick={e => e.stopPropagation()}>
-                    {/* КМД Таймер */}
+                {/* 2. ЦЕНТР: ПЛАШКИ */}
+                <div className="flex items-center gap-2 z-20 shrink-0" onClick={e => e.stopPropagation()}>
                     {order.drawingsDeadline && (
-                        <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg border ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-100 text-indigo-700'}`}>
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
-                                <PenTool size={10}/> КМД
-                            </div>
-                            <div className="font-bold text-xs">
-                                {drawDiff < 0 ? `Проср. ${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`)}
-                            </div>
+                        <div className={`flex flex-col items-center justify-center w-20 py-1 rounded border-2 ${drawDiff < 0 ? 'bg-red-50 border-red-100 text-red-700' : 'bg-white border-indigo-100 text-indigo-700 shadow-sm'}`}>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><PenTool size={10}/> КМД</div>
+                            <div className="font-bold text-xs leading-none mt-0.5">{drawDiff < 0 ? `-${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`)}</div>
                         </div>
                     )}
-
-                    {/* Металл Таймер */}
                     {order.materialsDeadline && (
-                        <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg border ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
-                                <Truck size={10}/> Снабж
-                            </div>
-                            <div className="font-bold text-xs">
-                                {matDiff < 0 ? `Проср. ${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`)}
-                            </div>
+                        <div className={`flex flex-col items-center justify-center w-20 py-1 rounded border-2 ${matDiff < 0 ? 'bg-red-50 border-red-100 text-red-700' : 'bg-white border-amber-100 text-amber-700 shadow-sm'}`}>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Truck size={10}/> Снабж</div>
+                            <div className="font-bold text-xs leading-none mt-0.5">{matDiff < 0 ? `-${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`)}</div>
                         </div>
                     )}
                 </div>
 
-                {/* 3. ЦЕНТРАЛЬНАЯ ЧАСТЬ: Статус и Готовность */}
-                <div 
-                    className="flex flex-col md:flex-row items-center justify-center gap-6 z-20 md:flex-[1.5] mt-3 md:mt-0" 
-                    onClick={e => e.stopPropagation()}
-                >
-                    {/* Меню статусов */}
+                {/* 3. ЦЕНТР: СТАТУС */}
+                <div className="flex items-center justify-center z-20 shrink-0" onClick={e => e.stopPropagation()}>
                     <div className="relative">
-                        <button 
-                            onClick={onToggleStatusMenu}
-                            className={`flex items-center gap-2 px-5 py-2 rounded-full border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color}`}
-                        >
+                        <button onClick={onToggleStatusMenu} className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color}`}>
                             <span className="text-xs font-black uppercase tracking-wider">{currentStatus.label}</span>
                             <ChevronDown size={14}/>
                         </button>
-
-                        <div className="text-[10px] text-center font-mono text-slate-400 mt-1 font-bold">
-                            В статусе: {getLastStatusTime()}
-                        </div>
-
-                        {/* Выпадающий список */}
                         {isStatusMenuOpen && (
                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white shadow-2xl rounded-xl p-2 z-[60] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
-                                    <div 
-                                        key={st.id} 
-                                        onClick={() => {
-                                            actions.updateOrder(order.id, 'customStatus', st.id);
-                                            onToggleStatusMenu({ stopPropagation: () => {} });
-                                        }}
-                                        className={`px-3 py-3 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}
-                                    >
+                                    <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-3 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
                                     </div>
                                 ))}
@@ -150,53 +150,71 @@ export default function OrderCard({
                         )}
                         {isStatusMenuOpen && <div className="fixed inset-0 z-[50]" onClick={onToggleStatusMenu}></div>}
                     </div>
-
-                    {/* Готовность (Прогресс) */}
-                    <div className="flex flex-col items-center min-w-[140px]">
-                        <div className="flex justify-between w-full text-[9px] font-bold text-slate-400 uppercase mb-1 px-1">
-                            <span>Готовность</span>
-                            <span>{doneOps}/{totalOps} оп.</span>
-                        </div>
-                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner relative">
-                            <div 
-                                className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`} 
-                                style={{ width: `${progress}%` }}
-                            >
-                                <div className="absolute inset-0 w-full h-full" style={{backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.2) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.2) 50%,rgba(255,255,255,.2) 75%,transparent 75%,transparent)', backgroundSize: '8px 8px'}}></div>
-                            </div>
-                        </div>
-                        <div className="text-xs font-black text-slate-700 mt-0.5">{progress}%</div>
-                    </div>
                 </div>
 
-                {/* 4. ПРАВАЯ ЧАСТЬ: Сроки, Оплата, Действия */}
-                <div className="flex items-center gap-6 justify-end flex-1 z-10 mt-3 md:mt-0" onClick={e => e.stopPropagation()}>
+                {/* 4. ПРАВАЯ ЧАСТЬ */}
+                <div className="flex items-center gap-6 justify-end flex-1 z-10 relative" onClick={e => e.stopPropagation()}>
+                    <div className="relative">
+                        <button className="flex flex-col items-end group outline-none" onClick={() => setShowDeadlineDetails(!showDeadlineDetails)}>
+                            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mb-0.5 flex items-center gap-1 group-hover:text-slate-600">{dlInfo.sub} <Info size={12}/></span>
+                            <div className={`text-2xl font-black leading-none transition-transform group-hover:scale-105 ${dlInfo.color}`}>{dlInfo.text || '—'}</div>
+                        </button>
+                        {showDeadlineDetails && (
+                            <>
+                                <div className="fixed inset-0 z-[50] cursor-default" onClick={() => setShowDeadlineDetails(false)}></div>
+                                <div className="absolute right-0 top-full mt-4 w-96 bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 z-[100] overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                                    <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
+                                        <h4 className="font-bold flex items-center gap-2"><Calendar size={18}/> Аналитика времени</h4>
+                                        <div className="text-xs bg-white/10 px-2 py-1 rounded font-mono">{progress}% готово</div>
+                                    </div>
+                                    <div className="p-6 relative">
+                                        {!dlInfo.isLate ? (
+                                            <div className="grid grid-cols-2 gap-6 relative">
+                                                <div className="absolute left-1/2 top-4 bottom-4 w-px bg-slate-100"></div>
+                                                <div className="text-center">
+                                                    <div className="text-xs font-bold text-slate-400 uppercase mb-2">Осталось работы</div>
+                                                    <div className="text-3xl font-black text-slate-800 leading-none mb-1">{remainingManHours}</div>
+                                                    <div className="text-xs font-bold text-slate-500 uppercase">Человеко/часов</div>
+                                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                                        <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Всего по заказу</div>
+                                                        <div className="font-mono text-xs font-bold text-slate-600">{(totalPlanMins/60).toFixed(1)} ч</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-xs font-bold text-slate-400 uppercase mb-2">Ресурс времени</div>
+                                                    <div className="text-3xl font-black text-emerald-600 leading-none mb-1">{dlInfo.availableHours}</div>
+                                                    <div className="text-xs font-bold text-emerald-700/60 uppercase">Часов (на 1 чел)</div>
+                                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                                        <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Нужно людей</div>
+                                                        <div className={`inline-block px-3 py-1 rounded text-sm font-black ${remainingManHours > dlInfo.availableHours ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{dlInfo.availableHours > 0 ? Math.ceil(remainingManHours / dlInfo.availableHours) : '∞'} чел.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full pb-4 text-center px-4">
+                                                <AlertOctagon size={48} className="text-red-500 mb-4 animate-bounce"/>
+                                                <div className="text-red-600 font-black text-lg uppercase mb-2">ЗАКАЗ ПРОСРОЧЕН</div>
+                                                <div className="text-slate-600 font-bold text-sm bg-red-50 p-4 rounded-xl border border-red-100 w-full">Необходимо закончить как можно быстрее!</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
                     
-                    <div className="flex flex-col items-end">
-                        <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">{dlInfo.label}</span>
-                        <div className={`text-2xl font-black leading-none ${dlInfo.color}`}>
-                            {dlInfo.days !== null ? `${dlInfo.days} дн.` : '—'}
-                        </div>
+                    <div className="flex flex-col items-end mr-2">
+                         <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"><Wallet size={10} /> Оплата</span>
+                         <span className="font-bold text-slate-700 text-sm">{order.paymentDate ? new Date(order.paymentDate).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'}) : '—'}</span>
                     </div>
 
-                    {order.paymentDate && (
-                        <div className="hidden lg:flex flex-col items-center justify-center px-2 py-1 bg-emerald-50 rounded border border-emerald-100">
-                            <span className="text-[8px] uppercase font-bold text-emerald-400">Оплачено</span>
-                            <div className="text-[10px] font-bold text-emerald-700">
-                                {new Date(order.paymentDate).toLocaleDateString(undefined, {day:'numeric', month:'numeric'})}
-                            </div>
-                        </div>
-                    )}
-
                     <div className="flex gap-1 border-l border-slate-200/50 pl-4">
-                        <button onClick={() => actions.finishOrder(order.id)} className="p-2 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить">
-                            <CheckCircle size={22} />
-                        </button>
+                        <button onClick={() => actions.finishOrder(order.id)} className="p-2 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить"><CheckCircle size={22} /></button>
                     </div>
                 </div>
             </div>
 
-            {/* --- РАСКРЫВАЮЩАЯСЯ ЧАСТЬ --- */}
+            {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ */}
             {isExpanded && (
                 <div className="bg-slate-50 border-t border-slate-200 p-4 md:p-6 animate-in slide-in-from-top-2">
                     <div className="space-y-3">
@@ -212,8 +230,10 @@ export default function OrderCard({
                             />
                         ))}
                     </div>
+                    
+                    {/* КНОПКА ДОБАВЛЕНИЯ - ВЫЗЫВАЕТ РОДИТЕЛЯ */}
                     <button 
-                        onClick={() => actions.addProduct(order.id)} 
+                        onClick={() => onAddProduct()} 
                         className="mt-4 w-full py-3 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-600 transition font-bold flex items-center justify-center gap-2"
                     >
                         <Plus size={18} /> Добавить изделие

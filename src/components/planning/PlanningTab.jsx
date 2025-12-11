@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Plus, FolderOpen, Search, Package } from 'lucide-react';
-import OrderCard from './planning/OrderCard';
-import ProductCard from './planning/ProductCard';
-import OrderSettingsModal from './planning/OrderSettingsModal';
+
+import OrderCard from './OrderCard';
+import ProductCard from './ProductCard';
+import OrderSettingsModal from './OrderSettingsModal';
+import NewOrderModal from './NewOrderModal'; 
+import AddProductModal from './AddProductModal'; 
 
 // Стили блика
 const styles = `
@@ -33,10 +36,15 @@ const styles = `
 
 export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [] }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
-  const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null); // Глобальное состояние дропдауна
+  const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null); 
   const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
   const [settingsOrder, setSettingsOrder] = useState(null);
+  
+  // Состояние: В какой заказ мы сейчас добавляем изделия?
+  const [addingProductToOrder, setAddingProductToOrder] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const toggleOrder = (id) => setExpandedOrderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   
@@ -47,13 +55,29 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
         (o.clientName && o.clientName.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .sort((a, b) => {
-        if (!a.deadline && !b.deadline) return 0;
+        // ЛОГИКА СОРТИРОВКИ ПО СРОЧНОСТИ
+        
+        // 1. Если у обоих нет даты - сортируем по дате создания (новые выше)
+        if (!a.deadline && !b.deadline) return (b.createdAt || 0) - (a.createdAt || 0);
+        
+        // 2. Если у одного нет даты - кидаем его вниз
         if (!a.deadline) return 1; 
-        if (!b.deadline) return -1; 
-        return new Date(a.deadline) - new Date(b.deadline); 
+        if (!b.deadline) return -1;
+        
+        // 3. Сравниваем даты (Меньшая дата = Раньше = Выше в списке)
+        // Это поднимет просроченные (старые даты) и ближайшие наверх
+        return new Date(a.deadline) - new Date(b.deadline);
     });
 
   const orphanProducts = products.filter(p => !p.orderId);
+
+  // Обработчик добавления из модалки
+  const handleAddFromPreset = (items) => {
+      if (addingProductToOrder) {
+          actions.addProductsBatch(addingProductToOrder.id, items);
+          setAddingProductToOrder(null);
+      }
+  };
 
   return (
     <div className="space-y-6 pb-20 fade-in font-sans text-slate-800">
@@ -81,7 +105,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
              </div>
 
              <button 
-                onClick={actions.addOrder} 
+                onClick={() => setIsCreating(true)} 
                 className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-xs"
              >
                <Plus size={16} strokeWidth={3} /> Создать заказ
@@ -113,6 +137,8 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                     e.stopPropagation();
                     setSettingsOrder(order);
                 }}
+                // Передаем функцию открытия модалки
+                onAddProduct={() => setAddingProductToOrder(order)}
             />
         ))}
         {activeOrders.length === 0 && <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-300 rounded-xl">Список пуст</div>}
@@ -137,12 +163,28 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
           </div>
       )}
 
-      {/* Модалка настроек */}
+      {/* Модалка создания заказа */}
+      {isCreating && (
+          <NewOrderModal 
+             onClose={() => setIsCreating(false)} 
+             onCreate={actions.addOrder} 
+          />
+      )}
+
+      {/* Модалка настроек заказа */}
       {settingsOrder && (
           <OrderSettingsModal 
               order={settingsOrder} 
               onClose={() => setSettingsOrder(null)} 
               actions={actions} 
+          />
+      )}
+
+      {/* Модалка добавления изделия */}
+      {addingProductToOrder && (
+          <AddProductModal 
+              onClose={() => setAddingProductToOrder(null)}
+              onAdd={handleAddFromPreset}
           />
       )}
     </div>

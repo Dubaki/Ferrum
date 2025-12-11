@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === ИМПОРТ ТЕМЫ FERRUM === */
+@import './themes/theme-ferrum-industrial.css';
+
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -50,4 +53,106 @@ input[type=number]::-webkit-outer-spin-button {
 /* Эффект нажатия для всех кнопок */
 button:active {
   transform: scale(0.97);
+}
+
+/* Скрытие скроллбара (для overflow-x) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Кастомный скроллбар (там где нужен) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Анимация появления (для модалок) */
+.animate-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.zoom-in-95 {
+  animation: zoomIn 0.15s ease-out;
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.slide-in-from-top-2 {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in-from-top-1 {
+  animation: slideDownSmall 0.15s ease-out;
+}
+
+@keyframes slideDownSmall {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in-from-top-4 {
+  animation: slideDownLarge 0.25s ease-out;
+}
+
+@keyframes slideDownLarge {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

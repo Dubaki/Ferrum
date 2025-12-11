@@ -1,0 +1,303 @@
+/* ============================================
+   FERRUM INDUSTRIAL THEME - УСИЛЕННАЯ ВЕРСИЯ
+   Все стили с !important для гарантии применения
+   ============================================ */
+
+/* === ШАПКА === */
+.sticky.top-0.z-40,
+header,
+[class*="sticky top-0"] {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%) !important;
+  border-bottom: 3px solid #d32f2f !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Убираем белый/прозрачный фон */
+.bg-white\/90,
+.backdrop-blur-md {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%) !important;
+}
+
+/* === НАВИГАЦИОННЫЕ ВКЛАДКИ === */
+/* Активная вкладка */
+.border-orange-500,
+button.border-b-2.border-orange-500 {
+  border-bottom-color: #d32f2f !important;
+  color: white !important;
+  background: rgba(211, 47, 47, 0.15) !important;
+}
+
+/* Неактивные вкладки */
+button.border-transparent {
+  color: rgba(255, 255, 255, 0.6) !important;
+  border-bottom-color: transparent !important;
+}
+
+button.border-transparent:hover {
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Иконки в активной вкладке */
+.text-orange-500 {
+  color: #d32f2f !important;
+}
+
+/* Иконки в неактивной вкладке */
+.text-slate-400:not(.deadline *):not(.progress *) {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* === ЦВЕТНЫЕ ГРАНИЦЫ ЗАКАЗОВ === */
+
+/* ПРОСРОЧЕНО - Красная (пульсирует) */
+.border-l-red-600:not(.bg-red-50) {
+  border-left: 6px solid #d32f2f !important;
+  background: linear-gradient(90deg, rgba(211, 47, 47, 0.08) 0%, white 100%) !important;
+  animation: pulse-deadline 2s ease-in-out infinite !important;
+}
+
+@keyframes pulse-deadline {
+  0%, 100% { 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  }
+  50% { 
+    box-shadow: 0 4px 20px rgba(211, 47, 47, 0.4);
+  }
+}
+
+/* СРОЧНО - Оранжевая (1-3 дня) */
+.border-l-orange-500,
+[class*="border-l-orange-"] {
+  border-left: 6px solid #ff6f00 !important;
+  background: linear-gradient(90deg, rgba(255, 111, 0, 0.06) 0%, white 100%) !important;
+}
+
+/* ВНИМАНИЕ - Жёлтая (4-7 дней) */
+.border-l-yellow-400,
+[class*="border-l-yellow-"] {
+  border-left: 6px solid #ffa000 !important;
+  background: linear-gradient(90deg, rgba(255, 160, 0, 0.05) 0%, white 100%) !important;
+}
+
+/* НОРМА - Зелёная (8+ дней) */
+.border-l-emerald-500,
+[class*="border-l-emerald-"],
+[class*="border-l-green-"] {
+  border-left: 6px solid #388e3c !important;
+  background: linear-gradient(90deg, rgba(56, 142, 60, 0.05) 0%, white 100%) !important;
+}
+
+/* НЕТ СРОКА - Серая */
+.border-l-slate-400,
+.border-l-4.border-slate-400 {
+  border-left: 6px solid #757575 !important;
+  background: white !important;
+}
+
+/* === КНОПКИ === */
+
+/* Кнопка "Создать заказ" */
+.shiny-effect,
+.bg-slate-800.text-white:not(.w-12),
+button.bg-slate-800:not([class*="w-12"]) {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%) !important;
+  color: white !important;
+  border: 2px solid #1a1a1a !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.shiny-effect:hover,
+.bg-slate-800.text-white:not(.w-12):hover {
+  background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%) !important;
+  box-shadow: 0 0 25px rgba(211, 47, 47, 0.6) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Кнопка НАСТРОЕК ⚙️ */
+.w-12.h-12.bg-slate-800,
+button.bg-slate-800.w-12.h-12 {
+  background: #1a1a1a !important;
+  border: 2px solid #d32f2f !important;
+  border-radius: 12px !important;
+  color: #999 !important;
+}
+
+.w-12.h-12.bg-slate-800:hover,
+button.bg-slate-800.w-12.h-12:hover {
+  background: #d32f2f !important;
+  color: white !important;
+  transform: rotate(90deg) !important;
+  box-shadow: 0 0 20px rgba(211, 47, 47, 0.5) !important;
+}
+
+/* Кнопка ЗАВЕРШИТЬ ✓ */
+button[title*="Завершить"],
+button.text-slate-400:has(svg) {
+  width: 48px;
+  height: 48px;
+  background: transparent !important;
+  border: 2px solid #e0e0e0 !important;
+  border-radius: 12px !important;
+  color: #999 !important;
+}
+
+button[title*="Завершить"]:hover {
+  background: #388e3c !important;
+  color: white !important;
+  border-color: #388e3c !important;
+  box-shadow: 0 0 20px rgba(56, 142, 60, 0.5) !important;
+}
+
+/* === ПРОГРЕСС-БАРЫ === */
+.bg-indigo-500 {
+  background: linear-gradient(90deg, #d32f2f 0%, #ef5350 100%) !important;
+}
+
+.bg-emerald-500 {
+  background: linear-gradient(90deg, #388e3c 0%, #4caf50 100%) !important;
+}
+
+/* === ЦИФРЫ ДЕДЛАЙНОВ === */
+.text-red-600 {
+  color: #d32f2f !important;
+}
+
+.text-orange-600:not(.text-\[10px\]) {
+  color: #ff6f00 !important;
+}
+
+.text-yellow-600 {
+  color: #ffa000 !important;
+}
+
+.text-emerald-600 {
+  color: #388e3c !important;
+}
+
+/* === ТАБЛИЦА ЗАГРУЗКИ === */
+
+/* Чёрная шапка */
+.bg-slate-800:not(button) {
+  background: #1a1a1a !important;
+  color: white !important;
+}
+
+/* Цветные ячейки */
+.bg-emerald-100 {
+  background: #c8e6c9 !important;
+  color: #1b5e20 !important;
+  font-weight: 700 !important;
+}
+
+.bg-blue-100 {
+  background: #bbdefb !important;
+  color: #0d47a1 !important;
+  font-weight: 700 !important;
+}
+
+.bg-indigo-200 {
+  background: #c5cae9 !important;
+  color: #311b92 !important;
+  font-weight: 700 !important;
+}
+
+.bg-rose-200 {
+  background: #ffcdd2 !important;
+  color: #b71c1c !important;
+  font-weight: 900 !important;
+  animation: pulse-overload 2s infinite !important;
+}
+
+@keyframes pulse-overload {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Выходные */
+.bg-rose-100 {
+  background: rgba(211, 47, 47, 0.1) !important;
+  color: #d32f2f !important;
+}
+
+/* === КАРТОЧКИ СОТРУДНИКОВ === */
+
+/* Красные аватары */
+.bg-blue-100.text-blue-600,
+div.rounded-full.bg-blue-100 {
+  background: #d32f2f !important;
+  color: white !important;
+}
+
+div.w-16.h-16.rounded-2xl.bg-slate-100 {
+  background: #d32f2f !important;
+  color: white !important;
+}
+
+/* === HOVER ЭФФЕКТЫ === */
+.hover\:text-orange-600:hover,
+.hover\:text-orange-500:hover {
+  color: #d32f2f !important;
+}
+
+.hover\:bg-orange-600:hover,
+.hover\:bg-orange-500:hover,
+.hover\:bg-orange-50:hover {
+  background: #d32f2f !important;
+  color: white !important;
+}
+
+.hover\:border-orange-400:hover,
+.hover\:border-orange-300:hover {
+  border-color: #d32f2f !important;
+}
+
+/* === ФОКУС === */
+.focus\:border-orange-500:focus {
+  border-color: #d32f2f !important;
+}
+
+/* === ГАНТ === */
+.text-indigo-600 {
+  color: #d32f2f !important;
+}
+
+/* === ФИНАНСЫ === */
+.text-blue-700,
+.text-blue-600:not(button) {
+  color: #d32f2f !important;
+}
+
+/* === ДОПОЛНИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ === */
+
+/* Убираем оранжевый текст в шапке */
+.text-orange-600.uppercase.tracking-widest {
+  color: #666 !important;
+}
+
+/* Красные рамки */
+.border-orange-500,
+.border-orange-200,
+.border-orange-300,
+.border-orange-100 {
+  border-color: #d32f2f !important;
+}
+
+/* Красный текст в подзаголовке шапки */
+.border-l-2.border-orange-500 {
+  border-left-color: #d32f2f !important;
+}
+
+/* Иконки в заголовках */
+.text-orange-600:not(.text-\[10px\]):not([class*="deadline"]) {
+  color: #d32f2f !important;
+}
+
+/* === ПЛАВНЫЕ ПЕРЕХОДЫ === */
+* {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}

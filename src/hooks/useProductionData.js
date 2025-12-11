@@ -33,12 +33,20 @@ export const useProductionData = () => {
 
   // --- Actions ---
 
-  const addOrder = async () => {
+  const addOrder = async (data) => {
     const now = Date.now();
     await addDoc(collection(db, 'orders'), {
-      orderNumber: 'Новый', clientName: '', deadline: '', status: 'active',
-      customStatus: 'metal', paymentDate: formatDate(new Date()),
-      statusHistory: [{ status: 'metal', timestamp: now }], createdAt: now, finishedAt: null
+      orderNumber: data?.orderNumber || 'Новый', 
+      clientName: data?.clientName || '', 
+      deadline: data?.deadline || '', 
+      status: 'active',
+      customStatus: data?.customStatus || 'metal', 
+      drawingsDeadline: data?.drawingsDeadline || null,
+      materialsDeadline: data?.materialsDeadline || null,
+      paymentDate: formatDate(new Date()),
+      statusHistory: [{ status: data?.customStatus || 'metal', timestamp: now }], 
+      createdAt: now, 
+      finishedAt: null
     });
   };
 
@@ -56,7 +64,20 @@ export const useProductionData = () => {
   };
 
   const finishOrder = async (id) => { 
-      if(confirm('Завершить заказ?')) {
+      const orderProducts = products.filter(p => p.orderId === id);
+      const incompleteOperations = [];
+      orderProducts.forEach(prod => {
+          prod.operations.forEach(op => {
+              if (!op.actualMinutes || op.actualMinutes <= 0) {
+                  incompleteOperations.push(`${prod.name} -> ${op.name}`);
+              }
+          });
+      });
+      if (incompleteOperations.length > 0) {
+          alert(`Невозможно завершить заказ!\n\nНе проставлено фактическое время производства для:\n- ${incompleteOperations.slice(0, 5).join('\n- ')}\n${incompleteOperations.length > 5 ? '...и других' : ''}`);
+          return;
+      }
+      if(confirm('Все операции подтверждены. Завершить заказ?')) {
           await updateDoc(doc(db, 'orders', id), { status: 'completed', finishedAt: new Date().toISOString() }); 
       }
   };
@@ -69,6 +90,7 @@ export const useProductionData = () => {
       }
   };
 
+  // --- ПРОДУКТЫ (Старое создание одного пустого) ---
   const addProduct = async (orderId = null, initialDate = null) => { 
       const startDate = initialDate || formatDate(new Date());
       const docRef = await addDoc(collection(db, 'products'), { 
@@ -83,6 +105,39 @@ export const useProductionData = () => {
       return docRef.id;
   };
 
+  // --- НОВОЕ: Пакетное добавление из пресетов ---
+  const addProductsBatch = async (orderId, presetItems) => {
+      const batch = writeBatch(db);
+      const startDate = formatDate(new Date());
+
+      // Мы не можем использовать batch.add(), нам нужны ID документов. 
+      // Поэтому используем цикл с await addDoc, это надежнее для создания документов
+      // (batch эффективен для update/set, но для создания нескольких зависимых структур проще так)
+      
+      for (const item of presetItems) {
+          // 1. Формируем операции
+          const ops = item.ops.map((op, index) => ({
+              id: Date.now() + index + Math.random(),
+              name: op.name,
+              minutesPerUnit: op.minutes, // Время из пресета
+              actualMinutes: 0,
+              resourceIds: [],
+              sequence: index + 1
+          }));
+
+          // 2. Создаем продукт
+          await addDoc(collection(db, 'products'), {
+              orderId,
+              name: item.name,
+              quantity: 1,
+              startDate: startDate,
+              status: 'active',
+              operations: ops,
+              createdAt: Date.now()
+          });
+      }
+  };
+
   const updateProduct = async (id, field, value) => updateDoc(doc(db, 'products', id), { [field]: value });
   
   const deleteProduct = async (id) => { 
@@ -91,40 +146,23 @@ export const useProductionData = () => {
       }
   };
 
-  // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: ПОЛНОЕ КЛОНИРОВАНИЕ ОПЕРАЦИЙ ---
   const copyOperationsToAll = async (sourceProductId) => {
       const sourceProduct = products.find(p => p.id === sourceProductId);
       if (!sourceProduct || !sourceProduct.operations.length) return;
-
       const orderId = sourceProduct.orderId;
-      // Находим другие изделия в этом заказе
       const siblings = products.filter(p => p.orderId === orderId && p.id !== sourceProductId);
-      
-      if (siblings.length === 0) {
-          alert("В этом заказе нет других изделий");
-          return;
-      }
-
-      if (!confirm(`Скопировать операции (${sourceProduct.operations.length} шт.) во все остальные изделия (${siblings.length} шт.) этого заказа?\n\nБудут скопированы: Исполнители, Плановое время, Фактическое время.`)) return;
-
+      if (siblings.length === 0) { alert("В этом заказе нет других изделий"); return; }
+      if (!confirm(`Скопировать операции (${sourceProduct.operations.length} шт.) во все остальные изделия?`)) return;
       const batch = writeBatch(db);
-
       siblings.forEach(prod => {
-          // Создаем полную копию операций
-          const newOps = sourceProduct.operations.map(op => ({
-              ...op, // Копируем всё: name, minutesPerUnit, sequence, actualMinutes
-              id: Date.now() + Math.random(), // Генерируем новый уникальный ID для операции
-              resourceIds: [...(op.resourceIds || [])] // Копируем массив исполнителей (создаем новый массив)
-          }));
-          
+          const newOps = sourceProduct.operations.map(op => ({ ...op, id: Date.now() + Math.random(), resourceIds: [...(op.resourceIds || [])] }));
           const ref = doc(db, 'products', prod.id);
           batch.update(ref, { operations: newOps });
       });
-
       await batch.commit();
   };
 
-  const addOperation = async (productId, initialName = 'Сварка') => {
+  const addOperation = async (productId, initialName = 'Новая операция') => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const maxSeq = product.operations.length > 0 ? Math.max(...product.operations.map(o => o.sequence)) : 0;
@@ -179,11 +217,10 @@ export const useProductionData = () => {
       const res = resources.find(r => r.id === id);
       const updates = { [field]: value };
       if (field === 'baseRate') {
-          const oldRate = res.baseRate; 
           const empDate = res.employmentDate || '2023-01-01';
           const today = new Date().toISOString().split('T')[0];
           let history = res.rateHistory ? [...res.rateHistory] : [];
-          if (history.length === 0) history.push({ date: empDate, rate: oldRate });
+          if (history.length === 0) history.push({ date: empDate, rate: res.baseRate });
           const hasTodayIndex = history.findIndex(h => h.date === today);
           if (hasTodayIndex >= 0) history[hasTodayIndex].rate = value;
           else history.push({ date: today, rate: value });
@@ -236,7 +273,7 @@ export const useProductionData = () => {
     products, setProducts, orders, setOrders: updateOrder, reports, setReports: addReport, loading,
     actions: {
         addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
-        addProduct, updateProduct, deleteProduct, copyOperationsToAll, 
+        addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll, 
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
         addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
         fireResource, deleteResource, addReport, deleteReport
