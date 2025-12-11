@@ -1,258 +1,389 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, Folder, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { useGanttData } from '../hooks/useGanttData';
+import GanttChart from './gantt/GanttChart';
+import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, UserCircle, Timer, Target, Loader } from 'lucide-react';
 
-export default function GanttTab({ ganttItems, products, orders = [] }) {
-  // Настройки сетки
-  const colWidth = 44; // ширина дня
-  const sidebarWidth = 280; // ширина левой колонки
-  const daysToRender = 60; // горизонт планирования
+export default function GanttTab({ products, resources, orders, actions }) {
+    const { calendarDays, heatmapData, ganttRows, startDate } = useGanttData(orders, products, resources);
+    
+    const [selectedItem, setSelectedItem] = useState(null); 
+    const [newDateValue, setNewDateValue] = useState('');
+    const [expandedIds, setExpandedIds] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
 
-  const [expandedOrders, setExpandedOrders] = useState([]);
+    // Проверка наличия actions при монтировании компонента
+    React.useEffect(() => {
+        if (!actions) {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: actions не передан в GanttTab!');
+            console.error('Проверьте App.jsx - должно быть: <GanttTab actions={actions} ... />');
+        } else {
+            console.log('✅ GanttTab получил actions:', Object.keys(actions));
+        }
+    }, [actions]);
 
-  // 1. Генерируем даты календаря
-  const startDate = new Date();
-  startDate.setHours(0,0,0,0);
-  startDate.setDate(startDate.getDate() - 3); // Начинаем чуть раньше сегодня
+    const toggleExpand = (id) => {
+        setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
 
-  const calendarDays = Array.from({ length: daysToRender }, (_, i) => {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+    // Хелпер для форматирования даты в YYYY-MM-DD
+    const formatDateForInput = (dateObj) => {
+        if (!dateObj) return '';
+        
+        let date = dateObj;
+        if (typeof dateObj === 'string') {
+            date = new Date(dateObj);
+        }
+        
+        if (isNaN(date.getTime())) {
+            console.error('❌ Некорректная дата:', dateObj);
+            return '';
+        }
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+    };
 
-  // 2. Подготовка данных: Агрегируем время по Заказам
-  const preparedOrders = useMemo(() => {
-      const active = orders
-        .filter(o => o.status === 'active')
-        .sort((a,b) => (a.deadline && b.deadline ? new Date(a.deadline) - new Date(b.deadline) : 0));
+    // Открытие модалки
+    const handleOpenModal = (item) => {
+        console.log('🎯 Открытие модалки для:', item);
+        setSelectedItem(item);
+        const formattedDate = formatDateForInput(item.startDate || new Date());
+        setNewDateValue(formattedDate);
+        console.log('📅 Текущая дата:', formattedDate);
+    };
 
-      return active.map(order => {
-          const orderProducts = products.filter(p => p.orderId === order.id);
-          
-          let minStart = null;
-          let maxEnd = null;
-          let totalRemainingMins = 0;
-          let hasPlan = false; // Проверка, есть ли вообще план
+    // --- ГЛАВНАЯ ФУНКЦИЯ СОХРАНЕНИЯ ---
+    const handleSaveDate = async () => {
+        // Проверка наличия actions
+        if (!actions || !actions.updateProduct) {
+            console.error('❌ ОШИБКА: actions.updateProduct не существует');
+            alert('Ошибка: Функция обновления недоступна. Проверьте консоль.');
+            return;
+        }
 
-          orderProducts.forEach(prod => {
-              // Считаем остаток часов СТРОГО по каждой операции
-              prod.operations.forEach(op => {
-                  const plan = (op.minutesPerUnit || 0) * prod.quantity;
-                  const fact = (op.actualMinutes || 0) * prod.quantity;
-                  
-                  if (plan > 0) hasPlan = true;
-                  
-                  // Если факт меньше плана, добавляем разницу в остаток
-                  if (fact < plan) {
-                      totalRemainingMins += (plan - fact);
-                  }
-              });
+        if (!selectedItem || !newDateValue) {
+            console.warn('⚠️ Нет выбранного элемента или даты');
+            return;
+        }
 
-              // Ищем границы дат для отрисовки полоски
-              const item = ganttItems.find(g => g.productId === prod.id);
-              if (item) {
-                  if (!minStart || item.startDate < minStart) minStart = item.startDate;
-                  if (!maxEnd || item.endDate > maxEnd) maxEnd = item.endDate;
-              }
-          });
+        console.log('💾 Начало сохранения...');
+        console.log('📦 Выбранный элемент:', selectedItem);
+        console.log('📅 Новая дата:', newDateValue);
 
-          // Если плана нет вообще (0 мин), считаем остаток 0, но это не "Готово", а "Нет плана"
-          // Но для простоты: если remaining > 0, значит работа есть.
-          
-          const remainingHours = Math.ceil(totalRemainingMins / 60);
+        setIsSaving(true);
 
-          return {
-              ...order,
-              products: orderProducts,
-              ganttStart: minStart,
-              ganttEnd: maxEnd,
-              remainingHours: remainingHours,
-              isFullyComplete: hasPlan && remainingHours <= 0,
-              durationDays: minStart && maxEnd 
-                ? Math.ceil((maxEnd - minStart) / (1000 * 60 * 60 * 24)) + 1 
-                : 0
-          };
-      });
-  }, [orders, products, ganttItems]);
+        try {
+            // Парсим даты
+            const targetDate = new Date(newDateValue + 'T00:00:00');
+            const originalDate = new Date(selectedItem.startDate);
+            originalDate.setHours(0, 0, 0, 0);
+            targetDate.setHours(0, 0, 0, 0);
 
-  const toggleOrder = (id) => {
-    setExpandedOrders(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
+            // Проверка корректности дат
+            if (isNaN(targetDate.getTime())) {
+                throw new Error('Некорректная целевая дата');
+            }
+            if (isNaN(originalDate.getTime())) {
+                throw new Error('Некорректная оригинальная дата');
+            }
 
-  // Хелпер стиля полоски
-  const getBarStyle = (start, end) => {
-      if (!start || !end) return { display: 'none' };
-      
-      const startOffset = Math.ceil((new Date(start) - startDate) / (1000 * 60 * 60 * 24));
-      const duration = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1;
-      
-      if (startOffset + duration < 0) return { display: 'none' };
+            // Вычисляем разницу
+            const diffMs = targetDate.getTime() - originalDate.getTime();
+            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-      const left = Math.max(0, startOffset * colWidth);
-      const width = duration * colWidth;
+            console.log(`📊 Разница: ${diffDays} дней`);
+            console.log(`   Было: ${originalDate.toLocaleDateString('ru-RU')}`);
+            console.log(`   Стало: ${targetDate.toLocaleDateString('ru-RU')}`);
 
-      return {
-          left: `${left}px`,
-          width: `${width}px`
-      };
-  };
+            if (diffDays === 0) {
+                console.log('ℹ️ Дата не изменилась');
+                setSelectedItem(null);
+                setIsSaving(false);
+                return;
+            }
 
-  // Позиция линии "Сегодня"
-  const todayOffset = 3 * colWidth + (colWidth / 2);
+            if (selectedItem.type === 'order') {
+                // === ЛОГИКА ДЛЯ ЗАКАЗА ===
+                console.log('📦 Обновление ЗАКАЗА');
+                
+                const orderProducts = products.filter(p => p.orderId === selectedItem.id);
+                console.log(`🔍 Найдено изделий в заказе: ${orderProducts.length}`);
 
-  return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col h-[calc(100vh-140px)] overflow-hidden fade-in relative">
-      
-      {/* Легенда */}
-      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white z-20">
-          <h2 className="font-bold text-xl text-slate-800 flex items-center gap-2">
-              <Calendar className="text-indigo-600" /> График производства
-          </h2>
-          <div className="flex gap-6 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-indigo-500 rounded-sm"></div>
-                  <span>В работе</span>
-              </div>
-              <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
-                  <span>Готов к сдаче</span>
-              </div>
-              <div className="flex items-center gap-2">
-                  <div className="w-0.5 h-4 bg-red-500 border-l border-dashed border-red-500"></div>
-                  <span>Сегодня</span>
-              </div>
-          </div>
-      </div>
+                if (orderProducts.length === 0) {
+                    console.warn('⚠️ В заказе нет изделий');
+                    alert('В заказе нет изделий для обновления');
+                    setSelectedItem(null);
+                    setIsSaving(false);
+                    return;
+                }
 
-      {/* Скролл-контейнер */}
-      <div className="flex-1 overflow-auto custom-scrollbar relative">
-          
-          <div className="inline-block min-w-full relative">
-              
-              {/* ШАПКА КАЛЕНДАРЯ */}
-              <div className="flex sticky top-0 z-30 bg-slate-50 shadow-sm border-b border-slate-200 h-12">
-                  <div 
-                    className="sticky left-0 z-40 bg-slate-100 border-r border-slate-200 flex items-center px-4 font-bold text-xs text-slate-500 uppercase tracking-widest shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)]"
-                    style={{ width: sidebarWidth, minWidth: sidebarWidth }}
-                  >
-                      Заказ / Изделие
-                  </div>
-                  
-                  {calendarDays.map((day, i) => {
-                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                      const isToday = i === 3; 
-                      return (
-                          <div 
-                            key={i} 
-                            className={`flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-200/60 text-xs 
-                                ${isToday ? 'bg-blue-50 text-blue-700' : isWeekend ? 'bg-rose-50/50 text-rose-400' : 'text-slate-600'}
-                            `}
-                            style={{ width: colWidth }}
-                          >
-                              <span className="font-bold">{day.getDate()}</span>
-                              <span className="text-[9px] uppercase">{day.toLocaleDateString('ru-RU', { weekday: 'short' })}</span>
-                          </div>
-                      );
-                  })}
-              </div>
+                // Обновляем каждое изделие последовательно
+                let successCount = 0;
+                const errors = [];
 
-              {/* ЛИНИЯ СЕГОДНЯ */}
-              <div 
-                className="absolute top-12 bottom-0 border-l-2 border-red-400 border-dashed z-10 pointer-events-none opacity-60"
-                style={{ left: sidebarWidth + todayOffset }}
-              ></div>
+                for (const prod of orderProducts) {
+                    try {
+                        // Получаем текущую дату изделия
+                        const currentProdStart = prod.startDate 
+                            ? new Date(prod.startDate + 'T00:00:00') 
+                            : new Date(selectedItem.startDate);
+                        
+                        currentProdStart.setHours(0, 0, 0, 0);
+                        
+                        // Прибавляем разницу дней
+                        currentProdStart.setDate(currentProdStart.getDate() + diffDays);
+                        
+                        // Форматируем в строку YYYY-MM-DD
+                        const newProdDateStr = formatDateForInput(currentProdStart);
+                        
+                        console.log(`   🔧 Изделие "${prod.name}" (ID: ${prod.id})`);
+                        console.log(`      Было: ${prod.startDate || 'не задано'}`);
+                        console.log(`      Стало: ${newProdDateStr}`);
+                        
+                        // Обновляем через actions
+                        await actions.updateProduct(prod.id, 'startDate', newProdDateStr);
+                        successCount++;
+                        
+                        console.log(`      ✅ Обновлено успешно`);
+                        
+                        // Небольшая задержка для надёжности Firebase
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                        
+                    } catch (error) {
+                        console.error(`      ❌ Ошибка обновления изделия ${prod.id}:`, error);
+                        errors.push({ name: prod.name, error: error.message });
+                    }
+                }
+                
+                console.log(`✅ Успешно обновлено изделий: ${successCount} из ${orderProducts.length}`);
+                
+                if (errors.length > 0) {
+                    console.error('❌ Ошибки при обновлении:', errors);
+                    alert(`⚠️ Обновлено: ${successCount} из ${orderProducts.length}\n\nОшибки:\n${errors.map(e => `- ${e.name}: ${e.error}`).join('\n')}`);
+                } else {
+                    alert(`✅ Успешно обновлено ${successCount} изделий!`);
+                }
+                
+            } else if (selectedItem.type === 'product') {
+                // === ЛОГИКА ДЛЯ ИЗДЕЛИЯ ===
+                console.log('🔧 Обновление ИЗДЕЛИЯ');
+                
+                const productId = selectedItem.id || selectedItem.productId;
+                
+                if (!productId) {
+                    throw new Error('Не найден ID изделия');
+                }
+                
+                console.log(`   ID изделия: ${productId}`);
+                console.log(`   Новая дата: ${newDateValue}`);
+                
+                await actions.updateProduct(productId, 'startDate', newDateValue);
+                
+                console.log(`   ✅ Изделие обновлено`);
+                alert('✅ Дата изделия успешно обновлена!');
+            }
 
-              {/* ТЕЛО ТАБЛИЦЫ */}
-              <div className="relative z-0">
-                  {preparedOrders.map(order => {
-                      const isExpanded = expandedOrders.includes(order.id);
-                      const barStyle = getBarStyle(order.ganttStart, order.ganttEnd);
-                      
-                      // Цвет полоски: Зеленый если готов, Индиго если в работе
-                      const barColor = order.isFullyComplete ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-500 hover:bg-indigo-600';
+            // Успешное завершение
+            console.log('🎉 Сохранение завершено успешно!');
+            setSelectedItem(null);
+            
+        } catch (error) {
+            console.error('❌ ОШИБКА при сохранении:', error);
+            alert(`❌ Ошибка: ${error.message}\n\nПроверьте консоль для деталей (F12)`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-                      return (
-                          <div key={order.id} className="group">
-                              
-                              {/* СТРОКА ЗАКАЗА */}
-                              <div className="flex h-14 border-b border-slate-100 hover:bg-slate-50 transition-colors bg-white">
-                                  
-                                  <div 
-                                    className="sticky left-0 z-20 flex items-center px-4 border-r border-slate-200 bg-white group-hover:bg-slate-50 transition-colors shadow-[4px_0_10px_-2px_rgba(0,0,0,0.05)] cursor-pointer"
-                                    style={{ width: sidebarWidth, minWidth: sidebarWidth }}
-                                    onClick={() => toggleOrder(order.id)}
-                                  >
-                                      <button className="mr-2 text-slate-400 hover:text-indigo-600 transition">
-                                          {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
-                                      </button>
-                                      <Folder size={18} className={`mr-2 ${order.isFullyComplete ? 'text-emerald-500' : 'text-indigo-500'}`} />
-                                      <div className="overflow-hidden">
-                                          <div className="font-bold text-slate-800 text-sm truncate">{order.orderNumber}</div>
-                                          <div className="text-[10px] text-slate-400 truncate">{order.clientName}</div>
-                                      </div>
-                                  </div>
+    // Проверка загрузки данных
+    if (!calendarDays || !ganttRows) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)] text-gray-500">
+                <div className="text-center">
+                    <Loader size={48} className="animate-spin mx-auto mb-4 text-blue-500" />
+                    <p className="font-medium">Загрузка данных графика...</p>
+                </div>
+            </div>
+        );
+    }
 
-                                  <div className="flex-1 relative">
-                                      <div className="absolute inset-0 flex h-full pointer-events-none">
-                                          {calendarDays.map((d, i) => (
-                                              <div 
-                                                key={i} 
-                                                className={`h-full border-r border-slate-100 flex-shrink-0 ${(d.getDay()===0||d.getDay()===6) ? 'bg-rose-50/20' : ''}`}
-                                                style={{ width: colWidth }}
-                                              ></div>
-                                          ))}
-                                      </div>
+    return (
+        <div className="flex flex-col h-[calc(100vh-100px)] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative fade-in">
+            
+            {/* ГРАФИК */}
+            <div className="flex-1 bg-white overflow-hidden relative">
+                <GanttChart 
+                    calendarDays={calendarDays}
+                    rows={ganttRows}
+                    startDate={startDate}
+                    expandedIds={expandedIds}
+                    onToggleExpand={toggleExpand}
+                    onItemClick={handleOpenModal}
+                    heatmapData={heatmapData}
+                />
+            </div>
 
-                                      {/* ПОЛОСКА ЗАКАЗА */}
-                                      <div className={`absolute top-1/2 -translate-y-1/2 h-8 rounded-lg shadow-md transition-colors z-10 flex items-center px-2 overflow-hidden cursor-help group/bar ${barColor}`}
-                                           style={barStyle}
-                                           title={`Осталось работы: ${order.remainingHours} ч\nКалендарный срок: ${order.durationDays} дн.\nФиниш: ${order.ganttEnd?.toLocaleDateString()}`}
-                                      >
-                                          <span className="text-white text-xs font-bold whitespace-nowrap drop-shadow-md flex items-center gap-1">
-                                              {order.isFullyComplete 
-                                                ? '✅ Готов' 
-                                                : `⏳ ${order.remainingHours} ч.`
-                                              }
-                                          </span>
-                                      </div>
-                                  </div>
-                              </div>
+            {/* --- МОДАЛКА РЕДАКТИРОВАНИЯ --- */}
+            {selectedItem && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white flex justify-between items-start">
+                            <div className="flex-1">
+                                <div className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
+                                    {selectedItem.type === 'order' ? '📦 Редактирование заказа' : '🔧 Редактирование изделия'}
+                                </div>
+                                <h3 className="text-2xl font-black mb-1 leading-tight">
+                                    {selectedItem.type === 'order' ? selectedItem.orderNumber : selectedItem.name}
+                                </h3>
+                                {selectedItem.clientName && (
+                                    <p className="text-sm text-slate-300 font-medium">{selectedItem.clientName}</p>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => setSelectedItem(null)} 
+                                className="p-2 hover:bg-white/10 rounded-xl transition-colors ml-4"
+                                disabled={isSaving}
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                            
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 border border-blue-200">
+                                    <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Трудоёмкость</div>
+                                    <div className="text-3xl font-black text-blue-900 flex items-center gap-2">
+                                        <Clock size={24} />
+                                        {selectedItem.totalHours}ч
+                                    </div>
+                                </div>
+                                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-4 border border-emerald-200">
+                                    <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Длительность</div>
+                                    <div className="text-3xl font-black text-emerald-900 flex items-center gap-2">
+                                        <Calendar size={24} />
+                                        {selectedItem.durationDays}д
+                                    </div>
+                                </div>
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 border border-purple-200">
+                                    <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2">
+                                        {selectedItem.type === 'order' ? 'Изделий' : 'Количество'}
+                                    </div>
+                                    <div className="text-3xl font-black text-purple-900 flex items-center gap-2">
+                                        <Package size={24} />
+                                        {selectedItem.type === 'order' ? selectedItem.children?.length || 0 : selectedItem.quantity}
+                                    </div>
+                                </div>
+                            </div>
 
-                              {/* СПИСОК ИЗДЕЛИЙ */}
-                              {isExpanded && order.products.map(prod => (
-                                  <div key={prod.id} className="flex h-10 border-b border-slate-50 bg-slate-50/30 hover:bg-slate-100/50 transition-colors">
-                                      <div 
-                                        className="sticky left-0 z-10 flex items-center pl-12 pr-4 border-r border-slate-200/50 text-xs text-slate-600 bg-slate-50/30"
-                                        style={{ width: sidebarWidth, minWidth: sidebarWidth }}
-                                      >
-                                          <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mr-3"></div>
-                                          <span className="truncate flex-1">{prod.name}</span>
-                                          <span className="text-slate-400 ml-2">{prod.quantity}шт</span>
-                                      </div>
-                                      
-                                      <div className="flex-1 flex">
-                                          {calendarDays.map((d, i) => (
-                                              <div 
-                                                key={i} 
-                                                className={`h-full border-r border-slate-100/50 flex-shrink-0 ${(d.getDay()===0||d.getDay()===6) ? 'bg-rose-50/20' : ''}`}
-                                                style={{ width: colWidth }}
-                                              ></div>
-                                          ))}
-                                      </div>
-                                  </div>
-                              ))}
-                          </div>
-                      );
-                  })}
-                  
-                  {preparedOrders.length === 0 && (
-                      <div className="p-10 text-center text-slate-400">
-                          Нет активных заказов для отображения на графике.
-                      </div>
-                  )}
-              </div>
-          </div>
-      </div>
-    </div>
-  );
+                            {/* Date Picker */}
+                            <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-200">
+                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider flex items-center gap-2">
+                                    <Calendar size={16} className="text-blue-600" />
+                                    Новая дата начала производства
+                                </label>
+                                <input 
+                                    type="date" 
+                                    value={newDateValue}
+                                    onChange={(e) => {
+                                        console.log('📅 Изменение даты на:', e.target.value);
+                                        setNewDateValue(e.target.value);
+                                    }}
+                                    className="w-full border-2 border-slate-300 bg-white rounded-xl p-4 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                    disabled={isSaving}
+                                />
+                                
+                                {selectedItem.type === 'order' && (
+                                    <div className="mt-4 flex items-start gap-3 text-xs text-orange-700 bg-orange-50 p-4 rounded-xl border border-orange-200">
+                                        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-orange-600"/>
+                                        <p className="leading-relaxed">
+                                            <strong>Внимание!</strong> При изменении даты старта заказа все <strong>{selectedItem.children?.length || 0} изделий</strong> автоматически сдвинутся на такое же количество дней.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Products Info for Order */}
+                            {selectedItem.type === 'order' && selectedItem.children && selectedItem.children.length > 0 && (
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Package size={16} />
+                                        Состав заказа ({selectedItem.children.length})
+                                    </h4>
+                                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                                        {selectedItem.children.map((child) => {
+                                            const product = products.find(p => p.id === child.id);
+                                            if (!product) return null;
+                                            
+                                            return (
+                                                <div key={child.id} className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex-1">
+                                                            <div className="font-bold text-slate-800 mb-1">{child.name}</div>
+                                                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                                <span className="flex items-center gap-1">
+                                                                    <Target size={12} />
+                                                                    {child.quantity} шт
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
+                                                                    <Wrench size={12} />
+                                                                    {product.operations?.length || 0} операций
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
+                                                                    <Timer size={12} />
+                                                                    {child.totalHours} ч
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded mt-2">
+                                                        Текущая дата: {formatDateForInput(product.startDate) || 'не задана'}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-4">
+                                <button 
+                                    onClick={handleSaveDate}
+                                    disabled={isSaving || !actions}
+                                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader size={20} className="animate-spin" />
+                                            Сохранение...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={20} />
+                                            {selectedItem.type === 'order' ? 'Перенести заказ' : 'Перенести изделие'}
+                                        </>
+                                    )}
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedItem(null)}
+                                    disabled={isSaving}
+                                    className="px-6 py-4 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Отмена
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, CheckCircle, Trash2, ChevronDown, Plus } from 'lucide-react';
+import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy } from 'lucide-react'; // Добавил Copy
 import OperationRow from './OperationRow';
 
 export default function ProductCard({ product, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown }) {
@@ -93,13 +93,27 @@ export default function ProductCard({ product, actions, resources, sortedResourc
                             />
                         ))}
                     </div>
+                    
+                    {/* КНОПКИ ДЕЙСТВИЙ */}
+                    <div className="flex gap-2 pt-2">
+                        <button 
+                            onClick={() => actions.addOperation(product.id)} 
+                            className="flex-1 py-2 text-[10px] font-bold text-slate-400 hover:text-orange-600 hover:bg-orange-50 border border-dashed border-slate-300 hover:border-orange-300 rounded transition flex items-center justify-center gap-2"
+                        >
+                            <Plus size={14} /> ДОБАВИТЬ ОПЕРАЦИЮ
+                        </button>
 
-                    <button 
-                        onClick={() => actions.addOperation(product.id)} 
-                        className="w-full py-2 text-[10px] font-bold text-slate-400 hover:text-orange-600 hover:bg-orange-50 border border-dashed border-slate-300 hover:border-orange-300 rounded transition flex items-center justify-center gap-2"
-                    >
-                        <Plus size={14} /> ДОБАВИТЬ ОПЕРАЦИЮ
-                    </button>
+                        {/* КНОПКА КОПИРОВАНИЯ */}
+                        {product.operations.length > 0 && (
+                            <button 
+                                onClick={() => actions.copyOperationsToAll(product.id)} 
+                                className="px-3 py-2 text-[10px] font-bold text-blue-400 hover:text-white hover:bg-blue-500 border border-dashed border-blue-200 hover:border-blue-500 rounded transition flex items-center justify-center gap-2"
+                                title="Скопировать эти операции во ВСЕ остальные изделия этого заказа"
+                            >
+                                <Copy size={14} /> ВСЕМ
+                            </button>
+                        )}
+                    </div>
                 </div>
              )}
         </div>

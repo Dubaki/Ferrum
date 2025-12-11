@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { 
-  Plus, User, MapPin, Phone, Calendar, Trash2, Archive, 
+  Plus, User, MapPin, Phone, Calendar, Archive, 
   X, Save, ShieldAlert, ChevronLeft, ChevronRight, Clock, 
   Thermometer, MinusCircle, CheckCircle, Briefcase, Percent
 } from 'lucide-react';
 
-// Импортируем компонент КТУ (убедись, что файл существует по этому пути)
+// ИМПОРТ КОМПОНЕНТА КТУ (из папки reports, куда мы его сохраняли ранее)
 import MasterEfficiencyView from './reports/MasterEfficiencyView';
 
 export default function ResourcesTab({ resources, setResources, actions }) {
-  // Добавили 'ktu' в возможные состояния
+  // Добавлена вкладка 'ktu'
   const [activeView, setActiveView] = useState('table'); // 'table' | 'cards' | 'archive' | 'ktu'
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -31,7 +31,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
   return (
     <div className="pb-20 fade-in font-sans text-slate-800">
       
-      {/* --- ЗАГОЛОВОК И УПРАВЛЕНИЕ --- */}
+      {/* ЗАГОЛОВОК И НАВИГАЦИЯ */}
       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-6 pt-2">
           <div>
               <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
@@ -43,32 +43,31 @@ export default function ResourcesTab({ resources, setResources, actions }) {
               </p>
           </div>
           
-          <div className="flex bg-slate-100 p-1 rounded-lg shadow-inner">
+          <div className="flex bg-slate-100 p-1 rounded-lg shadow-inner overflow-x-auto">
               <button 
                   onClick={() => setActiveView('table')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 ${activeView === 'table' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'table' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
               >
                   <Calendar size={16}/> Таблица смен
               </button>
               
-              {/* НОВАЯ КНОПКА КТУ */}
               <button 
                   onClick={() => setActiveView('ktu')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 ${activeView === 'ktu' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'ktu' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
               >
                   <Percent size={16}/> КТУ / ТБ
               </button>
 
               <button 
                   onClick={() => setActiveView('cards')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 ${activeView === 'cards' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'cards' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
               >
                   <User size={16}/> Карточки
               </button>
               
               <button 
                   onClick={() => setActiveView('archive')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 ${activeView === 'archive' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'archive' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
               >
                   <Archive size={16}/> Архив
               </button>
@@ -128,13 +127,14 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   
                                   {daysArray.map(day => {
                                       const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                                      const dateObj = new Date(dateStr);
-                                      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                       
                                       const override = res.scheduleOverrides?.[dateStr];
                                       const reason = res.scheduleReasons?.[dateStr]; 
                                       const standardHours = res.hoursPerDay || 8;
-                                      const isWorkDay = res.workWeekends ? true : !isWeekend; 
+                                      
+                                      const dateObj = new Date(dateStr);
+                                      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                                      const isWorkDay = res.workWeekends ? true : !isWeekend;
                                       
                                       let content = null;
                                       let cellClass = isWeekend ? 'bg-slate-50' : 'bg-white';
@@ -146,25 +146,16 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                           content = <X size={14} className="text-slate-400 mx-auto"/>;
                                           cellClass = 'bg-slate-100';
                                       } else if (reason === 'late') {
-                                          content = (
-                                              <div className="flex flex-col items-center">
-                                                  <Clock size={10} className="text-orange-500 mb-0.5"/>
-                                                  <span className="font-bold text-orange-600">{override}</span>
-                                              </div>
-                                          );
+                                          content = <span className="font-bold text-orange-600">{override}</span>;
                                           cellClass = 'bg-orange-50';
-                                      } else if (reason === 'overtime' || (override && override > standardHours)) {
+                                      } else if (reason === 'overtime') {
                                           content = <span className="font-black text-blue-600">{override}</span>;
                                           cellClass = 'bg-blue-50';
                                       } else if (override !== undefined) {
                                           content = <span className="font-medium text-slate-700">{override}</span>;
                                           if(override === 0) cellClass = 'bg-slate-100'; 
                                       } else {
-                                          if (isWorkDay) {
-                                              content = <span className="text-slate-300 text-[10px]">{standardHours}</span>;
-                                          } else {
-                                              content = <span className="text-slate-200">-</span>;
-                                          }
+                                          content = isWorkDay ? <span className="text-slate-300 text-[10px]">{standardHours}</span> : <span className="text-slate-200">-</span>;
                                       }
 
                                       return (
@@ -185,7 +176,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
           </div>
       )}
 
-      {/* --- ВИД: КАРТОЧКИ (И АРХИВ) --- */}
+      {/* --- ВИД: КАРТОЧКИ --- */}
       {(activeView === 'cards' || activeView === 'archive') && (
           <div className="fade-in">
               <div className="flex justify-end mb-4">
@@ -194,7 +185,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                         onClick={() => setSelectedResource({})} 
                         className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-lg shadow-lg hover:shadow-orange-500/50 transition-all active:scale-95 font-bold uppercase tracking-wide text-sm"
                       >
-                        <Plus size={18} strokeWidth={3} /> Добавить сотрудника
+                        <Plus size={18} strokeWidth={3} /> Добавить
                       </button>
                   )}
               </div>
@@ -206,73 +197,37 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                         onClick={() => setSelectedResource(res)}
                         className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden"
                       >
-                          {res.status === 'fired' && (
-                              <div className="absolute top-0 left-0 w-full bg-slate-200 text-slate-500 text-[10px] font-bold uppercase text-center py-1">
-                                  Уволен: {new Date(res.firedAt).toLocaleDateString()}
-                              </div>
-                          )}
-                          
+                          {res.status === 'fired' && <div className="absolute top-0 left-0 w-full bg-slate-200 text-slate-500 text-[10px] font-bold uppercase text-center py-1">Уволен: {new Date(res.firedAt).toLocaleDateString()}</div>}
                           <div className="flex items-start gap-4 mt-2">
                               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-2xl group-hover:bg-orange-50 group-hover:text-orange-500 transition-colors shrink-0 overflow-hidden border border-slate-200">
                                   {res.photoUrl ? <img src={res.photoUrl} alt={res.name} className="w-full h-full object-cover"/> : <User size={32}/>}
                               </div>
-                              
                               <div className="flex-1 min-w-0">
                                   <h3 className="font-bold text-lg text-slate-800 truncate group-hover:text-orange-600 transition-colors">{res.name}</h3>
-                                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                      <Briefcase size={12}/> {res.position || 'Сотрудник'}
-                                  </div>
-                                  
+                                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><Briefcase size={12}/> {res.position || 'Сотрудник'}</div>
                                   <div className="space-y-1.5 border-t border-slate-100 pt-2">
-                                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                                          <Phone size={12} className="text-slate-300 shrink-0"/> {res.phone || 'Нет телефона'}
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                                          <MapPin size={12} className="text-slate-300 shrink-0"/> <span className="truncate">{res.address || 'Адрес не указан'}</span>
-                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-slate-500"><Phone size={12} className="text-slate-300 shrink-0"/> {res.phone || 'Нет телефона'}</div>
+                                      <div className="flex items-center gap-2 text-xs text-slate-500"><MapPin size={12} className="text-slate-300 shrink-0"/> <span className="truncate">{res.address || 'Адрес не указан'}</span></div>
                                   </div>
                               </div>
                           </div>
                       </div>
                   ))}
-                  
-                  {(activeView === 'cards' ? activeResources : firedResources).length === 0 && (
-                      <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
-                          Список пуст.
-                      </div>
-                  )}
               </div>
           </div>
       )}
 
-      {/* --- МОДАЛКА: ПРОФИЛЬ --- */}
-      {selectedResource && (
-          <EmployeeModal 
-              resource={selectedResource} 
-              onClose={() => setSelectedResource(null)} 
-              actions={actions}
-          />
-      )}
-
-      {/* --- МОДАЛКА: РЕДАКТИРОВАНИЕ СМЕНЫ --- */}
-      {shiftModal && (
-          <ShiftEditModal 
-              data={shiftModal}
-              onClose={() => setShiftModal(null)}
-              onSave={actions.updateResourceSchedule}
-          />
-      )}
-
+      {/* Модалки (те же самые) */}
+      {selectedResource && <EmployeeModal resource={selectedResource} onClose={() => setSelectedResource(null)} actions={actions} />}
+      {shiftModal && <ShiftEditModal data={shiftModal} onClose={() => setShiftModal(null)} onSave={actions.updateResourceSchedule} />}
     </div>
   );
 }
 
-// ... EmployeeModal и ShiftEditModal остаются такими же, как в предыдущем ответе ...
-// Вставь их код сюда (я сократил, чтобы не дублировать огромный текст, так как они не менялись в этом шаге, кроме того что они должны быть в этом файле)
-// (Если нужно продублировать - скажи, я вставлю полный код)
+// ... EmployeeModal и ShiftEditModal (вставь их код из предыдущего ответа, он не менялся) ...
+// Для полноты картины, вот они:
 
 function EmployeeModal({ resource, onClose, actions }) {
-    // ... (код из предыдущего ответа про ResourcesTab) ...
     const isNew = !resource.id;
     const [formData, setFormData] = useState({
         name: resource.name || '', position: resource.position || '', phone: resource.phone || '',
@@ -292,8 +247,7 @@ function EmployeeModal({ resource, onClose, actions }) {
                 <div className="bg-slate-900 p-6 text-white flex justify-between items-start"><div><h2 className="text-2xl font-bold">{isNew ? 'Новый сотрудник' : formData.name}</h2></div><button onClick={onClose}><X size={20}/></button></div>
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-5">
                     <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500">ФИО</label><input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div><div><label className="text-xs font-bold text-slate-500">Должность</label><input type="text" value={formData.position} onChange={e => handleChange('position', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div></div>
-                    {/* ... остальные поля (телефон, адрес, ставка, фото) аналогично прошлому коду ... */}
-                    <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500">Ставка (₽)</label><input type="number" value={formData.baseRate} onChange={e => handleChange('baseRate', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div></div>
+                    <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500">Ставка (₽)</label><input type="number" value={formData.baseRate} onChange={e => handleChange('baseRate', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div><div><label className="text-xs font-bold text-slate-500">Часов</label><input type="number" value={formData.hoursPerDay} onChange={e => handleChange('hoursPerDay', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div></div>
                 </div>
                 <div className="p-6 border-t border-slate-100 flex justify-between bg-slate-50">
                     {!isNew && resource.status !== 'fired' ? <button onClick={() => { actions.fireResource(resource.id); onClose(); }} className="text-red-500 font-bold text-xs">УВОЛИТЬ</button> : <div></div>}

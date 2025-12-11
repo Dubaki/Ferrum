@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronRight, User, Settings, DollarSign, CheckCircle, Plus, FolderOpen, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, PenTool, Truck } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 
@@ -10,12 +10,22 @@ export default function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     
-    // Прогресс по операциям
+    // Прогресс
     let totalOps = 0; let doneOps = 0;
     orderPositions.forEach(p => p.operations.forEach(op => {
         totalOps++; if ((op.actualMinutes || 0) > 0) doneOps++;
     }));
     const progress = totalOps > 0 ? Math.round((doneOps / totalOps) * 100) : 0;
+
+    // --- ЛОГИКА ТАЙМЕРОВ СНАБЖЕНИЯ ---
+    const getCountdown = (dateStr) => {
+        if (!dateStr) return null;
+        const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+        return diff;
+    };
+
+    const drawDiff = getCountdown(order.drawingsDeadline);
+    const matDiff = getCountdown(order.materialsDeadline);
 
     // Рамки и Сроки
     const calculateDeadline = (dateStr) => {
@@ -32,7 +42,6 @@ export default function OrderCard({
     const dlInfo = calculateDeadline(order.deadline);
     const currentStatus = ORDER_STATUSES.find(s => s.id === order.customStatus) || ORDER_STATUSES[0];
 
-    // Таймер статуса
     const getLastStatusTime = () => {
         const history = order.statusHistory || [];
         if (history.length === 0) return '0 ч.';
@@ -52,7 +61,7 @@ export default function OrderCard({
             
             <div className="p-4 flex flex-col md:flex-row gap-4 relative" onClick={onToggle}>
                 
-                {/* 1. ЛЕВАЯ ЧАСТЬ: Настройки и Инфо */}
+                {/* 1. ЛЕВАЯ ЧАСТЬ */}
                 <div className="flex items-center gap-4 flex-1 min-w-0 z-10">
                     <button 
                         onClick={onOpenSettings}
@@ -76,7 +85,34 @@ export default function OrderCard({
                     </div>
                 </div>
 
-                {/* 2. ЦЕНТРАЛЬНАЯ ЧАСТЬ: Статус и Готовность */}
+                {/* 2. НОВЫЙ БЛОК: СТАТУС СНАБЖЕНИЯ И КМД (В ЦЕНТРЕ) */}
+                <div className="flex items-center gap-3 z-20" onClick={e => e.stopPropagation()}>
+                    {/* КМД Таймер */}
+                    {order.drawingsDeadline && (
+                        <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg border ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-100 text-indigo-700'}`}>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
+                                <PenTool size={10}/> КМД
+                            </div>
+                            <div className="font-bold text-xs">
+                                {drawDiff < 0 ? `Проср. ${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Металл Таймер */}
+                    {order.materialsDeadline && (
+                        <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg border ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
+                                <Truck size={10}/> Снабж
+                            </div>
+                            <div className="font-bold text-xs">
+                                {matDiff < 0 ? `Проср. ${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`)}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. ЦЕНТРАЛЬНАЯ ЧАСТЬ: Статус и Готовность */}
                 <div 
                     className="flex flex-col md:flex-row items-center justify-center gap-6 z-20 md:flex-[1.5] mt-3 md:mt-0" 
                     onClick={e => e.stopPropagation()}
@@ -133,10 +169,9 @@ export default function OrderCard({
                     </div>
                 </div>
 
-                {/* 3. ПРАВАЯ ЧАСТЬ: Сроки, Оплата, Действия */}
+                {/* 4. ПРАВАЯ ЧАСТЬ: Сроки, Оплата, Действия */}
                 <div className="flex items-center gap-6 justify-end flex-1 z-10 mt-3 md:mt-0" onClick={e => e.stopPropagation()}>
                     
-                    {/* Срок сдачи (Дни) */}
                     <div className="flex flex-col items-end">
                         <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">{dlInfo.label}</span>
                         <div className={`text-2xl font-black leading-none ${dlInfo.color}`}>
@@ -144,7 +179,6 @@ export default function OrderCard({
                         </div>
                     </div>
 
-                    {/* Дата оплаты (Мини) */}
                     {order.paymentDate && (
                         <div className="hidden lg:flex flex-col items-center justify-center px-2 py-1 bg-emerald-50 rounded border border-emerald-100">
                             <span className="text-[8px] uppercase font-bold text-emerald-400">Оплачено</span>
@@ -154,7 +188,6 @@ export default function OrderCard({
                         </div>
                     )}
 
-                    {/* Кнопка завершения (удаление скрыто в настройки) */}
                     <div className="flex gap-1 border-l border-slate-200/50 pl-4">
                         <button onClick={() => actions.finishOrder(order.id)} className="p-2 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить">
                             <CheckCircle size={22} />

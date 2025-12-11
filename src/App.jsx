@@ -22,11 +22,9 @@ export default function App() {
   } = useProductionData();
   
   // Запускаем симуляцию производства (Гант + Загрузка)
-  // useSimulation пересчитывает даты на основе ресурсов и заказов
   const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
 
-  // Расчет общей статистики загрузки (нужен для WorkloadTab или будущих виджетов)
-  // Пока передается в ReportsTab, но там не используется (оставили на вырост)
+  // Расчет общей статистики загрузки
   const resourceLoadSummary = {};
   resources.forEach(r => {
       let total = 0;
@@ -65,7 +63,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-slate-800 font-sans">
-      {/* Шапка (Меню навигации) */}
       <Header 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -73,10 +70,8 @@ export default function App() {
         importData={importData}
       />
 
-      {/* Основной контейнер с адаптивным отступом */}
       <div className="max-w-7xl mx-auto p-2 md:p-6">
         
-        {/* Вкладка 1: Заказы и Изделия (Планирование) */}
         {activeTab === 'orders' && (
             <PlanningTab 
                 products={products} 
@@ -87,7 +82,6 @@ export default function App() {
             />
         )}
 
-        {/* Вкладка 2: Плановая загрузка (Тепловая карта) */}
         {activeTab === 'planning' && (
             <WorkloadTab 
                 resources={resources} 
@@ -96,7 +90,6 @@ export default function App() {
             />
         )}
 
-        {/* Вкладка 3: Ресурсы и График смен */}
         {activeTab === 'resources' && (
             <ResourcesTab 
                 resources={resources} 
@@ -105,26 +98,24 @@ export default function App() {
             />
         )}
 
-        {/* Вкладка 4: Диаграмма Ганта */}
         {activeTab === 'gantt' && (
             <GanttTab 
-                ganttItems={ganttItems} 
                 products={products} 
-                orders={orders}     
+                resources={resources} 
+                orders={orders}
+                actions={actions}
             />
         )}
 
-        {/* Вкладка 5: Отчеты (Архив, Зарплата, Себестоимость) */}
         {activeTab === 'reports' && (
             <ReportsTab 
                 reports={reports} 
                 setReports={setReports} 
                 resourceLoad={resourceLoadSummary} 
                 actions={actions}
-                // --- ВАЖНЫЕ ИСПРАВЛЕНИЯ ---
-                orders={orders}      // Передаем список заказов для вкладки "Архив" и "Себестоимость"
-                products={products}  // Передаем изделия для расчета трудозатрат
-                resources={resources} // Передаем ресурсы для расчета зарплат
+                orders={orders}
+                products={products}
+                resources={resources}
             />
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
 
@@ -11,7 +11,6 @@ export const useProductionData = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ... (код подписки на коллекции resources, products, reports остается прежним)
     const unsubResources = onSnapshot(collection(db, 'resources'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setResources(list.sort((a,b) => a.name.localeCompare(b.name)));
@@ -20,90 +19,133 @@ export const useProductionData = () => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProducts(list);
     });
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setOrders(list.sort((a,b) => b.createdAt - a.createdAt));
+    });
     const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
       setLoading(false);
     });
-
-    // Для заказов (orders)
-    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(list.sort((a,b) => b.createdAt - a.createdAt));
-    });
-
     return () => { unsubResources(); unsubProducts(); unsubOrders(); unsubReports(); };
   }, []);
 
-  // --- ЗАКАЗЫ (ОБНОВЛЕНО) ---
+  // --- Actions ---
+
   const addOrder = async () => {
     const now = Date.now();
     await addDoc(collection(db, 'orders'), {
       orderNumber: 'Новый', clientName: '', deadline: '', status: 'active',
-      customStatus: 'metal', // Статус по умолчанию: Ждем металл
-      paymentDate: formatDate(new Date()), // Дата оплаты (сегодня по умолчанию)
-      statusHistory: [{ status: 'metal', timestamp: now }], // История для таймеров
-      createdAt: now, finishedAt: null
+      customStatus: 'metal', paymentDate: formatDate(new Date()),
+      statusHistory: [{ status: 'metal', timestamp: now }], createdAt: now, finishedAt: null
     });
   };
 
   const updateOrder = async (id, field, value) => {
-      // Если меняем статус, пишем историю для таймера
       if (field === 'customStatus') {
           const order = orders.find(o => o.id === id);
           if (order) {
               const history = order.statusHistory || [];
               const newHistory = [...history, { status: value, timestamp: Date.now() }];
-              await updateDoc(doc(db, 'orders', id), { 
-                  [field]: value, 
-                  statusHistory: newHistory 
-              });
+              await updateDoc(doc(db, 'orders', id), { [field]: value, statusHistory: newHistory });
               return;
           }
       }
-      // Обычное обновление
       await updateDoc(doc(db, 'orders', id), { [field]: value });
   };
-  
-  const finishOrder = async (id) => {
-      if(confirm('Завершить заказ и перенести в отчеты?')) {
-        await updateDoc(doc(db, 'orders', id), { status: 'completed', finishedAt: new Date().toISOString() });
+
+  const finishOrder = async (id) => { 
+      if(confirm('Завершить заказ?')) {
+          await updateDoc(doc(db, 'orders', id), { status: 'completed', finishedAt: new Date().toISOString() }); 
       }
   };
+  
   const restoreOrder = async (id) => updateDoc(doc(db, 'orders', id), { status: 'active', finishedAt: null });
-  const deleteOrder = async (id) => { if(confirm('Удалить заказ?')) await deleteDoc(doc(db, 'orders', id)); };
-
-  // ... (Остальной код products, resources, reports без изменений)
-  // ... (Вставь сюда код для products и resources из предыдущего ответа, если он нужен целиком, но изменения были только в addOrder/updateOrder)
   
-  // (Для краткости привожу только возвращаемый объект, он стандартный)
-  
-  // --- ИЗДЕЛИЯ ---
-  const addProduct = async (orderId = null) => {
-    await addDoc(collection(db, 'products'), {
-      orderId: orderId, name: 'Новое изделие', quantity: 1, startDate: formatDate(new Date()),
-      status: 'active', operations: [], createdAt: Date.now()
-    });
+  const deleteOrder = async (id) => { 
+      if(confirm('Удалить заказ?')) {
+          await deleteDoc(doc(db, 'orders', id)); 
+      }
   };
-  const updateProduct = async (id, field, value) => updateDoc(doc(db, 'products', id), { [field]: value });
-  const deleteProduct = async (id) => { if(confirm('Удалить позицию?')) await deleteDoc(doc(db, 'products', id)); };
 
-  // --- ОПЕРАЦИИ ---
-  const addOperation = async (productId) => {
+  const addProduct = async (orderId = null, initialDate = null) => { 
+      const startDate = initialDate || formatDate(new Date());
+      const docRef = await addDoc(collection(db, 'products'), { 
+          orderId, 
+          name: 'Новое изделие', 
+          quantity: 1, 
+          startDate: startDate, 
+          status: 'active', 
+          operations: [], 
+          createdAt: Date.now() 
+      }); 
+      return docRef.id;
+  };
+
+  const updateProduct = async (id, field, value) => updateDoc(doc(db, 'products', id), { [field]: value });
+  
+  const deleteProduct = async (id) => { 
+      if(confirm('Удалить позицию?')) {
+          await deleteDoc(doc(db, 'products', id)); 
+      }
+  };
+
+  // --- ОБНОВЛЕННАЯ ФУНКЦИЯ: ПОЛНОЕ КЛОНИРОВАНИЕ ОПЕРАЦИЙ ---
+  const copyOperationsToAll = async (sourceProductId) => {
+      const sourceProduct = products.find(p => p.id === sourceProductId);
+      if (!sourceProduct || !sourceProduct.operations.length) return;
+
+      const orderId = sourceProduct.orderId;
+      // Находим другие изделия в этом заказе
+      const siblings = products.filter(p => p.orderId === orderId && p.id !== sourceProductId);
+      
+      if (siblings.length === 0) {
+          alert("В этом заказе нет других изделий");
+          return;
+      }
+
+      if (!confirm(`Скопировать операции (${sourceProduct.operations.length} шт.) во все остальные изделия (${siblings.length} шт.) этого заказа?\n\nБудут скопированы: Исполнители, Плановое время, Фактическое время.`)) return;
+
+      const batch = writeBatch(db);
+
+      siblings.forEach(prod => {
+          // Создаем полную копию операций
+          const newOps = sourceProduct.operations.map(op => ({
+              ...op, // Копируем всё: name, minutesPerUnit, sequence, actualMinutes
+              id: Date.now() + Math.random(), // Генерируем новый уникальный ID для операции
+              resourceIds: [...(op.resourceIds || [])] // Копируем массив исполнителей (создаем новый массив)
+          }));
+          
+          const ref = doc(db, 'products', prod.id);
+          batch.update(ref, { operations: newOps });
+      });
+
+      await batch.commit();
+  };
+
+  const addOperation = async (productId, initialName = 'Сварка') => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const maxSeq = product.operations.length > 0 ? Math.max(...product.operations.map(o => o.sequence)) : 0;
-    const newOps = [...product.operations, {
-      id: Date.now(), name: 'Сварка', resourceIds: [], minutesPerUnit: 60, actualMinutes: 0, sequence: maxSeq + 1
+    const newOps = [...product.operations, { 
+        id: Date.now(), 
+        name: initialName, 
+        resourceIds: [], 
+        minutesPerUnit: 60, 
+        actualMinutes: 0, 
+        sequence: maxSeq + 1 
     }];
     await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
+
   const updateOperation = async (productId, opId, field, value) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
     const newOps = product.operations.map(op => op.id === opId ? { ...op, [field]: value } : op);
     await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
+
   const toggleResourceForOp = async (productId, opId, resourceId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -114,6 +156,7 @@ export const useProductionData = () => {
     });
     await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
+
   const deleteOperation = async (productId, opId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -121,39 +164,30 @@ export const useProductionData = () => {
     await updateDoc(doc(db, 'products', productId), { operations: newOps });
   };
 
-  // --- РЕСУРСЫ ---
+  // --- Resources ---
   const addResource = async (data) => addDoc(collection(db, 'resources'), { 
-      name: data.name || 'Новый сотрудник', 
-      position: data.position || 'Рабочий',
-      phone: data.phone || '',
-      address: data.address || '',
-      dob: data.dob || '',
-      photoUrl: data.photoUrl || '',
-      hoursPerDay: parseFloat(data.hoursPerDay) || 8, 
-      workWeekends: data.workWeekends || false, 
-      scheduleOverrides: {}, 
-      scheduleReasons: {},   
-      baseRate: parseFloat(data.baseRate) || 3000,
-      rateHistory: [],
+      name: data.name || 'Новый', position: data.position || 'Рабочий',
+      phone: data.phone || '', address: data.address || '', dob: data.dob || '',
+      photoUrl: data.photoUrl || '', hoursPerDay: parseFloat(data.hoursPerDay) || 8, 
+      workWeekends: data.workWeekends || false, scheduleOverrides: {}, scheduleReasons: {},
+      baseRate: parseFloat(data.baseRate) || 3000, rateHistory: [],
       employmentDate: data.employmentDate || new Date().toISOString().split('T')[0],
-      dailyEfficiency: {}, safetyViolations: {},
-      status: 'active'
+      dailyEfficiency: {}, safetyViolations: {}, status: 'active'
   });
 
   const updateResource = async (id, field, value) => {
       const res = resources.find(r => r.id === id);
       const updates = { [field]: value };
       if (field === 'baseRate') {
+          const oldRate = res.baseRate; 
+          const empDate = res.employmentDate || '2023-01-01';
           const today = new Date().toISOString().split('T')[0];
-          const history = res.rateHistory || [];
-          const hasTodayEntry = history.find(h => h.date === today);
-          let newHistory = [];
-          if(hasTodayEntry) {
-              newHistory = history.map(h => h.date === today ? { ...h, rate: value } : h);
-          } else {
-              newHistory = [...history, { date: today, rate: value }];
-          }
-          updates.rateHistory = newHistory;
+          let history = res.rateHistory ? [...res.rateHistory] : [];
+          if (history.length === 0) history.push({ date: empDate, rate: oldRate });
+          const hasTodayIndex = history.findIndex(h => h.date === today);
+          if (hasTodayIndex >= 0) history[hasTodayIndex].rate = value;
+          else history.push({ date: today, rate: value });
+          updates.rateHistory = history;
       }
       await updateDoc(doc(db, 'resources', id), updates);
   };
@@ -187,17 +221,22 @@ export const useProductionData = () => {
   };
 
   const fireResource = async (id) => updateDoc(doc(db, 'resources', id), { status: 'fired', firedAt: new Date().toISOString() });
-  const deleteResource = async (id) => { if(confirm('Удалить навсегда?')) await deleteDoc(doc(db, 'resources', id)); };
+  
+  const deleteResource = async (id) => { 
+      if(confirm('Удалить навсегда?')) {
+          await deleteDoc(doc(db, 'resources', id)); 
+      }
+  };
+
   const addReport = async (data) => addDoc(collection(db, 'reports'), data);
   const deleteReport = async (id) => deleteDoc(doc(db, 'reports', id));
 
   return {
     resources, setResources: updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
-    products, setProducts, orders, setOrders: updateOrder, 
-    reports, setReports: addReport, loading,
+    products, setProducts, orders, setOrders: updateOrder, reports, setReports: addReport, loading,
     actions: {
         addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
-        addProduct, updateProduct, deleteProduct,
+        addProduct, updateProduct, deleteProduct, copyOperationsToAll, 
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
         addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
         fireResource, deleteResource, addReport, deleteReport

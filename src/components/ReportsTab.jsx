@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DollarSign, Calculator } from 'lucide-react';
 
-// Импорт новых компонентов
+// Импорт компонентов (убедись, что они там есть)
 import { TabButton } from './reports/SharedComponents';
 import CombinedArchiveView from './reports/CombinedArchiveView';
 import SalaryView from './reports/SalaryView';
