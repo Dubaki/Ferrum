@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck, Flag, Star } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck, Flag, Star, Droplet } from 'lucide-react';
 import Heatmap from './Heatmap';
 
 const COL_WIDTH = 48;
@@ -123,8 +123,10 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                         const isOrder = item.type === 'order';
                         const bar = getBarStyles(item);
 
-                        const drawLeft = isOrder ? getMarkerPosition(item.drawingsDeadline) : null;
-                        const matLeft = isOrder ? getMarkerPosition(item.materialsDeadline) : null;
+                        // Маркеры показываются только если дата есть И товар еще НЕ прибыл
+                        const drawLeft = isOrder && item.drawingsDeadline && !item.drawingsArrived ? getMarkerPosition(item.drawingsDeadline) : null;
+                        const matLeft = isOrder && item.materialsDeadline && !item.materialsArrived ? getMarkerPosition(item.materialsDeadline) : null;
+                        const paintLeft = isOrder && item.paintDeadline && !item.paintArrived ? getMarkerPosition(item.paintDeadline) : null;
                         const deadlineLeft = isOrder && item.deadline ? getMarkerPosition(item.deadline) : null;
 
                         // Подсветка важного заказа
@@ -183,6 +185,13 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                                         <div className="absolute top-1/2 -translate-y-1/2 z-30 flex flex-col items-center group/marker" style={{ left: matLeft }} title={`Металл: ${new Date(item.materialsDeadline).toLocaleDateString()}`}>
                                             <div className="w-0.5 h-full bg-rose-300 absolute -top-10 bottom-0 pointer-events-none opacity-50 border-l border-dashed border-rose-400"></div>
                                             <div className="w-6 h-6 bg-rose-100 border-2 border-rose-500 rounded-full flex items-center justify-center text-rose-700 shadow-sm z-10 relative hover:scale-125 transition-transform"><Truck size={12}/></div>
+                                        </div>
+                                    )}
+
+                                    {paintLeft !== null && (
+                                        <div className="absolute top-1/2 -translate-y-1/2 z-30 flex flex-col items-center group/marker" style={{ left: paintLeft }} title={`Краска: ${new Date(item.paintDeadline).toLocaleDateString()}`}>
+                                            <div className="w-0.5 h-full bg-emerald-300 absolute -top-10 bottom-0 pointer-events-none opacity-50 border-l border-dashed border-emerald-400"></div>
+                                            <div className="w-6 h-6 bg-emerald-100 border-2 border-emerald-500 rounded-full flex items-center justify-center text-emerald-700 shadow-sm z-10 relative hover:scale-125 transition-transform"><Droplet size={12}/></div>
                                         </div>
                                     )}
 

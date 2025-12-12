@@ -167,14 +167,17 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                     orderTotalHours += parseFloat(child.totalHours);
                 });
             } else {
-                minStart = new Date(); 
+                minStart = new Date();
                 maxEnd = new Date();
             }
 
-            // ИСПРАВЛЕНИЕ: Для заказа ширина = рабочие дни от начала до конца
-            // (НЕ сумма дней изделий, а реальная длительность!)
-            const orderWorkDays = countWorkingDays(minStart, maxEnd);
-            const visualWidth = Math.max(1, orderWorkDays);
+            // ЛОГИКА: Ширина заказа = максимальная длительность среди изделий
+            // Это корректно для параллельного производства (несколько изделий одновременно)
+            // Пример: 3 изделия по 1 дню каждое → заказ занимает 1 день (не 3!)
+            const maxProductDuration = children.length > 0
+                ? children.reduce((max, child) => Math.max(max, child.workDays), 1)
+                : 1;
+            const visualWidth = maxProductDuration;
 
             const startOffset = Math.ceil((minStart - startDate) / (1000 * 60 * 60 * 24));
 
@@ -184,6 +187,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 customStatus: order.customStatus,
                 drawingsDeadline: order.drawingsDeadline,
                 materialsDeadline: order.materialsDeadline,
+                paintDeadline: order.paintDeadline,
+                drawingsArrived: order.drawingsArrived, // Флаг прибытия КМД
+                materialsArrived: order.materialsArrived, // Флаг прибытия материалов
+                paintArrived: order.paintArrived, // Флаг прибытия краски
                 isImportant: order.isImportant, // Флаг важности
                 orderNumber: order.orderNumber,
                 clientName: order.clientName,
@@ -191,7 +198,7 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 startDate: minStart,
                 endDate: maxEnd,
                 totalHours: orderTotalHours.toFixed(1),
-                durationDays: visualWidth, // Ширина полоски = рабочие дни от начала до конца
+                durationDays: visualWidth, // Ширина полоски = максимальная длительность изделия
                 startOffset,
                 children: children
             };
