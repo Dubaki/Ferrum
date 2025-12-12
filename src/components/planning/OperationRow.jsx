@@ -2,7 +2,7 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
 
-export default function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown }) {
+function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown }) {
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
     return (
@@ -36,7 +36,10 @@ export default function OperationRow({ op, productId, actions, resources, isOpen
             {/* Исполнитель (Выпадающий список) */}
             <div className="col-span-3 relative">
                 <button 
-                    onClick={(e) => { e.stopPropagation(); onToggleDropdown(); }} 
+                    onClick={(e) => { 
+                        e.stopPropagation(); // Останавливаем клик, чтобы не свернулась карточка
+                        onToggleDropdown(); 
+                    }} 
                     className={`w-full text-left text-[10px] font-bold px-2 py-1.5 rounded border transition flex justify-between items-center uppercase tracking-wide
                         ${op.resourceIds?.length > 0 
                             ? 'bg-slate-800 text-white border-slate-800 hover:bg-slate-700' 
@@ -53,18 +56,33 @@ export default function OperationRow({ op, productId, actions, resources, isOpen
 
                 {isOpen && (
                     <>
-                        <div className="fixed inset-0 z-[80] cursor-default" onClick={(e) => { e.stopPropagation(); onToggleDropdown(); }}></div>
+                        {/* Прозрачная подложка для закрытия при клике вне */}
                         <div 
-                            className="fixed z-[90] w-64 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 max-h-64 overflow-y-auto animate-in zoom-in-95" 
+                            className="fixed inset-0 z-[190] cursor-default" 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                onToggleDropdown(); 
+                            }}
+                        ></div>
+                        
+                        {/* Само меню */}
+                        <div 
+                            className="fixed z-[200] w-64 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 max-h-64 overflow-y-auto animate-in zoom-in-95" 
                             style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                            // ВАЖНО: Останавливаем всплытие кликов внутри самого меню
+                            onClick={(e) => e.stopPropagation()}
                         >
                             <div className="text-[10px] font-black text-slate-400 uppercase mb-2 px-1 tracking-wider">Выберите исполнителей</div>
                             <div className="space-y-1">
                                 {resources.map(res => (
-                                    <label key={res.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group">
+                                    <label 
+                                        key={res.id} 
+                                        className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group"
+                                        onClick={(e) => e.stopPropagation()} // Дополнительная защита
+                                    >
                                         <input 
                                             type="checkbox" 
-                                            checked={op.resourceIds?.includes(res.id)} 
+                                            checked={op.resourceIds?.includes(res.id) || false} 
                                             onChange={() => actions.toggleResourceForOp(productId, op.id, res.id)} 
                                             className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 transition"
                                         />
@@ -109,3 +127,6 @@ export default function OperationRow({ op, productId, actions, resources, isOpen
         </div>
     );
 }
+
+// Мемоизация для предотвращения лишних перерисовок
+export default React.memo(OperationRow);

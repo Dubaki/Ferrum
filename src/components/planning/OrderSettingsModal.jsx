@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Settings, Trash2, Save, PenTool, Truck } from 'lucide-react';
+import { X, Settings, Trash2, Save, PenTool, Truck, Droplet } from 'lucide-react';
 
 export default function OrderSettingsModal({ order, onClose, actions }) {
     const [formData, setFormData] = useState({
@@ -8,7 +8,8 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
         paymentDate: order.paymentDate || '',
         deadline: order.deadline || '',
         drawingsDeadline: order.drawingsDeadline || '', // Новый: Срок КМД
-        materialsDeadline: order.materialsDeadline || ''  // Новый: Срок Металла
+        materialsDeadline: order.materialsDeadline || '', // Новый: Срок Металла
+        paintDeadline: order.paintDeadline || ''          // Новый: Срок Краски
     });
 
     const handleSave = () => {
@@ -19,7 +20,8 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
         actions.updateOrder(order.id, 'deadline', formData.deadline);
         actions.updateOrder(order.id, 'drawingsDeadline', formData.drawingsDeadline);
         actions.updateOrder(order.id, 'materialsDeadline', formData.materialsDeadline);
-        
+        actions.updateOrder(order.id, 'paintDeadline', formData.paintDeadline);
+
         // Опциональная логика авто-статусов
         if (formData.drawingsDeadline && !formData.materialsDeadline && order.customStatus === 'metal') {
              actions.updateOrder(order.id, 'customStatus', 'drawings');
@@ -27,7 +29,7 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
         if (formData.materialsDeadline && order.customStatus === 'drawings') {
              actions.updateOrder(order.id, 'customStatus', 'metal');
         }
-        
+
         onClose();
     };
 
@@ -86,11 +88,23 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
                             <label className="flex items-center gap-2 text-xs font-bold text-rose-600 uppercase mb-1">
                                 <Truck size={14}/> Поставка комплектующих
                             </label>
-                            <input 
-                                type="date" 
-                                value={formData.materialsDeadline} 
+                            <input
+                                type="date"
+                                value={formData.materialsDeadline}
                                 onChange={e => setFormData({...formData, materialsDeadline: e.target.value})}
                                 className="w-full border-2 border-rose-100 bg-white rounded-lg p-2 text-sm focus:border-rose-500 outline-none transition font-bold text-slate-700"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase mb-1">
+                                <Droplet size={14}/> Поставка краски
+                            </label>
+                            <input
+                                type="date"
+                                value={formData.paintDeadline}
+                                onChange={e => setFormData({...formData, paintDeadline: e.target.value})}
+                                className="w-full border-2 border-emerald-100 bg-white rounded-lg p-2 text-sm focus:border-emerald-500 outline-none transition font-bold text-slate-700"
                             />
                         </div>
                     </div>

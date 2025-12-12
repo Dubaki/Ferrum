@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet, Star, Droplet } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 
 // AddProductModal убрали отсюда, чтобы починить визуальный баг
 
-export default function OrderCard({ 
-    order, products, actions, resources, isExpanded, onToggle, 
-    openExecutorDropdown, setOpenExecutorDropdown, 
+function OrderCard({
+    order, products, actions, resources, isExpanded, onToggle,
+    openExecutorDropdown, setOpenExecutorDropdown,
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
-    onAddProduct // Новое свойство: функция от родителя
+    onAddProduct, // Функция добавления изделия
+    onCopyFromArchive // Функция копирования из архива
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
@@ -95,8 +96,13 @@ export default function OrderCard({
         actions.updateOrder(order.id, 'customStatus', statusId);
     };
 
+    // Подсветка важного заказа
+    const importantHighlight = order.isImportant
+        ? 'ring-4 ring-amber-300 bg-amber-50/40 shadow-amber-200'
+        : '';
+
     return (
-        <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${dlInfo.border} 
+        <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${dlInfo.border} ${importantHighlight}
             ${isStatusMenuOpen || showDeadlineDetails ? 'z-50' : (isExpanded ? 'shadow-xl scale-[1.01] z-10' : 'hover:shadow-md')}
         `}>
             
@@ -107,6 +113,23 @@ export default function OrderCard({
                     <button onClick={onOpenSettings} className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
                         <Settings size={18} />
                     </button>
+
+                    {/* Чекбокс "Важный заказ" */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            actions.updateOrder(order.id, 'isImportant', !order.isImportant);
+                        }}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-md shrink-0 border-2 ${
+                            order.isImportant
+                                ? 'bg-amber-400 text-white border-amber-500 hover:bg-amber-500'
+                                : 'bg-white text-slate-300 border-slate-200 hover:border-amber-300 hover:text-amber-400'
+                        }`}
+                        title={order.isImportant ? 'Убрать из важных' : 'Отметить как важный'}
+                    >
+                        <Star size={18} className={order.isImportant ? 'fill-current' : ''} />
+                    </button>
+
                     <button className={`hidden md:block p-1 rounded-full transition-colors ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
                         {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
                     </button>
@@ -116,19 +139,66 @@ export default function OrderCard({
                     </div>
                 </div>
 
-                {/* 2. ЦЕНТР: ПЛАШКИ */}
+                {/* 2. ЦЕНТР: КНОПКИ ПОСТАВОК */}
                 <div className="flex items-center gap-2 z-20 shrink-0" onClick={e => e.stopPropagation()}>
-                    {order.drawingsDeadline && (
-                        <div className={`flex flex-col items-center justify-center w-20 py-1 rounded border-2 ${drawDiff < 0 ? 'bg-red-50 border-red-100 text-red-700' : 'bg-white border-indigo-100 text-indigo-700 shadow-sm'}`}>
+                    {order.drawingsDeadline && !order.drawingsArrived && (
+                        <button
+                            onClick={() => {
+                                if (window.confirm('Подтвердить прибытие КМД?')) {
+                                    actions.updateOrder(order.id, 'drawingsArrived', true);
+                                }
+                            }}
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
+                                drawDiff < 0
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
+                            }`}
+                            title="Нажмите для подтверждения прибытия"
+                        >
                             <div className="text-[9px] font-black uppercase flex items-center gap-1"><PenTool size={10}/> КМД</div>
                             <div className="font-bold text-xs leading-none mt-0.5">{drawDiff < 0 ? `-${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`)}</div>
-                        </div>
+                        </button>
                     )}
-                    {order.materialsDeadline && (
-                        <div className={`flex flex-col items-center justify-center w-20 py-1 rounded border-2 ${matDiff < 0 ? 'bg-red-50 border-red-100 text-red-700' : 'bg-white border-amber-100 text-amber-700 shadow-sm'}`}>
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Truck size={10}/> Снабж</div>
+                    {order.materialsDeadline && !order.materialsArrived && (
+                        <button
+                            onClick={() => {
+                                if (window.confirm('Подтвердить прибытие материалов?')) {
+                                    actions.updateOrder(order.id, 'materialsArrived', true);
+                                }
+                            }}
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
+                                matDiff < 0
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-sm'
+                            }`}
+                            title="Нажмите для подтверждения прибытия"
+                        >
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Truck size={10}/> Материалы</div>
                             <div className="font-bold text-xs leading-none mt-0.5">{matDiff < 0 ? `-${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`)}</div>
-                        </div>
+                        </button>
+                    )}
+                    {order.paintDeadline && !order.paintArrived && (
+                        <button
+                            onClick={() => {
+                                if (window.confirm('Подтвердить прибытие краски?')) {
+                                    actions.updateOrder(order.id, 'paintArrived', true);
+                                }
+                            }}
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
+                                getCountdown(order.paintDeadline) < 0
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-sm'
+                            }`}
+                            title="Нажмите для подтверждения прибытия"
+                        >
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Droplet size={10}/> Краска</div>
+                            <div className="font-bold text-xs leading-none mt-0.5">
+                                {getCountdown(order.paintDeadline) < 0
+                                    ? `-${Math.abs(getCountdown(order.paintDeadline))} дн`
+                                    : (getCountdown(order.paintDeadline) === 0 ? 'Сегодня' : `${getCountdown(order.paintDeadline)} дн`)
+                                }
+                            </div>
+                        </button>
                     )}
                 </div>
 
@@ -156,8 +226,12 @@ export default function OrderCard({
                 <div className="flex items-center gap-6 justify-end flex-1 z-10 relative" onClick={e => e.stopPropagation()}>
                     <div className="relative">
                         <button className="flex flex-col items-end group outline-none" onClick={() => setShowDeadlineDetails(!showDeadlineDetails)}>
-                            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mb-0.5 flex items-center gap-1 group-hover:text-slate-600">{dlInfo.sub} <Info size={12}/></span>
-                            <div className={`text-2xl font-black leading-none transition-transform group-hover:scale-105 ${dlInfo.color}`}>{dlInfo.text || '—'}</div>
+                            <div className={`text-4xl font-black leading-none transition-transform group-hover:scale-105 ${dlInfo.color} mb-1`}>{dlInfo.text || '—'}</div>
+                            {order.deadline && (
+                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 group-hover:text-slate-600">
+                                    {new Date(order.deadline).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                </span>
+                            )}
                         </button>
                         {showDeadlineDetails && (
                             <>
@@ -231,15 +305,27 @@ export default function OrderCard({
                         ))}
                     </div>
                     
-                    {/* КНОПКА ДОБАВЛЕНИЯ - ВЫЗЫВАЕТ РОДИТЕЛЯ */}
-                    <button 
-                        onClick={() => onAddProduct()} 
-                        className="mt-4 w-full py-3 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-600 transition font-bold flex items-center justify-center gap-2"
-                    >
-                        <Plus size={18} /> Добавить изделие
-                    </button>
+                    {/* КНОПКИ ДОБАВЛЕНИЯ */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button
+                            onClick={() => onAddProduct()}
+                            className="py-3 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-600 transition font-bold flex items-center justify-center gap-2"
+                        >
+                            <Plus size={18} /> Добавить изделие
+                        </button>
+
+                        <button
+                            onClick={() => onCopyFromArchive()}
+                            className="py-3 rounded-lg border-2 border-dashed border-indigo-300 text-indigo-400 hover:border-indigo-500 hover:text-indigo-600 transition font-bold flex items-center justify-center gap-2"
+                        >
+                            <Copy size={18} /> Копировать из архива
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
     );
 }
+
+// Мемоизация для предотвращения лишних перерисовок
+export default React.memo(OrderCard);

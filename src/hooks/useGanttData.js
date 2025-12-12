@@ -1,16 +1,63 @@
 import { useMemo } from 'react';
 
+// Хелпер: Добавление РАБОЧИХ дней к дате
+const addWorkingDays = (startDate, workingDaysDuration) => {
+    const result = new Date(startDate);
+    // Если длительность меньше 1 дня, возвращаем ту же дату
+    if (workingDaysDuration <= 1) return result;
+
+    let added = 0;
+    // Нам нужно найти дату через (Duration - 1) рабочих дней
+    // Пример: Длительность 2 дня. Начало Пн. Нам нужен Вт (добавить 1 рабочий день).
+    while (added < workingDaysDuration - 1) {
+        result.setDate(result.getDate() + 1);
+        const day = result.getDay();
+        // 0 = Воскресенье, 6 = Суббота. Если не выходной - считаем.
+        if (day !== 0 && day !== 6) {
+            added++;
+        }
+    }
+    return result;
+};
+
+// Хелпер: Посчитать рабочие дни между двумя датами
+const countWorkingDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 1;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    let count = 0;
+    let current = new Date(start);
+
+    while (current <= end) {
+        const day = current.getDay();
+        // Считаем только будние дни
+        if (day !== 0 && day !== 6) {
+            count++;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+
+    return Math.max(1, count);
+};
+
 export const useGanttData = (orders = [], products = [], resources = [], daysToRender = 60) => {
     // 1. Настройка календаря (начинаем за 3 дня до сегодня)
-    const startDate = new Date();
-    startDate.setHours(0,0,0,0);
-    startDate.setDate(startDate.getDate() - 3);
+    const startDate = useMemo(() => {
+        const date = new Date();
+        date.setHours(0,0,0,0);
+        date.setDate(date.getDate() - 3);
+        return date;
+    }, []); // startDate не зависит от пропсов, создается один раз
 
-    const calendarDays = Array.from({ length: daysToRender }, (_, i) => {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-        return d;
-    });
+    const calendarDays = useMemo(() => {
+        return Array.from({ length: daysToRender }, (_, i) => {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            return d;
+        });
+    }, [daysToRender, startDate]);
 
     // 2. Расчет загрузки (Heatmap)
     const heatmapData = useMemo(() => {
@@ -36,13 +83,19 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
             let currentDate = new Date(pStart);
             let loopGuard = 0;
 
-            while (hoursLeft > 0 && loopGuard < 60) {
+            while (hoursLeft > 0 && loopGuard < 365) {
                 const dStr = currentDate.toISOString().split('T')[0];
-                if (map[dStr]) {
-                    const hoursToday = Math.min(hoursLeft, 8); 
-                    map[dStr].booked += hoursToday;
-                    hoursLeft -= hoursToday;
+                const dayOfWeek = currentDate.getDay();
+                
+                // Пропускаем выходные при заливке Heatmap
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    if (map[dStr]) {
+                        const hoursToday = Math.min(hoursLeft, 8); 
+                        map[dStr].booked += hoursToday;
+                        hoursLeft -= hoursToday;
+                    }
                 }
+                
                 currentDate.setDate(currentDate.getDate() + 1);
                 loopGuard++;
             }
@@ -55,11 +108,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
         });
 
         return map;
-    }, [products, resources, calendarDays]);
+    }, [products, resources, calendarDays]); // calendarDays теперь мемоизирован, поэтому безопасно
 
     // 3. Структура для Ганта
     const ganttRows = useMemo(() => {
-        // Берем ВСЕ активные заказы
         const activeOrders = orders
             .filter(o => o.status === 'active')
             .sort((a, b) => {
@@ -76,25 +128,34 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
             const children = orderProducts.map(prod => {
                 const pStart = prod.startDate ? new Date(prod.startDate) : new Date();
                 const ops = prod.operations || [];
+                
+                // Считаем общее время в минутах
                 const totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
-                const durationDays = Math.max(1, Math.ceil(totalMinutes / 60 / 8)); 
 
-                const pEnd = new Date(pStart);
-                pEnd.setDate(pStart.getDate() + durationDays - 1);
+                // Считаем кол-во рабочих смен (округляем вверх)
+                const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
+
+                // Рассчитываем дату окончания с учетом выходных
+                const pEnd = addWorkingDays(pStart, workDaysNeeded);
+
+                // ИСПРАВЛЕНИЕ: Ширина полоски = рабочие дни (а не календарные)
+                // Это соответствует реальной трудоемкости задачи
+                const visualWidth = workDaysNeeded;
 
                 return {
                     id: prod.id,
-                    type: 'product', 
+                    type: 'product',
                     name: prod.name,
                     quantity: prod.quantity,
                     startDate: pStart,
                     endDate: pEnd,
                     totalHours: (totalMinutes / 60).toFixed(1),
-                    durationDays
+                    durationDays: visualWidth, // Ширина полоски = рабочие дни
+                    workDays: workDaysNeeded // Количество рабочих дней
                 };
             });
 
-            // Расчет дат заказа
+            // Расчет дат заказа (мин старт и макс конец)
             let minStart = null;
             let maxEnd = null;
             let orderTotalHours = 0;
@@ -110,9 +171,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 maxEnd = new Date();
             }
 
-            const durationDays = minStart && maxEnd 
-                ? Math.ceil((maxEnd - minStart) / (1000 * 60 * 60 * 24)) + 1
-                : 1;
+            // ИСПРАВЛЕНИЕ: Для заказа ширина = рабочие дни от начала до конца
+            // (НЕ сумма дней изделий, а реальная длительность!)
+            const orderWorkDays = countWorkingDays(minStart, maxEnd);
+            const visualWidth = Math.max(1, orderWorkDays);
 
             const startOffset = Math.ceil((minStart - startDate) / (1000 * 60 * 60 * 24));
 
@@ -120,19 +182,17 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 id: order.id,
                 type: 'order',
                 customStatus: order.customStatus,
-                
-                // НОВЫЕ ПОЛЯ
                 drawingsDeadline: order.drawingsDeadline,
                 materialsDeadline: order.materialsDeadline,
-
+                isImportant: order.isImportant, // Флаг важности
                 orderNumber: order.orderNumber,
                 clientName: order.clientName,
                 deadline: order.deadline,
                 startDate: minStart,
                 endDate: maxEnd,
                 totalHours: orderTotalHours.toFixed(1),
-                durationDays,
-                startOffset, 
+                durationDays: visualWidth, // Ширина полоски = рабочие дни от начала до конца
+                startOffset,
                 children: children
             };
         });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, PenTool, Truck, Calendar } from 'lucide-react';
+import { X, Save, PenTool, Truck, Calendar, Droplet } from 'lucide-react';
 
 export default function NewOrderModal({ onClose, onCreate }) {
     const [formData, setFormData] = useState({
@@ -9,7 +9,9 @@ export default function NewOrderModal({ onClose, onCreate }) {
         hasDrawings: false,
         drawingsDeadline: '',
         hasMaterials: false,
-        materialsDeadline: ''
+        materialsDeadline: '',
+        hasPaint: false,
+        paintDeadline: ''
     });
 
     const handleSubmit = () => {
@@ -22,6 +24,9 @@ export default function NewOrderModal({ onClose, onCreate }) {
         }
         if (!formData.hasMaterials && !formData.materialsDeadline) {
             return alert("Материалы не на складе: Укажите дату поставки!");
+        }
+        if (!formData.hasPaint && !formData.paintDeadline) {
+            return alert("Краска не на складе: Укажите дату поставки!");
         }
 
         // Логика статуса
@@ -36,6 +41,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
             // Если галочка стоит - даты ожидания нет (null), иначе берем дату из инпута
             drawingsDeadline: formData.hasDrawings ? null : formData.drawingsDeadline,
             materialsDeadline: formData.hasMaterials ? null : formData.materialsDeadline,
+            paintDeadline: formData.hasPaint ? null : formData.paintDeadline,
             customStatus: initialStatus
         });
         onClose();
@@ -90,6 +96,22 @@ export default function NewOrderModal({ onClose, onCreate }) {
                             <div className="animate-in slide-in-from-top-1">
                                 <label className="text-xs font-bold text-amber-400 uppercase">Ожидаемая дата поставки</label>
                                 <input type="date" value={formData.materialsDeadline} onChange={e=>setFormData({...formData, materialsDeadline: e.target.value})} className="w-full mt-1 border border-amber-200 rounded p-2 bg-white font-bold text-slate-700"/>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Блок Краска */}
+                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="flex items-center gap-2 font-bold text-emerald-900 cursor-pointer">
+                                <input type="checkbox" checked={formData.hasPaint} onChange={e=>setFormData({...formData, hasPaint: e.target.checked})} className="w-5 h-5 accent-emerald-600"/>
+                                <Droplet size={18}/> Краска на складе?
+                            </label>
+                        </div>
+                        {!formData.hasPaint && (
+                            <div className="animate-in slide-in-from-top-1">
+                                <label className="text-xs font-bold text-emerald-400 uppercase">Ожидаемая дата поставки</label>
+                                <input type="date" value={formData.paintDeadline} onChange={e=>setFormData({...formData, paintDeadline: e.target.value})} className="w-full mt-1 border border-emerald-200 rounded p-2 bg-white font-bold text-slate-700"/>
                             </div>
                         )}
                     </div>

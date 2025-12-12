@@ -1,27 +1,33 @@
-import React from 'react';
-import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck, Flag, Star } from 'lucide-react';
 import Heatmap from './Heatmap';
 
 const COL_WIDTH = 48;
 const SIDEBAR_WIDTH = 320;
 const ROW_HEIGHT = 50;
 
-export default function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand, onItemClick, heatmapData }) {
-    
-    // Собираем плоский список для рендера
-    const visibleItems = [];
-    rows.forEach(order => {
-        visibleItems.push(order);
-        if (expandedIds.includes(order.id)) {
-            order.children.forEach(child => visibleItems.push(child));
-        }
-    });
+function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand, onItemClick, heatmapData }) {
+
+    // Собираем плоский список для рендера - ОПТИМИЗИРОВАНО с useMemo
+    const visibleItems = useMemo(() => {
+        const items = [];
+        rows.forEach(order => {
+            items.push(order);
+            if (expandedIds.includes(order.id)) {
+                order.children.forEach(child => items.push(child));
+            }
+        });
+        return items;
+    }, [rows, expandedIds]);
 
     const getBarStyles = (item) => {
         const startOffset = Math.ceil((new Date(item.startDate) - startDate) / (1000 * 60 * 60 * 24));
         if(isNaN(startOffset)) return { display: 'none' };
 
+        // ИСПРАВЛЕНИЕ: Используем календарную длительность для ширины
+        // Теперь если задача 5 смен попадает на выходные, она займет 7 клеток
         const duration = item.durationDays || 1;
+        
         const left = startOffset * COL_WIDTH;
         const width = duration * COL_WIDTH;
         const isOrder = item.type === 'order';
@@ -53,15 +59,6 @@ export default function GanttChart({ calendarDays, rows, startDate, expandedIds,
             className: `absolute top-[10px] h-8 rounded-xl flex items-center px-3 text-white text-xs font-bold whitespace-nowrap overflow-hidden transition-all hover:scale-105 hover:shadow-xl cursor-pointer ${bgClass} z-10`,
             pattern: pattern || !isOrder
         };
-    };
-
-    const getUrgencyColor = (deadline) => {
-        if (!deadline) return 'bg-slate-300';
-        const days = Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24));
-        if (days < 0) return 'bg-red-600 animate-pulse';
-        if (days <= 3) return 'bg-orange-500';
-        if (days <= 7) return 'bg-yellow-400';
-        return 'bg-emerald-500';
     };
 
     const getStatusIcon = (statusId) => {
@@ -112,24 +109,37 @@ export default function GanttChart({ calendarDays, rows, startDate, expandedIds,
 
                 {/* 2. КОНТЕНТ */}
                 <div className="relative pb-24">
+                    {/* Линия сегодня */}
                     <div className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-20 pointer-events-none" style={{ left: SIDEBAR_WIDTH + (3 * COL_WIDTH) + (COL_WIDTH/2) }}></div>
 
+                    {/* Сетка и выходные */}
                     <div className="absolute inset-0 flex pointer-events-none" style={{ left: SIDEBAR_WIDTH }}>
-                        {calendarDays.map((d, i) => (<div key={i} className={`h-full border-r border-slate-100 ${d.getDay()===0||d.getDay()===6?'bg-rose-50/30':''}`} style={{width: COL_WIDTH}}></div>))}
+                        {calendarDays.map((d, i) => (
+                            <div key={i} className={`h-full border-r border-slate-100 ${d.getDay()===0||d.getDay()===6 ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxwYXRoIGQ9Ik0xIDNMMCA0TDMgMkw0IDN6IiBmaWxsPSIjZmRhNGE1IiBmaWxsLW9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==")] bg-rose-50/20' : ''}`} style={{width: COL_WIDTH}}></div>
+                        ))}
                     </div>
 
                     {visibleItems.map((item) => {
                         const isOrder = item.type === 'order';
                         const bar = getBarStyles(item);
-                        
+
                         const drawLeft = isOrder ? getMarkerPosition(item.drawingsDeadline) : null;
                         const matLeft = isOrder ? getMarkerPosition(item.materialsDeadline) : null;
+                        const deadlineLeft = isOrder && item.deadline ? getMarkerPosition(item.deadline) : null;
+
+                        // Подсветка важного заказа
+                        const isImportant = isOrder && item.isImportant;
+                        const rowBg = isImportant
+                            ? 'bg-gradient-to-r from-amber-200 via-amber-100 to-amber-50 border-l-[8px] border-l-amber-500 shadow-[inset_0_0_20px_rgba(251,191,36,0.3)]'
+                            : (isOrder ? 'bg-white' : 'bg-slate-50');
 
                         return (
-                            <div key={item.id} className={`flex border-b border-slate-200 ${isOrder ? 'bg-white' : 'bg-slate-50'} hover:bg-slate-50 transition-colors relative group`} style={{ height: ROW_HEIGHT }}>
+                            <div key={item.id} className={`flex border-b-2 border-slate-300 ${rowBg} hover:bg-slate-100 transition-colors relative group`} style={{ height: ROW_HEIGHT }}>
                                 
-                                <div 
-                                    className="sticky left-0 z-20 bg-white border-r-2 border-slate-200 flex items-center px-2 cursor-pointer shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] group-hover:bg-slate-50 overflow-hidden transition-colors"
+                                <div
+                                    className={`sticky left-0 z-20 border-r-2 border-slate-200 flex items-center px-2 cursor-pointer shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] overflow-hidden transition-colors ${
+                                        isImportant ? 'bg-amber-100/80 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'
+                                    }`}
                                     style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}
                                     onClick={() => isOrder ? onToggleExpand(item.id) : null}
                                 >
@@ -141,7 +151,10 @@ export default function GanttChart({ calendarDays, rows, startDate, expandedIds,
                                             
                                             <div className="overflow-hidden flex-1 min-w-0">
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="font-black text-sm text-slate-800 truncate uppercase" title={item.orderNumber}>{item.orderNumber}</span>
+                                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                        {isImportant && <Star size={14} className="text-amber-500 fill-amber-500 shrink-0 animate-pulse" />}
+                                                        <span className="font-black text-sm text-slate-800 truncate uppercase" title={item.orderNumber}>{item.orderNumber}</span>
+                                                    </div>
                                                     {item.customStatus === 'metal' && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Ждем металл"></span>}
                                                     {item.customStatus === 'drawings' && <span className="w-2 h-2 rounded-full bg-yellow-500" title="Ждем чертежи"></span>}
                                                 </div>
@@ -158,6 +171,7 @@ export default function GanttChart({ calendarDays, rows, startDate, expandedIds,
                                 </div>
 
                                 <div className="flex-1 relative">
+                                    {/* Маркеры */}
                                     {drawLeft !== null && (
                                         <div className="absolute top-1/2 -translate-y-1/2 z-30 flex flex-col items-center group/marker" style={{ left: drawLeft }} title={`КМД: ${new Date(item.drawingsDeadline).toLocaleDateString()}`}>
                                             <div className="w-0.5 h-full bg-indigo-300 absolute -top-10 bottom-0 pointer-events-none opacity-50 border-l border-dashed border-indigo-400"></div>
@@ -172,6 +186,28 @@ export default function GanttChart({ calendarDays, rows, startDate, expandedIds,
                                         </div>
                                     )}
 
+                                    {/* DEADLINE - Красная линия с флажком */}
+                                    {deadlineLeft !== null && (
+                                        <div className="absolute top-0 bottom-0 z-40 flex flex-col items-center pointer-events-none" style={{ left: deadlineLeft }}>
+                                            {/* Красная линия */}
+                                            <div className="w-0.5 h-full bg-red-500 absolute top-0 bottom-0 opacity-70"></div>
+                                            {/* Флажок */}
+                                            <div
+                                                className="absolute -top-1 pointer-events-auto"
+                                                title={`КРАЙНИЙ СРОК: ${new Date(item.deadline).toLocaleDateString('ru-RU')}`}
+                                                style={{ transform: 'translateX(-50%)' }}
+                                            >
+                                                <div className="bg-red-500 text-white px-1 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+                                                    <Flag size={8} className="fill-current" />
+                                                    <span className="text-[8px] font-bold whitespace-nowrap leading-none">
+                                                        {new Date(item.deadline).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Полоска Ганта */}
                                     <div 
                                         style={{ left: bar.left, width: bar.width }}
                                         className={bar.className}
@@ -204,3 +240,6 @@ export default function GanttChart({ calendarDays, rows, startDate, expandedIds,
         </div>
     );
 }
+
+// Мемоизация компонента для предотвращения лишних перерисовок
+export default React.memo(GanttChart);

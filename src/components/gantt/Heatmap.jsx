@@ -2,7 +2,7 @@ import React from 'react';
 
 const COL_WIDTH = 48;
 
-export default function Heatmap({ calendarDays, heatmapData }) {
+function Heatmap({ calendarDays, heatmapData }) {
     
     const getColor = (percent) => {
         if (percent === 0) return 'bg-slate-50 text-slate-300';
@@ -42,3 +42,6 @@ export default function Heatmap({ calendarDays, heatmapData }) {
         </div>
     );
 }
+
+// Мемоизация для предотвращения лишних перерисовок
+export default React.memo(Heatmap);

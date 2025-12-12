@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy } from 'lucide-react'; // Добавил Copy
 import OperationRow from './OperationRow';
 
-export default function ProductCard({ product, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown }) {
+function ProductCard({ product, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown }) {
     const [isExpanded, setIsExpanded] = useState(false);
     
     // Расчет статуса по операциям
@@ -119,3 +119,6 @@ export default function ProductCard({ product, actions, resources, sortedResourc
         </div>
     )
 }
+
+// Мемоизация для предотвращения лишних перерисовок
+export default React.memo(ProductCard);
