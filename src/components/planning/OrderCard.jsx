@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet, Star, Droplet } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 
-// AddProductModal убрали отсюда, чтобы починить визуальный баг
-
-function OrderCard({
+const OrderCard = memo(function OrderCard({
     order, products, actions, resources, isExpanded, onToggle,
     openExecutorDropdown, setOpenExecutorDropdown,
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
@@ -103,41 +101,99 @@ function OrderCard({
 
     return (
         <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${dlInfo.border} ${importantHighlight}
-            ${isStatusMenuOpen || showDeadlineDetails ? 'z-50' : (isExpanded ? 'shadow-xl scale-[1.01] z-10' : 'hover:shadow-md')}
+            ${isStatusMenuOpen || showDeadlineDetails ? 'z-50' : (isExpanded ? 'shadow-xl sm:scale-[1.01] z-10' : 'hover:shadow-md')}
         `}>
-            
-            <div className="p-4 flex flex-col md:flex-row gap-4 relative items-center" onClick={onToggle}>
-                
-                {/* 1. ЛЕВАЯ ЧАСТЬ */}
-                <div className="flex items-center gap-4 flex-1 min-w-0 z-10 w-full md:w-auto">
-                    <button onClick={onOpenSettings} className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
-                        <Settings size={18} />
-                    </button>
 
-                    {/* Чекбокс "Важный заказ" */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            actions.updateOrder(order.id, 'isImportant', !order.isImportant);
-                        }}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-md shrink-0 border-2 ${
-                            order.isImportant
-                                ? 'bg-amber-400 text-white border-amber-500 hover:bg-amber-500'
-                                : 'bg-white text-slate-300 border-slate-200 hover:border-amber-300 hover:text-amber-400'
-                        }`}
-                        title={order.isImportant ? 'Убрать из важных' : 'Отметить как важный'}
-                    >
-                        <Star size={18} className={order.isImportant ? 'fill-current' : ''} />
-                    </button>
+            <div className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 relative" onClick={onToggle}>
 
+                {/* Mobile: Header Row */}
+                <div className="flex items-center justify-between gap-2">
+                    {/* Left: Settings + Star + Info */}
+                    <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                        <button onClick={onOpenSettings} className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
+                            <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
+                        </button>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                actions.updateOrder(order.id, 'isImportant', !order.isImportant);
+                            }}
+                            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-all shadow-md shrink-0 border-2 ${
+                                order.isImportant
+                                    ? 'bg-amber-400 text-white border-amber-500 hover:bg-amber-500'
+                                    : 'bg-white text-slate-300 border-slate-200 hover:border-amber-300 hover:text-amber-400'
+                            }`}
+                            title={order.isImportant ? 'Убрать из важных' : 'Отметить как важный'}
+                        >
+                            <Star size={16} className={`sm:w-[18px] sm:h-[18px] ${order.isImportant ? 'fill-current' : ''}`} />
+                        </button>
+
+                        <button className={`hidden md:block p-1 rounded-full transition-colors ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
+                            {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                        </button>
+
+                        <div className="flex flex-col min-w-0">
+                            <div className="font-black text-lg sm:text-xl text-slate-800 uppercase tracking-tight leading-none truncate">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
+                            <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 truncate uppercase tracking-wider">
+                                <User size={10} className="sm:w-3 sm:h-3 text-slate-400"/> {order.clientName || 'Нет клиента'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right: Deadline (Mobile) */}
+                    <div className="flex flex-col items-end sm:hidden" onClick={e => e.stopPropagation()}>
+                        <div className={`text-2xl font-black leading-none ${dlInfo.color}`}>{dlInfo.text || '—'}</div>
+                        <div className="text-[9px] font-bold text-slate-400">{dlInfo.sub}</div>
+                    </div>
+                </div>
+
+                {/* Mobile: Status + Delivery Buttons Row */}
+                <div className="flex flex-wrap items-center gap-2 sm:hidden" onClick={e => e.stopPropagation()}>
+                    {/* Status Button */}
+                    <div className="relative">
+                        <button onClick={onToggleStatusMenu} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[10px] ${currentStatus.color}`}>
+                            <span className="font-black uppercase tracking-wider">{currentStatus.label}</span>
+                            <ChevronDown size={12}/>
+                        </button>
+                        {isStatusMenuOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[60] border border-slate-200 animate-in zoom-in-95">
+                                {ORDER_STATUSES.map(st => (
+                                    <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-2.5 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
+                                        {st.label}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[50]" onClick={onToggleStatusMenu}></div>}
+                    </div>
+
+                    {/* Delivery Buttons (Mobile) */}
+                    {order.drawingsDeadline && !order.drawingsArrived && (
+                        <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                            <PenTool size={10}/> {drawDiff}д
+                        </button>
+                    )}
+                    {order.materialsDeadline && !order.materialsArrived && (
+                        <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                            <Truck size={10}/> {matDiff}д
+                        </button>
+                    )}
+
+                    {/* Complete Button (Mobile) */}
+                    <button onClick={() => actions.finishOrder(order.id)} className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить">
+                        <CheckCircle size={18} />
+                    </button>
+                </div>
+
+                {/* Desktop: Full Row Layout */}
+                <div className="hidden sm:flex items-center gap-4">
+                    {/* Expand Icon (desktop only) */}
                     <button className={`hidden md:block p-1 rounded-full transition-colors ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
                         {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
                     </button>
-                    <div className="flex flex-col min-w-0">
-                        <div className="font-black text-xl text-slate-800 uppercase tracking-tight leading-none truncate">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
-                        <div className="text-xs text-slate-500 font-bold flex items-center gap-1 mt-1 truncate uppercase tracking-wider"><User size={12} className="text-slate-400"/> {order.clientName || 'Нет клиента'}</div>
-                    </div>
-                </div>
 
                 {/* 2. ЦЕНТР: КНОПКИ ПОСТАВОК */}
                 <div className="flex items-center gap-2 z-20 shrink-0" onClick={e => e.stopPropagation()}>
@@ -287,6 +343,7 @@ function OrderCard({
                     </div>
                 </div>
             </div>
+            </div>
 
             {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ */}
             {isExpanded && (
@@ -325,7 +382,6 @@ function OrderCard({
             )}
         </div>
     );
-}
+});
 
-// Мемоизация для предотвращения лишних перерисовок
-export default React.memo(OrderCard);
+export default OrderCard;

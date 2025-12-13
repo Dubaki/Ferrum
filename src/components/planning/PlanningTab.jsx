@@ -8,33 +8,6 @@ import NewOrderModal from './NewOrderModal';
 import AddProductModal from './AddProductModal';
 import CopyFromArchiveModal from './CopyFromArchiveModal'; 
 
-// Стили блика
-const styles = `
-  @keyframes shine {
-    0% { left: -100%; opacity: 0; }
-    50% { opacity: 0.5; }
-    100% { left: 100%; opacity: 0; }
-  }
-  .shiny-effect {
-    position: relative;
-    overflow: hidden;
-  }
-  .shiny-effect::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(to right, transparent, rgba(255,255,255,0.6), transparent);
-    transform: skewX(-20deg);
-    transition: none;
-  }
-  .shiny-effect:hover::after {
-    animation: shine 0.7s ease-in-out;
-  }
-`;
-
 export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [] }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
@@ -96,8 +69,6 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
   return (
     <div className="space-y-6 pb-20 fade-in font-sans text-slate-800">
-      <style>{styles}</style>
-      
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 pt-4 mb-6">
          <div>

@@ -16,8 +16,6 @@ export default function GanttTab({ products, resources, orders, actions }) {
         if (!actions) {
             console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: actions не передан в GanttTab!');
             console.error('Проверьте App.jsx - должно быть: <GanttTab actions={actions} ... />');
-        } else {
-            console.log('✅ GanttTab получил actions:', Object.keys(actions));
         }
     }, [actions]);
 
@@ -48,11 +46,9 @@ export default function GanttTab({ products, resources, orders, actions }) {
 
     // Открытие модалки
     const handleOpenModal = (item) => {
-        console.log('🎯 Открытие модалки для:', item);
         setSelectedItem(item);
         const formattedDate = formatDateForInput(item.startDate || new Date());
         setNewDateValue(formattedDate);
-        console.log('📅 Текущая дата:', formattedDate);
     };
 
     // --- ГЛАВНАЯ ФУНКЦИЯ СОХРАНЕНИЯ ---
@@ -65,13 +61,8 @@ export default function GanttTab({ products, resources, orders, actions }) {
         }
 
         if (!selectedItem || !newDateValue) {
-            console.warn('⚠️ Нет выбранного элемента или даты');
             return;
         }
-
-        console.log('💾 Начало сохранения...');
-        console.log('📦 Выбранный элемент:', selectedItem);
-        console.log('📅 Новая дата:', newDateValue);
 
         setIsSaving(true);
 
@@ -94,12 +85,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
             const diffMs = targetDate.getTime() - originalDate.getTime();
             const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-            console.log(`📊 Разница: ${diffDays} дней`);
-            console.log(`   Было: ${originalDate.toLocaleDateString('ru-RU')}`);
-            console.log(`   Стало: ${targetDate.toLocaleDateString('ru-RU')}`);
-
             if (diffDays === 0) {
-                console.log('ℹ️ Дата не изменилась');
                 setSelectedItem(null);
                 setIsSaving(false);
                 return;
@@ -107,13 +93,10 @@ export default function GanttTab({ products, resources, orders, actions }) {
 
             if (selectedItem.type === 'order') {
                 // === ЛОГИКА ДЛЯ ЗАКАЗА ===
-                console.log('📦 Обновление ЗАКАЗА');
                 
                 const orderProducts = products.filter(p => p.orderId === selectedItem.id);
-                console.log(`🔍 Найдено изделий в заказе: ${orderProducts.length}`);
 
                 if (orderProducts.length === 0) {
-                    console.warn('⚠️ В заказе нет изделий');
                     alert('В заказе нет изделий для обновления');
                     setSelectedItem(null);
                     setIsSaving(false);
@@ -139,15 +122,9 @@ export default function GanttTab({ products, resources, orders, actions }) {
                         // Форматируем в строку YYYY-MM-DD
                         const newProdDateStr = formatDateForInput(currentProdStart);
                         
-                        console.log(`   🔧 Изделие "${prod.name}" (ID: ${prod.id})`);
-                        console.log(`      Было: ${prod.startDate || 'не задано'}`);
-                        console.log(`      Стало: ${newProdDateStr}`);
-                        
                         // Обновляем через actions
                         await actions.updateProduct(prod.id, 'startDate', newProdDateStr);
                         successCount++;
-                        
-                        console.log(`      ✅ Обновлено успешно`);
                         
                         // Небольшая задержка для надёжности Firebase
                         await new Promise(resolve => setTimeout(resolve, 150));
@@ -158,8 +135,6 @@ export default function GanttTab({ products, resources, orders, actions }) {
                     }
                 }
                 
-                console.log(`✅ Успешно обновлено изделий: ${successCount} из ${orderProducts.length}`);
-                
                 if (errors.length > 0) {
                     console.error('❌ Ошибки при обновлении:', errors);
                     alert(`⚠️ Обновлено: ${successCount} из ${orderProducts.length}\n\nОшибки:\n${errors.map(e => `- ${e.name}: ${e.error}`).join('\n')}`);
@@ -169,7 +144,6 @@ export default function GanttTab({ products, resources, orders, actions }) {
                 
             } else if (selectedItem.type === 'product') {
                 // === ЛОГИКА ДЛЯ ИЗДЕЛИЯ ===
-                console.log('🔧 Обновление ИЗДЕЛИЯ');
                 
                 const productId = selectedItem.id || selectedItem.productId;
                 
@@ -177,17 +151,12 @@ export default function GanttTab({ products, resources, orders, actions }) {
                     throw new Error('Не найден ID изделия');
                 }
                 
-                console.log(`   ID изделия: ${productId}`);
-                console.log(`   Новая дата: ${newDateValue}`);
-                
                 await actions.updateProduct(productId, 'startDate', newDateValue);
                 
-                console.log(`   ✅ Изделие обновлено`);
                 alert('✅ Дата изделия успешно обновлена!');
             }
 
             // Успешное завершение
-            console.log('🎉 Сохранение завершено успешно!');
             setSelectedItem(null);
             
         } catch (error) {
@@ -211,7 +180,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative fade-in">
+        <div className="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative fade-in">
             
             {/* ГРАФИК */}
             <div className="flex-1 bg-white overflow-hidden relative">
@@ -295,6 +264,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
                                         console.log('📅 Изменение даты на:', e.target.value);
                                         setNewDateValue(e.target.value);
                                     }}
+                                    onChange={(e) => setNewDateValue(e.target.value)}
                                     className="w-full border-2 border-slate-300 bg-white rounded-xl p-4 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                     disabled={isSaving}
                                 />

@@ -20,8 +20,15 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
         return items;
     }, [rows, expandedIds]);
 
+    // Хелпер для нормализации даты (сброс времени), чтобы избежать смещений
+    const normalizeDate = (d) => {
+        const date = new Date(d);
+        date.setHours(0, 0, 0, 0);
+        return date;
+    };
+
     const getBarStyles = (item) => {
-        const startOffset = Math.ceil((new Date(item.startDate) - startDate) / (1000 * 60 * 60 * 24));
+        const startOffset = Math.round((normalizeDate(item.startDate) - normalizeDate(startDate)) / (1000 * 60 * 60 * 24));
         if(isNaN(startOffset)) return { display: 'none' };
 
         // ИСПРАВЛЕНИЕ: Используем календарную длительность для ширины
@@ -73,7 +80,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
 
     const getMarkerPosition = (dateStr) => {
         if (!dateStr) return null;
-        const offset = Math.ceil((new Date(dateStr) - startDate) / (1000 * 60 * 60 * 24));
+        const offset = Math.round((normalizeDate(dateStr) - normalizeDate(startDate)) / (1000 * 60 * 60 * 24));
         if (offset < 0) return null; 
         return offset * COL_WIDTH + (COL_WIDTH / 2) - 8;
     };
@@ -83,9 +90,9 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
             <div style={{ width: SIDEBAR_WIDTH + (calendarDays.length * COL_WIDTH), minHeight: '100%' }}>
                 
                 {/* 1. ШАПКА */}
-                <div className="flex h-12 sticky top-0 z-40 bg-gradient-to-b from-slate-100 to-slate-50 border-b-2 border-slate-300 shadow-sm">
+                <div className="flex h-12 sticky top-0 z-[100] bg-slate-100 border-b-2 border-slate-300 shadow-sm">
                     <div 
-                        className="sticky left-0 z-50 bg-slate-200 border-r-2 border-slate-300 flex items-center px-4 font-black text-xs text-slate-700 uppercase tracking-widest"
+                        className="sticky left-0 z-[101] bg-slate-200 border-r-2 border-slate-300 flex items-center px-4 font-black text-xs text-slate-700 uppercase tracking-widest"
                         style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}
                     >
                         Заказ / Клиент / Срок
@@ -95,7 +102,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                         const isToday = new Date().toDateString() === day.toDateString();
                         return (
                             <div key={i} 
-                                className={`flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center text-[10px] uppercase font-bold transition-colors
+                                className={`flex-shrink-0 border-r border-slate-300 flex flex-col items-center justify-center text-[10px] uppercase font-bold transition-colors
                                     ${isToday ? 'bg-blue-100 text-blue-800 border-blue-300' : isWeekend ? 'bg-rose-50 text-rose-600' : 'text-slate-600'}
                                 `}
                                 style={{ width: COL_WIDTH }}
@@ -115,7 +122,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                     {/* Сетка и выходные */}
                     <div className="absolute inset-0 flex pointer-events-none" style={{ left: SIDEBAR_WIDTH }}>
                         {calendarDays.map((d, i) => (
-                            <div key={i} className={`h-full border-r border-slate-100 ${d.getDay()===0||d.getDay()===6 ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxwYXRoIGQ9Ik0xIDNMMCA0TDMgMkw0IDN6IiBmaWxsPSIjZmRhNGE1IiBmaWxsLW9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==")] bg-rose-50/20' : ''}`} style={{width: COL_WIDTH}}></div>
+                            <div key={i} className={`h-full border-r border-slate-300/50 ${d.getDay()===0||d.getDay()===6 ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxwYXRoIGQ9Ik0xIDNMMCA0TDMgMkw0IDN6IiBmaWxsPSIjZmRhNGE1IiBmaWxsLW9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==")] bg-rose-50/20' : ''}`} style={{width: COL_WIDTH}}></div>
                         ))}
                     </div>
 
@@ -139,7 +146,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                             <div key={item.id} className={`flex border-b-2 border-slate-300 ${rowBg} hover:bg-slate-100 transition-colors relative group`} style={{ height: ROW_HEIGHT }}>
                                 
                                 <div
-                                    className={`sticky left-0 z-20 border-r-2 border-slate-200 flex items-center px-2 cursor-pointer shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] overflow-hidden transition-colors ${
+                                    className={`sticky left-0 z-30 border-r-2 border-slate-200 flex items-center px-2 cursor-pointer shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] overflow-hidden transition-colors ${
                                         isImportant ? 'bg-amber-100/80 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'
                                     }`}
                                     style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}
@@ -237,8 +244,8 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                 </div>
 
                 {/* 3. ПОДВАЛ (HEATMAP) */}
-                <div className="sticky bottom-0 z-30 flex h-16 bg-white border-t-2 border-slate-400 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-                    <div className="sticky left-0 z-40 bg-gradient-to-br from-slate-100 to-slate-50 border-r-2 border-slate-300 flex flex-col items-center justify-center font-black text-xs text-slate-500 uppercase tracking-widest px-4" style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}>
+                <div className="sticky bottom-0 z-[100] flex h-16 bg-white border-t-2 border-slate-400 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                    <div className="sticky left-0 z-[101] bg-gradient-to-br from-slate-100 to-slate-50 border-r-2 border-slate-300 flex flex-col items-center justify-center font-black text-xs text-slate-500 uppercase tracking-widest px-4" style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}>
                         <div>Загрузка</div>
                         <div className="text-[10px] opacity-70">цеха</div>
                     </div>

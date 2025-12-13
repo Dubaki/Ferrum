@@ -21,16 +21,17 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
+  display: block; /* Всегда показывать скроллбар */
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f1f5f9; /* Светлый фон трека */
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8; /* Более темный ползунок для видимости */
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748b;
 }
 
 /* Убираем стрелочки у input type="number" */
@@ -62,6 +63,14 @@ button:active {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Принудительное отображение скроллбаров для таблиц и списков */
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  display: block;
+  height: 12px; /* Чуть шире для удобства на десктопе */
+  width: 12px;
 }
 
 /* Кастомный скроллбар (там где нужен) */
@@ -155,4 +164,29 @@ button:active {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Эффект блика (Shiny Effect) */
+@keyframes shine {
+  0% { left: -100%; opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { left: 100%; opacity: 0; }
+}
+.shiny-effect {
+  position: relative;
+  overflow: hidden;
+}
+.shiny-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.6), transparent);
+  transform: skewX(-20deg);
+  transition: none;
+}
+.shiny-effect:hover::after {
+  animation: shine 0.7s ease-in-out;
 }
