@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronLeft, ChevronRight, Calendar, Thermometer, MinusCircle, HelpCircle } from 'lucide-react';
 
 export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
@@ -96,11 +97,10 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
     const totalMonth = totalBase + totalTb + totalKtu;
     const avgKtu = ktuCount > 0 ? Math.round(ktuSum / ktuCount) : 0;
 
-    return (
-        // ИСПРАВЛЕНО: items-center + h-screen (Чтобы было по центру экрана независимо от скролла)
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
             
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[98vw] flex flex-col ring-1 ring-white/20 relative max-h-[90vh]">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[98vw] flex flex-col ring-1 ring-white/20 relative max-h-[90vh] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                 
                 {/* Шапка */}
                 <div className="bg-slate-900 text-white p-4 rounded-t-3xl flex justify-between items-center shadow-lg z-20 shrink-0">
@@ -173,5 +173,5 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
                 </div>
             </div>
         </div>
-    );
+    , document.body);
 }

@@ -25,6 +25,10 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
     const totalPlan = product.operations.reduce((acc, op) => acc + (op.minutesPerUnit * product.quantity), 0);
     const totalFact = product.operations.reduce((acc, op) => acc + ((op.actualMinutes || 0) * product.quantity), 0);
 
+    // Находим последнюю выполненную операцию
+    const sortedOps = [...(product.operations || [])].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+    const lastCompletedOp = sortedOps.reverse().find(op => op.isCompleted);
+
     return (
         <div className={`bg-white rounded-lg border shadow-sm transition-all duration-200 overflow-visible ${isExpanded ? 'border-orange-300 ring-1 ring-orange-100 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
              
@@ -40,6 +44,12 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                         </span>
                     )}
                     <span className="text-slate-400 text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded">x{product.quantity}</span>
+                    
+                    {!product.isResale && lastCompletedOp && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide ml-2">
+                            <CheckCircle size={10} /> {lastCompletedOp.name}
+                        </span>
+                    )}
                 </div>
                 
                 <div className="flex items-center gap-4 text-xs font-medium text-slate-500">

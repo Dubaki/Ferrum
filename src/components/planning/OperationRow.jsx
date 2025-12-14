@@ -5,8 +5,12 @@ import { STANDARD_OPERATIONS } from '../../utils/constants';
 function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown, isAdmin }) {
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
+    const rowClass = op.isCompleted 
+        ? "grid grid-cols-12 gap-2 items-center bg-emerald-50/60 p-2 rounded border border-emerald-200 relative shadow-sm transition-colors"
+        : "grid grid-cols-12 gap-2 items-center bg-white p-2 rounded border border-slate-200 relative shadow-sm hover:border-orange-200 transition-colors";
+
     return (
-        <div className="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded border border-slate-200 relative shadow-sm hover:border-orange-200 transition-colors">
+        <div className={rowClass}>
             <div className="col-span-1 text-[10px] text-slate-400 text-center font-mono">{op.sequence}</div>
             
             {/* Выбор названия */}
@@ -36,14 +40,23 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
             </div>
 
             {/* Дата выполнения */}
-            <div className="col-span-2">
+            <div className="col-span-2 flex items-center gap-1">
                 <input 
                     type="date" 
                     value={op.plannedDate || ''} 
                     onChange={e => actions.updateOperation(productId, op.id, 'plannedDate', e.target.value)} 
                     disabled={!isAdmin}
-                    className={`w-full text-[10px] font-medium text-slate-600 bg-slate-50 rounded py-1 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
+                    className={`flex-1 min-w-0 text-[10px] font-medium text-slate-600 bg-slate-50 rounded py-1 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
                 />
+                {isAdmin && (
+                    <input 
+                        type="checkbox" 
+                        checked={op.isCompleted || false} 
+                        onChange={e => actions.updateOperation(productId, op.id, 'isCompleted', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
+                        title="Отметить как выполненное"
+                    />
+                )}
             </div>
             
             {/* Исполнитель (Выпадающий список) */}
