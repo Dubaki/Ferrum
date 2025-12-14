@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
 import { useSimulation } from './hooks/useSimulation';
@@ -9,6 +9,7 @@ import ResourcesTab from './components/ResourcesTab';
 import GanttTab from './components/GanttTab';
 import ReportsTab from './components/ReportsTab';
 import WorkloadTab from './components/WorkloadTab';
+import ShippingTab from './components/ShippingTab';
 import PlanningTab from './components/planning/PlanningTab';
 import WorkshopMode from './components/WorkshopMode';
 
@@ -30,6 +31,11 @@ export default function App() {
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
   const navigate = useNavigate();
 
+  // Проверяем есть ли срочные отгрузки (на сегодня)
+  const hasUrgentShipping = useMemo(() => {
+    return orders.some(o => o.status === 'active' && o.inShipping && o.shippingToday);
+  }, [orders]);
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -47,7 +53,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <Header />
+      <Header hasUrgentShipping={hasUrgentShipping} />
 
       {/* Кнопка входа в режим цеха */}
       <div className="fixed bottom-6 right-6 z-50">
@@ -74,6 +80,16 @@ export default function App() {
                 orders={orders}
                 actions={actions}
                 ganttItems={ganttItems}
+              />
+            }
+          />
+          <Route
+            path="/shipping"
+            element={
+              <ShippingTab
+                orders={orders}
+                products={products}
+                actions={actions}
               />
             }
           />

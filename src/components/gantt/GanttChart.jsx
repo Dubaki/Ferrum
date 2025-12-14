@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck, Flag, Star, Droplet, ShoppingBag } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, PenTool, Truck, Flag, Star, Droplet, ShoppingBag } from 'lucide-react';
 import Heatmap from './Heatmap';
 
 const COL_WIDTH = 48;

@@ -28,7 +28,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
   // Оптимизировано с useMemo для предотвращения пересчета при каждом рендере
   const activeOrders = useMemo(() => {
     return orders
-      .filter(o => o.status === 'active')
+      .filter(o => o.status === 'active' && !o.inShipping) // Исключаем заказы в отгрузках
       .filter(o =>
           (o.orderNumber && o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (o.clientName && o.clientName.toLowerCase().includes(searchTerm.toLowerCase()))

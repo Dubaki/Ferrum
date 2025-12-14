@@ -1,16 +1,17 @@
 import { memo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Calendar, Users, BarChart3, FileText, Layers, Menu, X } from 'lucide-react';
+import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck } from 'lucide-react';
 
 const tabs = [
   { path: '/', label: 'Заказы', icon: Layers },
+  { path: '/shipping', label: 'Отгрузки', icon: Truck },
   { path: '/workload', label: 'Загрузка', icon: Calendar },
   { path: '/resources', label: 'Цех', icon: Users },
   { path: '/gantt', label: 'Гант', icon: BarChart3 },
   { path: '/reports', label: 'Финансы', icon: FileText },
 ];
 
-export default memo(function Header() {
+export default memo(function Header({ hasUrgentShipping = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -56,27 +57,35 @@ export default memo(function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex overflow-x-auto pb-0 gap-1 no-scrollbar -mb-px">
-          {tabs.map(tab => (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              end={tab.path === '/'}
-              className={({ isActive }) => `
-                relative flex items-center gap-2 px-4 lg:px-6 py-3 text-sm font-bold transition-all duration-200 border-b-2 whitespace-nowrap
-                ${isActive
-                  ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
-                  : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
-                }
-              `}
-            >
-              {({ isActive }) => (
-                <>
-                  <tab.icon size={18} className={isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
-                  {tab.label}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {tabs.map(tab => {
+            const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
+            return (
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                end={tab.path === '/'}
+                className={({ isActive }) => `
+                  relative flex items-center gap-2 px-4 lg:px-6 py-3 text-sm font-bold transition-all duration-200 border-b-2 whitespace-nowrap
+                  ${isShippingUrgent
+                    ? 'border-orange-500 text-orange-400 bg-orange-500/20 animate-pulse-shipping'
+                    : isActive
+                      ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
+                      : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
+                  }
+                `}
+              >
+                {({ isActive }) => (
+                  <>
+                    <tab.icon size={18} className={isShippingUrgent ? "text-orange-400" : isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
+                    {tab.label}
+                    {isShippingUrgent && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-ping" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
 
@@ -84,27 +93,46 @@ export default memo(function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#1a1a1a] border-t border-white/10 animate-in slide-in-from-top-2">
           <nav className="flex flex-col p-2">
-            {tabs.map(tab => (
-              <NavLink
-                key={tab.path}
-                to={tab.path}
-                end={tab.path === '/'}
-                onClick={() => setMobileMenuOpen(false)}
-                className={({ isActive }) => `
-                  flex items-center gap-3 px-4 py-3 rounded-lg text-base font-bold transition-all
-                  ${isActive
-                    ? 'bg-[#d32f2f] text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  }
-                `}
-              >
-                <tab.icon size={20} />
-                {tab.label}
-              </NavLink>
-            ))}
+            {tabs.map(tab => {
+              const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
+              return (
+                <NavLink
+                  key={tab.path}
+                  to={tab.path}
+                  end={tab.path === '/'}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) => `
+                    relative flex items-center gap-3 px-4 py-3 rounded-lg text-base font-bold transition-all
+                    ${isShippingUrgent
+                      ? 'bg-orange-500 text-white animate-pulse'
+                      : isActive
+                        ? 'bg-[#d32f2f] text-white'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    }
+                  `}
+                >
+                  <tab.icon size={20} />
+                  {tab.label}
+                  {isShippingUrgent && (
+                    <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">Сегодня!</span>
+                  )}
+                </NavLink>
+              );
+            })}
           </nav>
         </div>
       )}
+
+      {/* CSS для анимации пульсации */}
+      <style>{`
+        @keyframes pulse-shipping {
+          0%, 100% { opacity: 1; background-color: rgba(249, 115, 22, 0.2); }
+          50% { opacity: 0.7; background-color: rgba(249, 115, 22, 0.4); }
+        }
+        .animate-pulse-shipping {
+          animation: pulse-shipping 1.5s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 });

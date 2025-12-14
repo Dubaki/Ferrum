@@ -1,5 +1,6 @@
 import React, { useState, memo } from 'react';
-import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 
@@ -110,7 +111,7 @@ const OrderCard = memo(function OrderCard({
     const borderClass = isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border;
 
     return (
-        <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10' : 'hover:shadow-md'}`}>
+        <div className={`relative rounded-lg shadow-sm transition-all duration-200 border border-slate-200/60 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10 border-slate-300' : 'hover:shadow-md hover:border-slate-300/80'}`}>
             <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 relative cursor-pointer" onClick={onToggle}>
 
                 {/* Mobile: Header Row */}
@@ -160,7 +161,7 @@ const OrderCard = memo(function OrderCard({
                             <ChevronDown size={12}/>
                         </button>
                         {isStatusMenuOpen && (
-                            <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[60] border border-slate-200 animate-in zoom-in-95">
+                            <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[200] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
                                     <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-2.5 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
@@ -168,7 +169,7 @@ const OrderCard = memo(function OrderCard({
                                 ))}
                             </div>
                         )}
-                        {isStatusMenuOpen && <div className="fixed inset-0 z-[50]" onClick={onToggleStatusMenu}></div>}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[150]" onClick={onToggleStatusMenu}></div>}
                     </div>
 
                     {/* Delivery Buttons (Mobile) */}
@@ -185,8 +186,16 @@ const OrderCard = memo(function OrderCard({
                         </button>
                     )}
 
-                    {/* Complete Button (Mobile) */}
-                    <button onClick={() => actions.finishOrder(order.id)} className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить">
+                    {/* Завершить → перемещает в отгрузки (Mobile) */}
+                    <button
+                        onClick={() => {
+                            if (window.confirm('Завершить заказ и переместить на склад?')) {
+                                actions.moveToShipping(order.id);
+                            }
+                        }}
+                        className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all"
+                        title="Завершить и переместить на склад"
+                    >
                         <CheckCircle size={18} />
                     </button>
                 </div>
@@ -304,7 +313,7 @@ const OrderCard = memo(function OrderCard({
                             <ChevronDown size={14}/>
                         </button>
                         {isStatusMenuOpen && (
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white shadow-2xl rounded-xl p-2 z-[60] border border-slate-200 animate-in zoom-in-95">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white shadow-2xl rounded-xl p-2 z-[200] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
                                     <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-3 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
@@ -312,7 +321,7 @@ const OrderCard = memo(function OrderCard({
                                 ))}
                             </div>
                         )}
-                        {isStatusMenuOpen && <div className="fixed inset-0 z-[50]" onClick={onToggleStatusMenu}></div>}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[150]" onClick={onToggleStatusMenu}></div>}
                     </div>
                     </div>
 
@@ -329,15 +338,17 @@ const OrderCard = memo(function OrderCard({
                                 </span>
                             )}
                         </button>
-                        {showDeadlineDetails && (
-                            <>
-                                <div className="fixed inset-0 z-[50] cursor-default" onClick={() => setShowDeadlineDetails(false)}></div>
-                                <div className="absolute right-0 top-full mt-4 w-96 bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 z-[100] overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                        {showDeadlineDetails && createPortal(
+                            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4" onClick={() => setShowDeadlineDetails(false)}>
+                                <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-black/10 overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                                     <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
                                         <h4 className="font-bold flex items-center gap-2"><Calendar size={18}/> Аналитика времени</h4>
-                                        <div className="text-xs bg-white/10 px-2 py-1 rounded font-mono">{progress}% готово</div>
+                                        <button onClick={() => setShowDeadlineDetails(false)} className="p-1 hover:bg-white/10 rounded-lg transition"><X size={18}/></button>
                                     </div>
                                     <div className="p-6 relative">
+                                        {/* Прогресс */}
+                                        <div className="absolute top-2 right-2 text-xs bg-slate-100 px-2 py-1 rounded font-mono text-slate-600">{progress}% готово</div>
+
                                         {/* Если заказ состоит только из перепродажи или пуст, но есть перепродажа */}
                                         {isResaleOrder ? (
                                             <div className="text-center py-4">
@@ -349,8 +360,8 @@ const OrderCard = memo(function OrderCard({
                                             </div>
                                         ) : (
                                             !dlInfo.isLate ? (
-                                            <div className="grid grid-cols-2 gap-6 relative">
-                                                <div className="absolute left-1/2 top-4 bottom-4 w-px bg-slate-100"></div>
+                                            <div className="grid grid-cols-2 gap-6 relative pt-4">
+                                                <div className="absolute left-1/2 top-8 bottom-4 w-px bg-slate-100"></div>
                                                 <div className="text-center">
                                                     <div className="text-xs font-bold text-slate-400 uppercase mb-2">Осталось работы</div>
                                                     <div className="text-3xl font-black text-slate-800 leading-none mb-1">{remainingManHours}</div>
@@ -380,7 +391,8 @@ const OrderCard = memo(function OrderCard({
                                         )}
                                     </div>
                                 </div>
-                            </>
+                            </div>,
+                            document.body
                         )}
                         </div>
 
@@ -390,8 +402,18 @@ const OrderCard = memo(function OrderCard({
                              <span className="font-bold text-slate-700 text-sm">{order.paymentDate ? new Date(order.paymentDate).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'}) : '—'}</span>
                         </div>
 
-                        {/* Завершить (в крайнем углу) */}
-                        <button onClick={() => actions.finishOrder(order.id)} className="p-2 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить"><CheckCircle size={22} /></button>
+                        {/* Завершить → перемещает в отгрузки */}
+                        <button
+                            onClick={() => {
+                                if (window.confirm('Завершить заказ и переместить на склад?')) {
+                                    actions.moveToShipping(order.id);
+                                }
+                            }}
+                            className="p-2 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all"
+                            title="Завершить и переместить на склад"
+                        >
+                            <CheckCircle size={22} />
+                        </button>
                     </div>
                 </div>
             </div>

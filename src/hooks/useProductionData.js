@@ -109,6 +109,67 @@ export const useProductionData = () => {
     }
   };
 
+  // --- ОТГРУЗКИ ---
+
+  // Переместить заказ в раздел отгрузок
+  const moveToShipping = async (id) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), {
+        inShipping: true,
+        shippingToday: false
+      });
+      showSuccess('Заказ перемещён в отгрузки');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
+  // Вернуть заказ из отгрузок в заказы
+  const returnFromShipping = async (id) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), {
+        inShipping: false,
+        shippingToday: false
+      });
+      showSuccess('Заказ возвращён в работу');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
+  // Отметить/снять отметку "отгрузка сегодня"
+  const toggleShippingToday = async (id) => {
+    try {
+      const order = orders.find(o => o.id === id);
+      if (!order) return;
+      await updateDoc(doc(db, 'orders', id), {
+        shippingToday: !order.shippingToday
+      });
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
+  // Завершить отгрузку - перенести в архив с фиксацией даты
+  const completeShipping = async (id) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), {
+        status: 'completed',
+        inShipping: false,
+        shippingToday: false,
+        shippedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString()
+      });
+      showSuccess('Заказ отгружен и перемещён в архив');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
   const deleteOrder = async (id) => {
     try {
       await deleteDoc(doc(db, 'orders', id));
@@ -420,7 +481,8 @@ export const useProductionData = () => {
     products, setProducts, orders, setOrders: updateOrder, reports, setReports: addReport, loading,
     actions: {
         addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
-        addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll, 
+        moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
+        addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
         addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
         fireResource, deleteResource, addReport, deleteReport

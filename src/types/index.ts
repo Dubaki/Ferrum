@@ -25,6 +25,10 @@ export interface Order {
   createdAt: number;
   finishedAt: string | null;
   isImportant?: boolean;
+  // Поля для отгрузок
+  inShipping?: boolean;        // Заказ находится в разделе отгрузок (на складе)
+  shippingToday?: boolean;     // Отгрузка запланирована на сегодня
+  shippedAt?: string | null;   // Дата фактической отгрузки (ISO string)
 }
 
 // Операция
@@ -174,6 +178,11 @@ export interface ProductionActions {
   deleteOrder: (id: string) => Promise<void>;
   finishOrder: (id: string) => Promise<boolean>;
   restoreOrder: (id: string) => Promise<void>;
+  // Отгрузки
+  moveToShipping: (id: string) => Promise<void>;
+  returnFromShipping: (id: string) => Promise<void>;
+  toggleShippingToday: (id: string) => Promise<void>;
+  completeShipping: (id: string) => Promise<void>;
   addProduct: (orderId?: string | null, initialDate?: string | null) => Promise<string>;
   addProductsBatch: (orderId: string, presetItems: PresetItem[]) => Promise<void>;
   updateProduct: (id: string, field: string, value: unknown) => Promise<void>;

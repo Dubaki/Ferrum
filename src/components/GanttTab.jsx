@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useGanttData } from '../hooks/useGanttData';
 import GanttChart from './gantt/GanttChart';
-import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, UserCircle, Timer, Target, Loader } from 'lucide-react';
+import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, Timer, Target, Loader } from 'lucide-react';
 
 export default function GanttTab({ products, resources, orders, actions }) {
     const { calendarDays, heatmapData, ganttRows, startDate } = useGanttData(orders, products, resources);
@@ -287,10 +287,6 @@ export default function GanttTab({ products, resources, orders, actions }) {
                                 <input 
                                     type="date" 
                                     value={newDateValue}
-                                    onChange={(e) => {
-                                        console.log('📅 Изменение даты на:', e.target.value);
-                                        setNewDateValue(e.target.value);
-                                    }}
                                     onChange={(e) => setNewDateValue(e.target.value)}
                                     className="w-full border-2 border-slate-300 bg-white rounded-xl p-4 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                     disabled={isSaving}
