@@ -1,5 +1,5 @@
 import React, { useState, memo } from 'react';
-import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet, Star, Droplet } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Info, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 
@@ -16,17 +16,25 @@ const OrderCard = memo(function OrderCard({
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     let totalPlanMins = 0;
     let totalFactMins = 0;
+    let resaleCount = 0; // Счетчик товаров перепродажи
+
     orderPositions.forEach(p => {
-        p.operations.forEach(op => {
-            const qty = p.quantity || 1;
-            totalPlanMins += (op.minutesPerUnit || 0) * qty;
-            totalFactMins += (op.actualMinutes || 0); 
-        });
+        if (p.isResale) {
+            resaleCount++;
+        } else {
+            p.operations.forEach(op => {
+                const qty = p.quantity || 1;
+                totalPlanMins += (op.minutesPerUnit || 0) * qty;
+                totalFactMins += (op.actualMinutes || 0); 
+            });
+        }
     });
 
     const remainingMins = Math.max(0, totalPlanMins - totalFactMins);
     const remainingManHours = (remainingMins / 60).toFixed(1);
     const progress = totalPlanMins > 0 ? Math.round((totalFactMins / totalPlanMins) * 100) : 0;
+    
+    const isResaleOrder = totalPlanMins === 0 && resaleCount > 0 && orderPositions.length > 0;
 
     // --- РАСЧЕТ РАБОЧИХ ДНЕЙ ---
     const getWorkDays = (start, end) => {
@@ -99,15 +107,14 @@ const OrderCard = memo(function OrderCard({
         ? 'ring-4 ring-amber-300 bg-amber-50/40 shadow-amber-200'
         : '';
 
-    return (
-        <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${dlInfo.border} ${importantHighlight}
-            ${isStatusMenuOpen || showDeadlineDetails ? 'z-50' : (isExpanded ? 'shadow-xl sm:scale-[1.01] z-10' : 'hover:shadow-md')}
-        `}>
+    const borderClass = isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border;
 
-            <div className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 relative" onClick={onToggle}>
+    return (
+        <div className={`relative rounded-r-lg shadow-sm transition-all duration-200 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10' : 'hover:shadow-md'}`}>
+            <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 relative cursor-pointer" onClick={onToggle}>
 
                 {/* Mobile: Header Row */}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 sm:hidden">
                     {/* Left: Settings + Star + Info */}
                     <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                         <button onClick={onOpenSettings} className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
@@ -129,14 +136,10 @@ const OrderCard = memo(function OrderCard({
                             <Star size={16} className={`sm:w-[18px] sm:h-[18px] ${order.isImportant ? 'fill-current' : ''}`} />
                         </button>
 
-                        <button className={`hidden md:block p-1 rounded-full transition-colors ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
-                            {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                        </button>
-
                         <div className="flex flex-col min-w-0">
                             <div className="font-black text-lg sm:text-xl text-slate-800 uppercase tracking-tight leading-none truncate">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
                             <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 truncate uppercase tracking-wider">
-                                <User size={10} className="sm:w-3 sm:h-3 text-slate-400"/> {order.clientName || 'Нет клиента'}
+                                <User size={10} className="sm:w-3 sm:h-3" /> {order.clientName || 'Клиент не указан'}
                             </div>
                         </div>
                     </div>
@@ -189,14 +192,50 @@ const OrderCard = memo(function OrderCard({
                 </div>
 
                 {/* Desktop: Full Row Layout */}
-                <div className="hidden sm:flex items-center gap-4">
-                    {/* Expand Icon (desktop only) */}
-                    <button className={`hidden md:block p-1 rounded-full transition-colors ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
-                        {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
-                    </button>
+                <div className="hidden sm:flex items-center w-full relative">
+                    
+                    {/* 1. ЛЕВАЯ ЧАСТЬ: Инфо о заказе */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                         {/* Expand Icon */}
+                        <button className={`hidden md:block p-1 rounded-full transition-colors shrink-0 ${isExpanded ? 'bg-slate-200 text-slate-600' : 'text-slate-300'}`}>
+                            {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                        </button>
 
-                {/* 2. ЦЕНТР: КНОПКИ ПОСТАВОК */}
-                <div className="flex items-center gap-2 z-20 shrink-0" onClick={e => e.stopPropagation()}>
+                        {/* Settings */}
+                        <button onClick={onOpenSettings} className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
+                            <Settings size={14} />
+                        </button>
+
+                        {/* Star */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                actions.updateOrder(order.id, 'isImportant', !order.isImportant);
+                            }}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-md shrink-0 border-2 ${
+                                order.isImportant
+                                    ? 'bg-amber-400 text-white border-amber-500 hover:bg-amber-500'
+                                    : 'bg-white text-slate-300 border-slate-200 hover:border-amber-300 hover:text-amber-400'
+                            }`}
+                            title={order.isImportant ? 'Убрать из важных' : 'Отметить как важный'}
+                        >
+                            <Star size={14} className={`${order.isImportant ? 'fill-current' : ''}`} />
+                        </button>
+
+                        {/* Text Info */}
+                        <div className="flex flex-col min-w-0 mr-4">
+                            <div className="font-black text-lg text-slate-800 uppercase tracking-tight leading-none truncate">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
+                            <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-1 truncate uppercase tracking-wider">
+                                <User size={10} /> {order.clientName || 'Клиент не указан'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. ЦЕНТР: Поставки и Статус (Абсолютное позиционирование для симметрии) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 z-20" onClick={e => e.stopPropagation()}>
+                        
+                        {/* Кнопки поставок (слева от статуса) */}
+                        <div className="flex items-center gap-2">
                     {order.drawingsDeadline && !order.drawingsArrived && (
                         <button
                             onClick={() => {
@@ -256,11 +295,10 @@ const OrderCard = memo(function OrderCard({
                             </div>
                         </button>
                     )}
-                </div>
+                        </div>
 
-                {/* 3. ЦЕНТР: СТАТУС */}
-                <div className="flex items-center justify-center z-20 shrink-0" onClick={e => e.stopPropagation()}>
-                    <div className="relative">
+                        {/* Статус (по центру) */}
+                        <div className="relative">
                         <button onClick={onToggleStatusMenu} className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color}`}>
                             <span className="text-xs font-black uppercase tracking-wider">{currentStatus.label}</span>
                             <ChevronDown size={14}/>
@@ -276,11 +314,13 @@ const OrderCard = memo(function OrderCard({
                         )}
                         {isStatusMenuOpen && <div className="fixed inset-0 z-[50]" onClick={onToggleStatusMenu}></div>}
                     </div>
-                </div>
+                    </div>
 
-                {/* 4. ПРАВАЯ ЧАСТЬ */}
-                <div className="flex items-center gap-6 justify-end flex-1 z-10 relative" onClick={e => e.stopPropagation()}>
-                    <div className="relative">
+                    {/* 3. ПРАВАЯ ЧАСТЬ: Дедлайн, Оплата, Завершить */}
+                    <div className="flex items-center gap-4 justify-end flex-1 z-10" onClick={e => e.stopPropagation()}>
+                        
+                        {/* Дедлайн */}
+                        <div className="relative text-right">
                         <button className="flex flex-col items-end group outline-none" onClick={() => setShowDeadlineDetails(!showDeadlineDetails)}>
                             <div className={`text-4xl font-black leading-none transition-transform group-hover:scale-105 ${dlInfo.color} mb-1`}>{dlInfo.text || '—'}</div>
                             {order.deadline && (
@@ -298,7 +338,17 @@ const OrderCard = memo(function OrderCard({
                                         <div className="text-xs bg-white/10 px-2 py-1 rounded font-mono">{progress}% готово</div>
                                     </div>
                                     <div className="p-6 relative">
-                                        {!dlInfo.isLate ? (
+                                        {/* Если заказ состоит только из перепродажи или пуст, но есть перепродажа */}
+                                        {isResaleOrder ? (
+                                            <div className="text-center py-4">
+                                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-cyan-100 text-cyan-600 mb-3">
+                                                    <ShoppingBag size={28} />
+                                                </div>
+                                                <h3 className="text-base font-bold text-slate-700">Заказ перепродажи</h3>
+                                                <p className="text-slate-500 text-xs mt-2 leading-relaxed">В этом заказе только товары для перепродажи.<br/>Учет производственного времени не требуется.</p>
+                                            </div>
+                                        ) : (
+                                            !dlInfo.isLate ? (
                                             <div className="grid grid-cols-2 gap-6 relative">
                                                 <div className="absolute left-1/2 top-4 bottom-4 w-px bg-slate-100"></div>
                                                 <div className="text-center">
@@ -326,23 +376,24 @@ const OrderCard = memo(function OrderCard({
                                                 <div className="text-red-600 font-black text-lg uppercase mb-2">ЗАКАЗ ПРОСРОЧЕН</div>
                                                 <div className="text-slate-600 font-bold text-sm bg-red-50 p-4 rounded-xl border border-red-100 w-full">Необходимо закончить как можно быстрее!</div>
                                             </div>
+                                            )
                                         )}
                                     </div>
                                 </div>
                             </>
                         )}
-                    </div>
-                    
-                    <div className="flex flex-col items-end mr-2">
-                         <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"><Wallet size={10} /> Оплата</span>
-                         <span className="font-bold text-slate-700 text-sm">{order.paymentDate ? new Date(order.paymentDate).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'}) : '—'}</span>
-                    </div>
+                        </div>
 
-                    <div className="flex gap-1 border-l border-slate-200/50 pl-4">
+                        {/* Оплата */}
+                        <div className="flex flex-col items-end px-2 border-r border-slate-200/50">
+                             <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"><Wallet size={10} /> Оплата</span>
+                             <span className="font-bold text-slate-700 text-sm">{order.paymentDate ? new Date(order.paymentDate).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'}) : '—'}</span>
+                        </div>
+
+                        {/* Завершить (в крайнем углу) */}
                         <button onClick={() => actions.finishOrder(order.id)} className="p-2 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all" title="Завершить"><CheckCircle size={22} /></button>
                     </div>
                 </div>
-            </div>
             </div>
 
             {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ */}

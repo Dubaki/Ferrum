@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, Flame, Zap, Box, Layers, PackagePlus, ArrowRight } from 'lucide-react';
+import { X, Flame, Zap, Box, Layers, PackagePlus, ArrowRight, ShoppingBag } from 'lucide-react';
 import { PRESETS } from '../../utils/presets';
 
 export default function AddProductModal({ onClose, onAdd }) {
     const [activeTab, setActiveTab] = useState('lines'); // lines | units | custom
+    const [isResaleCustom, setIsResaleCustom] = useState(false);
 
     const handleSelect = (presetKey) => {
         const preset = PRESETS[presetKey];
@@ -14,7 +15,11 @@ export default function AddProductModal({ onClose, onAdd }) {
 
     const handleCustom = () => {
         // Пустое изделие
-        onAdd([{ name: 'Новое изделие', ops: [] }]);
+        onAdd([{ 
+            name: isResaleCustom ? 'Товар для перепродажи' : 'Новое изделие', 
+            ops: [],
+            isResale: isResaleCustom
+        }]);
         onClose();
     };
 
@@ -126,10 +131,24 @@ export default function AddProductModal({ onClose, onAdd }) {
                                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                                     <PackagePlus size={32}/>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-800 mb-2">Пустое изделие</h3>
-                                <p className="text-slate-400 text-sm mb-6">Создать чистую карточку без операций. Вы сможете добавить операции вручную.</p>
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">
+                                    {isResaleCustom ? 'Товар для перепродажи' : 'Пустое изделие'}
+                                </h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    {isResaleCustom 
+                                        ? 'Создать карточку товара, который не требует производственных операций.' 
+                                        : 'Создать чистую карточку без операций. Вы сможете добавить операции вручную.'}
+                                </p>
+                                
+                                <div className="flex items-center justify-center gap-2 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer" onClick={() => setIsResaleCustom(!isResaleCustom)}>
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isResaleCustom ? 'bg-cyan-500 border-cyan-500 text-white' : 'bg-white border-slate-300'}`}>
+                                        {isResaleCustom && <ShoppingBag size={12} />}
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-600 select-none">Это перепродажа</span>
+                                </div>
+
                                 <button onClick={handleCustom} className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">
-                                    Создать пустое
+                                    {isResaleCustom ? 'Создать товар' : 'Создать пустое'}
                                 </button>
                             </div>
                         </div>

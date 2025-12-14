@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck, Flag, Star, Droplet } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, AlertOctagon, PenTool, Truck, Flag, Star, Droplet, ShoppingBag } from 'lucide-react';
 import Heatmap from './Heatmap';
 
 const COL_WIDTH = 48;
@@ -57,7 +57,11 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                 else bgClass = 'bg-gradient-to-r from-emerald-500 to-teal-600';
             }
         } else {
-            bgClass = 'bg-gradient-to-r from-slate-400 to-slate-500';
+            if (item.isResale) {
+                bgClass = 'bg-gradient-to-r from-cyan-500 to-blue-500'; // Цвет для перепродажи
+            } else {
+                bgClass = 'bg-gradient-to-r from-slate-400 to-slate-500';
+            }
         }
 
         return {
@@ -172,7 +176,11 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                                         </div>
                                     ) : (
                                         <div className="flex items-center w-full pl-10 pr-2 gap-2">
-                                            <Package size={14} className="text-slate-400 shrink-0" />
+                                            {item.isResale ? (
+                                                <ShoppingBag size={14} className="text-cyan-600 shrink-0" />
+                                            ) : (
+                                                <Package size={14} className="text-slate-400 shrink-0" />
+                                            )}
                                             <div className="truncate text-xs font-semibold text-slate-600 flex-1">{item.name}</div>
                                             <div className="text-[9px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">×{item.quantity}</div>
                                         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGanttData } from '../hooks/useGanttData';
 import GanttChart from './gantt/GanttChart';
 import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, UserCircle, Timer, Target, Loader } from 'lucide-react';
@@ -11,6 +11,20 @@ export default function GanttTab({ products, resources, orders, actions }) {
     const [expandedIds, setExpandedIds] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Фильтрация: Скрываем заказы, состоящие ТОЛЬКО из товаров перепродажи
+    const filteredGanttRows = useMemo(() => {
+        if (!ganttRows) return [];
+        return ganttRows.filter(row => {
+            if (row.type !== 'order') return true;
+            // Если у заказа есть дети, проверяем, все ли они resale
+            if (row.children && row.children.length > 0) {
+                const allResale = row.children.every(child => child.isResale);
+                return !allResale;
+            }
+            return true; // Пустые заказы оставляем (или можно скрыть return false)
+        });
+    }, [ganttRows]);
+
     // Проверка наличия actions при монтировании компонента
     React.useEffect(() => {
         if (!actions) {
@@ -18,6 +32,19 @@ export default function GanttTab({ products, resources, orders, actions }) {
             console.error('Проверьте App.jsx - должно быть: <GanttTab actions={actions} ... />');
         }
     }, [actions]);
+
+    // --- DEBUG: Логирование загрузки цеха ---
+    React.useEffect(() => {
+        if (heatmapData && heatmapData.length > 0) {
+            const overloaded = heatmapData.find(d => d.percent > 100);
+            if (overloaded) {
+                console.group('🔥 Диагностика загрузки цеха (>100%)');
+                console.log('Найден день с перегрузкой:', overloaded);
+                console.log('Формула: (Минуты работы / Минуты ресурса) * 100');
+                console.groupEnd();
+            }
+        }
+    }, [heatmapData]);
 
     const toggleExpand = (id) => {
         setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -186,7 +213,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
             <div className="flex-1 bg-white overflow-hidden relative">
                 <GanttChart 
                     calendarDays={calendarDays}
-                    rows={ganttRows}
+                    rows={filteredGanttRows}
                     startDate={startDate}
                     expandedIds={expandedIds}
                     onToggleExpand={toggleExpand}
