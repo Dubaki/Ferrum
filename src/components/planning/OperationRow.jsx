@@ -2,7 +2,7 @@ import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
 
-function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown }) {
+function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown, isAdmin }) {
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
     return (
@@ -10,12 +10,13 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
             <div className="col-span-1 text-[10px] text-slate-400 text-center font-mono">{op.sequence}</div>
             
             {/* Выбор названия */}
-            <div className="col-span-4">
+            <div className="col-span-3">
                 {STANDARD_OPERATIONS ? (
                     <select 
                         value={isStandard(op.name) ? op.name : 'other'} 
                         onChange={(e) => actions.updateOperation(productId, op.id, 'name', e.target.value === 'other' ? 'Новая' : e.target.value)} 
-                        className="w-full text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer hover:text-orange-600 focus:text-orange-600 transition-colors"
+                        disabled={!isAdmin}
+                        className={`w-full text-xs font-bold text-slate-700 bg-transparent outline-none transition-colors ${isAdmin ? 'cursor-pointer hover:text-orange-600 focus:text-orange-600' : 'appearance-none'}`}
                     >
                         {STANDARD_OPERATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                         <option value="other">Свой вариант...</option>
@@ -27,10 +28,22 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
                         type="text" 
                         value={op.name} 
                         onChange={e => actions.updateOperation(productId, op.id, 'name', e.target.value)} 
-                        className="w-full text-xs border-b border-orange-200 mt-1 focus:border-orange-500 outline-none" 
+                        disabled={!isAdmin}
+                        className={`w-full text-xs border-b border-orange-200 mt-1 outline-none ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
                         placeholder="Название..." 
                     />
                 )}
+            </div>
+
+            {/* Дата выполнения */}
+            <div className="col-span-2">
+                <input 
+                    type="date" 
+                    value={op.plannedDate || ''} 
+                    onChange={e => actions.updateOperation(productId, op.id, 'plannedDate', e.target.value)} 
+                    disabled={!isAdmin}
+                    className={`w-full text-[10px] font-medium text-slate-600 bg-slate-50 rounded py-1 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
+                />
             </div>
             
             {/* Исполнитель (Выпадающий список) */}
@@ -38,13 +51,14 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
                 <button 
                     onClick={(e) => { 
                         e.stopPropagation(); // Останавливаем клик, чтобы не свернулась карточка
-                        onToggleDropdown(); 
+                        if (isAdmin) onToggleDropdown(); 
                     }} 
                     className={`w-full text-left text-[10px] font-bold px-2 py-1.5 rounded border transition flex justify-between items-center uppercase tracking-wide
                         ${op.resourceIds?.length > 0 
                             ? 'bg-slate-800 text-white border-slate-800 hover:bg-slate-700' 
-                            : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700'
+                            : `bg-slate-50 border-slate-200 text-slate-500 ${isAdmin ? 'hover:border-slate-400 hover:text-slate-700' : ''}`
                         }
+                        ${!isAdmin && 'cursor-default'}
                     `}
                 >
                     <span className="truncate">
@@ -97,12 +111,13 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
             </div>
 
             {/* План */}
-            <div className="col-span-2 text-center">
+            <div className="col-span-1 text-center">
                 <input 
                     type="number" 
                     value={op.minutesPerUnit} 
                     onChange={e => actions.updateOperation(productId, op.id, 'minutesPerUnit', parseFloat(e.target.value))} 
-                    className="w-full text-center text-xs bg-slate-50 rounded py-1 outline-none focus:bg-white focus:ring-2 focus:ring-slate-200 transition font-mono" 
+                    disabled={!isAdmin}
+                    className={`w-full text-center text-xs bg-slate-50 rounded py-1 outline-none transition font-mono ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
                     placeholder="0" 
                 />
             </div>
@@ -113,16 +128,17 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
                     type="number" 
                     value={op.actualMinutes || 0} 
                     onChange={e => actions.updateOperation(productId, op.id, 'actualMinutes', parseFloat(e.target.value))} 
-                    className="w-full text-center text-xs font-bold bg-orange-50 text-orange-700 rounded py-1 outline-none focus:ring-2 focus:ring-orange-200 transition font-mono" 
+                    disabled={!isAdmin}
+                    className={`w-full text-center text-xs font-bold bg-orange-50 text-orange-700 rounded py-1 outline-none transition font-mono ${isAdmin ? 'focus:ring-2 focus:ring-orange-200' : ''}`}
                     placeholder="0"
                 />
-                <button 
+                {isAdmin && <button 
                     onClick={() => actions.deleteOperation(productId, op.id)} 
                     className="text-slate-300 hover:text-red-500 p-1 transition-colors" 
                     title="Удалить операцию"
                 >
                     <Trash2 size={14}/>
-                </button>
+                </button>}
             </div>
         </div>
     );

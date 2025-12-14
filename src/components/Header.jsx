@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck } from 'lucide-react';
+import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock } from 'lucide-react';
 
 const tabs = [
   { path: '/', label: 'Заказы', icon: Layers },
@@ -11,7 +11,7 @@ const tabs = [
   { path: '/reports', label: 'Финансы', icon: FileText },
 ];
 
-export default memo(function Header({ hasUrgentShipping = false }) {
+export default memo(function Header({ hasUrgentShipping = false, isAdmin, onToggleAuth }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -41,6 +41,15 @@ export default memo(function Header({ hasUrgentShipping = false }) {
               <span className="hidden sm:block text-[9px] font-bold text-[#666] uppercase tracking-[0.05em] mt-[2px]">ЗАВОД МЕТАЛЛОКОНСТРУКЦИЙ</span>
             </div>
           </NavLink>
+
+          {/* Кнопка авторизации (Замок) */}
+          <button
+            onClick={onToggleAuth}
+            className={`ml-4 p-2 rounded-lg transition-colors ${isAdmin ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+            title={isAdmin ? "Выйти из режима администратора" : "Войти как администратор"}
+          >
+            {isAdmin ? <Unlock size={20} /> : <Lock size={20} />}
+          </button>
 
           {/* Mobile: Current tab + Hamburger */}
           <div className="flex md:hidden items-center gap-2">

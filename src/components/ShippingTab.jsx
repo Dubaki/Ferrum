@@ -2,7 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { Package, Truck, CheckCircle2, Clock, ArrowLeft, Calendar, BarChart3 } from 'lucide-react';
 
 // Карточка заказа в разделе отгрузок
-const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onToggleToday, onCompleteShipping, onReturn }) {
+const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onToggleToday, onCompleteShipping, onReturn, isAdmin }) {
   const orderProducts = products.filter(p => p.orderId === order.id);
   const totalProducts = orderProducts.length;
 
@@ -34,7 +34,7 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
 
         <div className="flex flex-col gap-2">
           {/* Галочка 1: Отгрузка сегодня */}
-          <button
+          {isAdmin && <button
             onClick={() => onToggleToday(order.id)}
             className={`
               flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all
@@ -47,28 +47,28 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
           >
             <Clock className="w-4 h-4" />
             Сегодня
-          </button>
+          </button>}
 
           {/* Галочка 2: Отгружено */}
-          <button
+          {isAdmin && <button
             onClick={() => onCompleteShipping(order.id)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
             title="Отметить как отгружено"
           >
             <CheckCircle2 className="w-4 h-4" />
             Отгружено
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* Кнопка вернуть в заказы */}
-      <button
+      {isAdmin && <button
         onClick={() => onReturn(order.id)}
         className="mt-3 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
       >
         <ArrowLeft className="w-3 h-3" />
         Вернуть в заказы
-      </button>
+      </button>}
     </div>
   );
 });
@@ -156,7 +156,7 @@ const MonthlyStats = memo(function MonthlyStats({ orders, selectedMonth, onMonth
   );
 });
 
-export default memo(function ShippingTab({ orders, products, actions }) {
+export default memo(function ShippingTab({ orders, products, actions, isAdmin }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -213,6 +213,7 @@ export default memo(function ShippingTab({ orders, products, actions }) {
                   onToggleToday={actions.toggleShippingToday}
                   onCompleteShipping={actions.completeShipping}
                   onReturn={actions.returnFromShipping}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>

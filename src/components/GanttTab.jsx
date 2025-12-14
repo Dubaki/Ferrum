@@ -16,6 +16,11 @@ export default function GanttTab({ products, resources, orders, actions }) {
         if (!ganttRows) return [];
         return ganttRows.filter(row => {
             if (row.type !== 'order') return true;
+
+            // Скрываем заказы, которые находятся в отгрузке
+            const order = orders.find(o => o.id === row.id);
+            if (order && order.inShipping) return false;
+
             // Если у заказа есть дети, проверяем, все ли они resale
             if (row.children && row.children.length > 0) {
                 const allResale = row.children.every(child => child.isResale);
@@ -23,7 +28,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
             }
             return true; // Пустые заказы оставляем (или можно скрыть return false)
         });
-    }, [ganttRows]);
+    }, [ganttRows, orders]);
 
     // Проверка наличия actions при монтировании компонента
     React.useEffect(() => {

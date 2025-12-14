@@ -29,12 +29,26 @@ export default function App() {
   const { resources, products, orders, reports, loading, actions } = useProductionData();
   const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); // Состояние прав администратора
   const navigate = useNavigate();
 
   // Проверяем есть ли срочные отгрузки (на сегодня)
   const hasUrgentShipping = useMemo(() => {
     return orders.some(o => o.status === 'active' && o.inShipping && o.shippingToday);
   }, [orders]);
+
+  const handleToggleAuth = () => {
+    if (isAdmin) {
+      setIsAdmin(false);
+    } else {
+      const password = window.prompt("Введите пароль администратора:");
+      if (password === "fer25") {
+        setIsAdmin(true);
+      } else if (password !== null) {
+        alert("Неверный пароль!");
+      }
+    }
+  };
 
   if (loading) {
     return <LoadingScreen />;
@@ -53,7 +67,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <Header hasUrgentShipping={hasUrgentShipping} />
+      <Header 
+        hasUrgentShipping={hasUrgentShipping} 
+        isAdmin={isAdmin} 
+        onToggleAuth={handleToggleAuth} 
+      />
 
       {/* Кнопка входа в режим цеха */}
       <div className="fixed bottom-6 right-6 z-50">
@@ -80,6 +98,7 @@ export default function App() {
                 orders={orders}
                 actions={actions}
                 ganttItems={ganttItems}
+                isAdmin={isAdmin}
               />
             }
           />
@@ -90,6 +109,7 @@ export default function App() {
                 orders={orders}
                 products={products}
                 actions={actions}
+                isAdmin={isAdmin}
               />
             }
           />
@@ -110,6 +130,7 @@ export default function App() {
                 resources={resources}
                 setResources={actions.setResources}
                 actions={actions}
+                isAdmin={isAdmin}
               />
             }
           />
@@ -121,6 +142,7 @@ export default function App() {
                 resources={resources}
                 orders={orders}
                 actions={actions}
+                isAdmin={isAdmin}
               />
             }
           />

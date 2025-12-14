@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy, ShoppingBag } from 'lucide-react'; // Добавил Copy
 import OperationRow from './OperationRow';
 
-function ProductCard({ product, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown }) {
+function ProductCard({ product, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown, isAdmin }) {
     const [isExpanded, setIsExpanded] = useState(false);
     
     // Расчет статуса по операциям
@@ -67,14 +67,15 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                 <div className="border-t border-slate-100 bg-slate-50/50 p-3 space-y-3 animate-in slide-in-from-top-1">
                     
                     {/* Редактирование параметров изделия */}
-                    <div className="flex gap-3 mb-2 bg-white p-2 rounded border border-slate-200">
+                    <div className="flex gap-3 mb-2 bg-white p-2 rounded border border-slate-200 items-end">
                         <div className="flex-1">
                             <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Название</label>
                             <input 
                                 type="text" 
                                 value={product.name} 
                                 onChange={e => actions.updateProduct(product.id, 'name', e.target.value)} 
-                                className="w-full border-b border-slate-200 py-1 text-xs font-bold text-slate-800 outline-none focus:border-orange-500 transition-colors" 
+                                disabled={!isAdmin}
+                                className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
                                 placeholder="Название детали" 
                             />
                         </div>
@@ -84,8 +85,23 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                                 type="number" 
                                 value={product.quantity} 
                                 onChange={e => actions.updateProduct(product.id, 'quantity', parseInt(e.target.value))} 
-                                className="w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none focus:border-orange-500 transition-colors" 
+                                disabled={!isAdmin}
+                                className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
                             />
+                        </div>
+                        
+                        {/* Переключатель типа (Товар/Изделие) */}
+                        <div className="flex flex-col items-center">
+                             <label className="text-[9px] font-bold text-slate-400 uppercase mb-1">Тип</label>
+                             <button
+                                onClick={() => isAdmin && actions.updateProduct(product.id, 'isResale', !product.isResale)}
+                                disabled={!isAdmin}
+                                className={`h-[26px] px-2 rounded flex items-center gap-1 transition-colors border ${product.isResale ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-slate-50 border-slate-200 text-slate-400'} ${isAdmin ? 'hover:text-slate-600' : 'cursor-default'}`}
+                                title={product.isResale ? "Товар (перепродажа)" : "Изделие (производство)"}
+                            >
+                                <ShoppingBag size={14} />
+                                <span className="text-[10px] font-bold uppercase">{product.isResale ? 'Товар' : 'Изд.'}</span>
+                            </button>
                         </div>
                     </div>
 
@@ -99,6 +115,7 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                                     productId={product.id} 
                                     actions={actions} 
                                     resources={resources} 
+                                    isAdmin={isAdmin}
                                     isOpen={openExecutorDropdown === op.id} 
                                     onToggleDropdown={() => setOpenExecutorDropdown(openExecutorDropdown === op.id ? null : op.id)}
                                 />
@@ -111,7 +128,7 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                     )}
                     
                     {/* КНОПКИ ДЕЙСТВИЙ */}
-                    <div className="flex gap-2 pt-2">
+                    {isAdmin && <div className="flex gap-2 pt-2">
                         {!product.isResale && (
                             <button
                                 onClick={() => actions.addOperation(product.id)} 
@@ -131,7 +148,7 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                                 <Copy size={14} /> ВСЕМ
                             </button>
                         )}
-                    </div>
+                    </div>}
                 </div>
              )}
         </div>

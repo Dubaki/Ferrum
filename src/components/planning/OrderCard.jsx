@@ -9,7 +9,8 @@ const OrderCard = memo(function OrderCard({
     openExecutorDropdown, setOpenExecutorDropdown,
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
     onAddProduct, // Функция добавления изделия
-    onCopyFromArchive // Функция копирования из архива
+    onCopyFromArchive, // Функция копирования из архива
+    isAdmin // Права админа
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
@@ -118,9 +119,11 @@ const OrderCard = memo(function OrderCard({
                 <div className="flex items-center justify-between gap-2 sm:hidden">
                     {/* Left: Settings + Star + Info */}
                     <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                        <button onClick={onOpenSettings} className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
-                            <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
-                        </button>
+                        {isAdmin && (
+                            <button onClick={onOpenSettings} className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
+                                <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
+                            </button>
+                        )}
 
                         <button
                             onClick={(e) => {
@@ -156,7 +159,7 @@ const OrderCard = memo(function OrderCard({
                 <div className="flex flex-wrap items-center gap-2 sm:hidden" onClick={e => e.stopPropagation()}>
                     {/* Status Button */}
                     <div className="relative">
-                        <button onClick={onToggleStatusMenu} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[10px] ${currentStatus.color}`}>
+                        <button onClick={isAdmin ? onToggleStatusMenu : undefined} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[10px] ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
                             <span className="font-black uppercase tracking-wider">{currentStatus.label}</span>
                             <ChevronDown size={12}/>
                         </button>
@@ -173,13 +176,13 @@ const OrderCard = memo(function OrderCard({
                     </div>
 
                     {/* Delivery Buttons (Mobile) */}
-                    {order.drawingsDeadline && !order.drawingsArrived && (
+                    {order.drawingsDeadline && !order.drawingsArrived && isAdmin && (
                         <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
                             className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
                             <PenTool size={10}/> {drawDiff}д
                         </button>
                     )}
-                    {order.materialsDeadline && !order.materialsArrived && (
+                    {order.materialsDeadline && !order.materialsArrived && isAdmin && (
                         <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
                             className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                             <Truck size={10}/> {matDiff}д
@@ -187,6 +190,7 @@ const OrderCard = memo(function OrderCard({
                     )}
 
                     {/* Завершить → перемещает в отгрузки (Mobile) */}
+                    {isAdmin && (
                     <button
                         onClick={() => {
                             if (window.confirm('Завершить заказ и переместить на склад?')) {
@@ -198,6 +202,7 @@ const OrderCard = memo(function OrderCard({
                     >
                         <CheckCircle size={18} />
                     </button>
+                    )}
                 </div>
 
                 {/* Desktop: Full Row Layout */}
@@ -211,9 +216,11 @@ const OrderCard = memo(function OrderCard({
                         </button>
 
                         {/* Settings */}
-                        <button onClick={onOpenSettings} className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
-                            <Settings size={14} />
-                        </button>
+                        {isAdmin && (
+                            <button onClick={onOpenSettings} className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-md shrink-0 border border-slate-700">
+                                <Settings size={14} />
+                            </button>
+                        )}
 
                         {/* Star */}
                         <button
@@ -244,7 +251,7 @@ const OrderCard = memo(function OrderCard({
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 z-20" onClick={e => e.stopPropagation()}>
                         
                         {/* Кнопки поставок (слева от статуса) */}
-                        <div className="flex items-center gap-2">
+                        {isAdmin && <div className="flex items-center gap-2">
                     {order.drawingsDeadline && !order.drawingsArrived && (
                         <button
                             onClick={() => {
@@ -303,12 +310,12 @@ const OrderCard = memo(function OrderCard({
                                 }
                             </div>
                         </button>
-                    )}
-                        </div>
+                    )} 
+                        </div>}
 
                         {/* Статус (по центру) */}
                         <div className="relative">
-                        <button onClick={onToggleStatusMenu} className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color}`}>
+                        <button onClick={isAdmin ? onToggleStatusMenu : undefined} className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
                             <span className="text-xs font-black uppercase tracking-wider">{currentStatus.label}</span>
                             <ChevronDown size={14}/>
                         </button>
@@ -403,6 +410,7 @@ const OrderCard = memo(function OrderCard({
                         </div>
 
                         {/* Завершить → перемещает в отгрузки */}
+                        {isAdmin && (
                         <button
                             onClick={() => {
                                 if (window.confirm('Завершить заказ и переместить на склад?')) {
@@ -414,6 +422,7 @@ const OrderCard = memo(function OrderCard({
                         >
                             <CheckCircle size={22} />
                         </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -429,6 +438,7 @@ const OrderCard = memo(function OrderCard({
                                 actions={actions} 
                                 resources={resources}
                                 sortedResources={resources}
+                                isAdmin={isAdmin}
                                 openExecutorDropdown={openExecutorDropdown}
                                 setOpenExecutorDropdown={setOpenExecutorDropdown}
                             />
@@ -436,6 +446,7 @@ const OrderCard = memo(function OrderCard({
                     </div>
                     
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
+                    {isAdmin && (
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <button
                             onClick={() => onAddProduct()}
@@ -451,6 +462,7 @@ const OrderCard = memo(function OrderCard({
                             <Copy size={18} /> Копировать из архива
                         </button>
                     </div>
+                    )}
                 </div>
             )}
         </div>

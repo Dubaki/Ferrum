@@ -8,7 +8,7 @@ import NewOrderModal from './NewOrderModal';
 import AddProductModal from './AddProductModal';
 import CopyFromArchiveModal from './CopyFromArchiveModal'; 
 
-export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [] }) {
+export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
   const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
@@ -90,12 +90,14 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                  />
              </div>
 
-             <button 
-                onClick={() => setIsCreating(true)} 
-                className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-xs"
-             >
-               <Plus size={16} strokeWidth={3} /> Создать заказ
-             </button>
+             {isAdmin && (
+                 <button 
+                    onClick={() => setIsCreating(true)} 
+                    className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-xs"
+                 >
+                   <Plus size={16} strokeWidth={3} /> Создать заказ
+                 </button>
+             )}
          </div>
       </div>
 
@@ -111,6 +113,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 ganttItems={ganttItems}
                 isExpanded={expandedOrderIds.includes(order.id)}
                 onToggle={() => toggleOrder(order.id)}
+                isAdmin={isAdmin}
                 openExecutorDropdown={openExecutorDropdown}
                 setOpenExecutorDropdown={setOpenExecutorDropdown}
                 
@@ -144,6 +147,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                           sortedResources={resources}
                           openExecutorDropdown={openExecutorDropdown} setOpenExecutorDropdown={setOpenExecutorDropdown}
                           isOrphan={true}
+                          isAdmin={isAdmin}
                       />
                   ))}
               </div>
