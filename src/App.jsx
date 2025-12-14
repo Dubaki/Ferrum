@@ -120,6 +120,8 @@ export default function App() {
                 resources={resources}
                 globalTimeline={globalTimeline}
                 dailyAllocations={dailyAllocations}
+                products={products}
+                orders={orders}
               />
             }
           />

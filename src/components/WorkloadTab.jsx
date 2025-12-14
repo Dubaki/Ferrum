@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react';
 
-export default function WorkloadTab({ resources, globalTimeline, dailyAllocations }) {
+export default function WorkloadTab({ resources, globalTimeline, dailyAllocations, products, orders }) {
   const [startDate, setStartDate] = useState(new Date());
   const [selectedCell, setSelectedCell] = useState(null);
-
+  
   const daysToShow = 14; 
   const dates = [];
   for (let i = 0; i < daysToShow; i++) {
@@ -12,6 +12,40 @@ export default function WorkloadTab({ resources, globalTimeline, dailyAllocation
     d.setDate(d.getDate() + i);
     dates.push(d);
   }
+
+  // Рассчитываем вручную запланированную работу
+  const manualAllocations = useMemo(() => {
+    const allocations = {}; // { [resId]: { [dateStr]: { hours: 0, tasks: [] } } }
+
+    if (!products || !orders) return allocations;
+
+    products.forEach(p => {
+      const order = orders.find(o => o.id === p.orderId);
+      p.operations.forEach(op => {
+        if (op.plannedDate && op.resourceIds?.length > 0) {
+          const opTotalHours = (op.minutesPerUnit * p.quantity) / 60;
+          if (opTotalHours > 0) {
+            const hoursPerResource = opTotalHours / op.resourceIds.length;
+            
+            op.resourceIds.forEach(resId => {
+              if (!allocations[resId]) allocations[resId] = {};
+              if (!allocations[resId][op.plannedDate]) {
+                allocations[resId][op.plannedDate] = { hours: 0, tasks: [] };
+              }
+              
+              allocations[resId][op.plannedDate].hours += hoursPerResource;
+              allocations[resId][op.plannedDate].tasks.push({
+                name: op.name, productName: p.name,
+                orderNumber: order?.orderNumber || '...',
+                hours: hoursPerResource, isManual: true // Флаг для ручного планирования
+              });
+            });
+          }
+        }
+      });
+    });
+    return allocations;
+  }, [products, orders]);
 
   const shiftDates = (days) => {
       const newDate = new Date(startDate);
@@ -28,16 +62,22 @@ export default function WorkloadTab({ resources, globalTimeline, dailyAllocation
       return 'bg-rose-200 text-rose-900 font-black animate-pulse'; // Перегрузка
   };
 
-  const handleCellClick = (res, dateStr, booked) => {
-      if (booked === 0) return;
-      const tasks = dailyAllocations && dailyAllocations[res.id] && dailyAllocations[res.id][dateStr] 
-        ? dailyAllocations[res.id][dateStr] 
-        : [];
+  const handleCellClick = (res, dateStr) => {
+      const simHours = globalTimeline[res.id]?.[dateStr] || 0;
+      const manualData = manualAllocations[res.id]?.[dateStr];
+      const manualHours = manualData?.hours || 0;
+      const totalBooked = simHours + manualHours;
+
+      if (totalBooked === 0) return;
+
+      const simTasks = dailyAllocations?.[res.id]?.[dateStr] || [];
+      const manualTasks = manualData?.tasks || [];
+
       setSelectedCell({
           resName: res.name,
           dateStr: new Date(dateStr).toLocaleDateString('ru-RU'),
-          totalHours: booked,
-          tasks: tasks
+          totalHours: totalBooked,
+          tasks: [...simTasks, ...manualTasks]
       });
   };
 
@@ -97,25 +137,26 @@ export default function WorkloadTab({ resources, globalTimeline, dailyAllocation
                             {/* Ячейки дней */}
                             {dates.map((date, idx) => {
                                 const dateStr = date.toISOString().split('T')[0];
-                                const booked = globalTimeline[res.id] && globalTimeline[res.id][dateStr] 
-                                    ? globalTimeline[res.id][dateStr] 
-                                    : 0;
+                                
+                                const simBooked = globalTimeline[res.id]?.[dateStr] || 0;
+                                const manualBooked = manualAllocations[res.id]?.[dateStr]?.hours || 0;
+                                const totalBooked = simBooked + manualBooked;
                                 
                                 const maxHours = (res.scheduleOverrides && res.scheduleOverrides[dateStr] !== undefined) 
                                     ? res.scheduleOverrides[dateStr] 
                                     : res.hoursPerDay;
                                 
-                                const cellClass = getCellColor(booked, maxHours);
+                                const cellClass = getCellColor(totalBooked, maxHours);
                                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
                                 return (
                                     <td 
                                         key={idx} 
                                         className={`p-0 border-2 border-slate-300 text-center relative ${isWeekend ? 'bg-rose-50/40 pattern-diagonal-lines' : ''}`}
-                                        onClick={() => handleCellClick(res, dateStr, booked)}
+                                        onClick={() => handleCellClick(res, dateStr)}
                                     >
-                                        <div className={`w-full h-12 flex items-center justify-center text-xs transition-all ${booked > 0 ? 'cursor-pointer hover:opacity-80' : ''} ${cellClass}`}>
-                                            {booked > 0 ? booked.toFixed(1) : ''}
+                                        <div className={`w-full h-12 flex items-center justify-center text-xs transition-all ${totalBooked > 0 ? 'cursor-pointer hover:opacity-80' : ''} ${cellClass}`}>
+                                            {totalBooked > 0 ? totalBooked.toFixed(1) : ''}
                                         </div>
                                     </td>
                                 );
@@ -146,7 +187,9 @@ export default function WorkloadTab({ resources, globalTimeline, dailyAllocation
                                 <div key={idx} className="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0">
                                     <div>
                                         <div className="font-bold text-slate-800 text-sm">{task.productName}</div>
-                                        <div className="text-xs text-indigo-600 font-medium">{task.name}</div>
+                                        <div className={`text-xs font-medium ${task.isManual ? 'text-orange-600' : 'text-indigo-600'}`}>
+                                            {task.isManual && '📅 '}{task.name}
+                                        </div>
                                         {task.orderNumber && <div className="text-[10px] text-slate-400">Заказ {task.orderNumber}</div>}
                                     </div>
                                     <div className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded text-sm">
