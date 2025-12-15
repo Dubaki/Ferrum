@@ -25,9 +25,9 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
     const totalPlan = product.operations.reduce((acc, op) => acc + (op.minutesPerUnit * product.quantity), 0);
     const totalFact = product.operations.reduce((acc, op) => acc + ((op.actualMinutes || 0) * product.quantity), 0);
 
-    // Находим последнюю выполненную операцию
+    // Находим следующую невыполненную операцию (первую без фактического времени)
     const sortedOps = [...(product.operations || [])].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-    const lastCompletedOp = sortedOps.reverse().find(op => op.isCompleted);
+    const nextOp = sortedOps.find(op => (op.actualMinutes || 0) === 0);
 
     return (
         <div className={`bg-white rounded-lg border shadow-sm transition-all duration-200 overflow-visible ${isExpanded ? 'border-orange-300 ring-1 ring-orange-100 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
@@ -44,25 +44,26 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                         </span>
                     )}
                     <span className="text-slate-400 text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded">x{product.quantity}</span>
-                    
-                    {!product.isResale && lastCompletedOp && (
+
+                    {/* Показываем следующую операцию */}
+                    {!product.isResale && nextOp && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full uppercase tracking-wide ml-2">
+                            Следующая: {nextOp.name}
+                        </span>
+                    )}
+                    {/* Если все выполнено - показываем "Готово" */}
+                    {!product.isResale && !nextOp && totalOps > 0 && (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide ml-2">
-                            <CheckCircle size={10} /> {lastCompletedOp.name}
+                            <CheckCircle size={10} /> Готово
                         </span>
                     )}
                 </div>
                 
                 <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
                     {!product.isResale && (
-                        <>
-                            <span className="hidden sm:flex items-center gap-1 bg-slate-50 px-2 py-1 rounded text-slate-400">
-                                <Clock size={12}/> {(totalFact/60).toFixed(1)} / {(totalPlan/60).toFixed(1)} ч
-                            </span>
-                            <span className="flex items-center gap-1 font-bold">
-                                <CheckCircle size={12} className={isDone ? 'text-emerald-500' : 'text-slate-300'}/> 
-                                {doneOps}/{totalOps}
-                            </span>
-                        </>
+                        <span className="hidden sm:flex items-center gap-1 bg-slate-50 px-2 py-1 rounded text-slate-400">
+                            <Clock size={12}/> {(totalFact/60).toFixed(1)} / {(totalPlan/60).toFixed(1)} ч
+                        </span>
                     )}
                     
                     <div className="flex gap-1 pl-2 border-l border-slate-100" onClick={e => e.stopPropagation()}>
@@ -118,18 +119,26 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                     {/* Список операций */}
                     {!product.isResale ? (
                         <div className="space-y-2">
-                            {product.operations.map((op, idx) => (
-                                <OperationRow 
-                                    key={op.id} 
-                                    op={op} 
-                                    productId={product.id} 
-                                    actions={actions} 
-                                    resources={resources} 
-                                    isAdmin={isAdmin}
-                                    isOpen={openExecutorDropdown === op.id} 
-                                    onToggleDropdown={() => setOpenExecutorDropdown(openExecutorDropdown === op.id ? null : op.id)}
-                                />
-                            ))}
+                            {/* Сортируем операции по sequence перед отображением */}
+                            {(() => {
+                                const sortedOps = [...product.operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+                                return sortedOps.map((op, idx) => (
+                                    <OperationRow
+                                        key={op.id}
+                                        op={op}
+                                        productId={product.id}
+                                        actions={actions}
+                                        resources={resources}
+                                        isAdmin={isAdmin}
+                                        isOpen={openExecutorDropdown === op.id}
+                                        onToggleDropdown={() => setOpenExecutorDropdown(openExecutorDropdown === op.id ? null : op.id)}
+                                        isFirst={idx === 0}
+                                        isLast={idx === sortedOps.length - 1}
+                                        onMoveUp={() => actions.moveOperationUp(product.id, op.id)}
+                                        onMoveDown={() => actions.moveOperationDown(product.id, op.id)}
+                                    />
+                                ));
+                            })()}
                         </div>
                     ) : (
                         <div className="p-4 bg-cyan-50/50 rounded-lg border border-cyan-100 text-center text-cyan-800 text-xs font-medium">

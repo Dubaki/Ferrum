@@ -342,6 +342,82 @@ export const useProductionData = () => {
     }
   };
 
+  const moveOperationUp = async (productId, opId) => {
+    try {
+      console.log('moveOperationUp called', { productId, opId });
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        console.log('Product not found');
+        return;
+      }
+
+      // ВАЖНО: Сначала сортируем операции по sequence
+      const sortedOps = [...product.operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+      console.log('Sorted ops:', sortedOps.map(op => ({ name: op.name, seq: op.sequence })));
+
+      const idx = sortedOps.findIndex(op => op.id === opId);
+      console.log('Found index:', idx);
+
+      if (idx <= 0) {
+        console.log('Already first, cannot move up');
+        return; // Уже первая
+      }
+
+      // Меняем местами
+      [sortedOps[idx - 1], sortedOps[idx]] = [sortedOps[idx], sortedOps[idx - 1]];
+      console.log('After swap:', sortedOps.map(op => ({ name: op.name, seq: op.sequence })));
+
+      // Пересчитываем sequence
+      sortedOps.forEach((op, i) => op.sequence = i + 1);
+      console.log('After resequence:', sortedOps.map(op => ({ name: op.name, seq: op.sequence })));
+
+      await updateDoc(doc(db, 'products', productId), { operations: sortedOps });
+      console.log('Updated in Firebase');
+    } catch (error) {
+      console.error('moveOperationUp error:', error);
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
+  const moveOperationDown = async (productId, opId) => {
+    try {
+      console.log('moveOperationDown called', { productId, opId });
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        console.log('Product not found');
+        return;
+      }
+
+      // ВАЖНО: Сначала сортируем операции по sequence
+      const sortedOps = [...product.operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+      console.log('Sorted ops:', sortedOps.map(op => ({ name: op.name, seq: op.sequence })));
+
+      const idx = sortedOps.findIndex(op => op.id === opId);
+      console.log('Found index:', idx);
+
+      if (idx < 0 || idx >= sortedOps.length - 1) {
+        console.log('Already last, cannot move down');
+        return; // Уже последняя
+      }
+
+      // Меняем местами
+      [sortedOps[idx], sortedOps[idx + 1]] = [sortedOps[idx + 1], sortedOps[idx]];
+      console.log('After swap:', sortedOps.map(op => ({ name: op.name, seq: op.sequence })));
+
+      // Пересчитываем sequence
+      sortedOps.forEach((op, i) => op.sequence = i + 1);
+      console.log('After resequence:', sortedOps.map(op => ({ name: op.name, seq: op.sequence })));
+
+      await updateDoc(doc(db, 'products', productId), { operations: sortedOps });
+      console.log('Updated in Firebase');
+    } catch (error) {
+      console.error('moveOperationDown error:', error);
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
   // --- Resources ---
   const addResource = async (data) => {
     try {
@@ -484,6 +560,7 @@ export const useProductionData = () => {
         moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
         addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
+        moveOperationUp, moveOperationDown,
         addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
         fireResource, deleteResource, addReport, deleteReport
     }

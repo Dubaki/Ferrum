@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Settings, Trash2, Save, PenTool, Truck, Droplet } from 'lucide-react';
 
 export default function OrderSettingsModal({ order, onClose, actions }) {
@@ -33,9 +34,9 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-white/10 flex flex-col max-h-[90vh]">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-white/10 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 
                 <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
                     <h3 className="font-bold text-lg flex items-center gap-2"><Settings size={20}/> Параметры заказа</h3>
@@ -148,6 +149,7 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

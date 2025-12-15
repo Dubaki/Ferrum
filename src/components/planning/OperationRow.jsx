@@ -1,18 +1,50 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
 
-function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown, isAdmin }) {
+function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
-    const rowClass = op.isCompleted 
-        ? "grid grid-cols-12 gap-2 items-center bg-emerald-50/60 p-2 rounded border border-emerald-200 relative shadow-sm transition-colors"
+    // Операция считается выполненной если есть фактическое время
+    const isCompleted = (op.actualMinutes || 0) > 0;
+
+    const rowClass = isCompleted
+        ? "grid grid-cols-12 gap-2 items-center bg-emerald-100 p-2 rounded border border-emerald-300 relative shadow-sm transition-colors"
         : "grid grid-cols-12 gap-2 items-center bg-white p-2 rounded border border-slate-200 relative shadow-sm hover:border-orange-200 transition-colors";
 
     return (
         <div className={rowClass}>
-            <div className="col-span-1 text-[10px] text-slate-400 text-center font-mono">{op.sequence}</div>
-            
+            {/* Кнопки порядка */}
+            {isAdmin && (
+                <div className="col-span-1 flex flex-col gap-0.5">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Move Up clicked:', op.name, 'isFirst:', isFirst);
+                            onMoveUp();
+                        }}
+                        disabled={isFirst}
+                        className={`p-0.5 rounded transition-colors ${isFirst ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                        title="Переместить вверх"
+                    >
+                        <ChevronUp size={14} />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Move Down clicked:', op.name, 'isLast:', isLast);
+                            onMoveDown();
+                        }}
+                        disabled={isLast}
+                        className={`p-0.5 rounded transition-colors ${isLast ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                        title="Переместить вниз"
+                    >
+                        <ChevronDown size={14} />
+                    </button>
+                </div>
+            )}
+            {!isAdmin && <div className="col-span-1"></div>}
+
             {/* Выбор названия */}
             <div className="col-span-3">
                 {STANDARD_OPERATIONS ? (
@@ -39,24 +71,24 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
                 )}
             </div>
 
-            {/* Дата выполнения */}
+            {/* Дата выполнения + Галочка готовности */}
             <div className="col-span-2 flex items-center gap-1">
-                <input 
-                    type="date" 
-                    value={op.plannedDate || ''} 
-                    onChange={e => actions.updateOperation(productId, op.id, 'plannedDate', e.target.value)} 
+                <input
+                    type="date"
+                    value={op.plannedDate || ''}
+                    onChange={e => actions.updateOperation(productId, op.id, 'plannedDate', e.target.value)}
                     disabled={!isAdmin}
                     className={`flex-1 min-w-0 text-[10px] font-medium text-slate-600 bg-slate-50 rounded py-1 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
                 />
-                {isAdmin && (
-                    <input 
-                        type="checkbox" 
-                        checked={op.isCompleted || false} 
-                        onChange={e => actions.updateOperation(productId, op.id, 'isCompleted', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer shrink-0"
-                        title="Отметить как выполненное"
-                    />
-                )}
+                {/* Галочка готовности (автоматическая, только для отображения) */}
+                <input
+                    type="checkbox"
+                    checked={isCompleted}
+                    readOnly
+                    disabled
+                    className="w-4 h-4 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
+                    title={isCompleted ? "Выполнено (есть фактическое время)" : "Не выполнено"}
+                />
             </div>
             
             {/* Исполнитель (Выпадающий список) */}

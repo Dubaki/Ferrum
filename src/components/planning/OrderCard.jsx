@@ -112,7 +112,7 @@ const OrderCard = memo(function OrderCard({
     const borderClass = isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border;
 
     return (
-        <div className={`relative rounded-lg shadow-sm transition-all duration-200 border border-slate-200/60 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10 border-slate-300' : 'hover:shadow-md hover:border-slate-300/80'}`}>
+        <div className={`relative rounded-lg shadow-sm transition-all duration-200 border border-slate-200/60 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10 border-slate-300' : 'hover:shadow-md hover:border-slate-300/80'} ${isStatusMenuOpen ? 'z-[998]' : ''}`}>
             <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 relative cursor-pointer" onClick={onToggle}>
 
                 {/* Mobile: Header Row */}
@@ -164,7 +164,7 @@ const OrderCard = memo(function OrderCard({
                             <ChevronDown size={12}/>
                         </button>
                         {isStatusMenuOpen && (
-                            <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[200] border border-slate-200 animate-in zoom-in-95">
+                            <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[1000] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
                                     <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-2.5 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
@@ -172,7 +172,7 @@ const OrderCard = memo(function OrderCard({
                                 ))}
                             </div>
                         )}
-                        {isStatusMenuOpen && <div className="fixed inset-0 z-[150]" onClick={onToggleStatusMenu}></div>}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={onToggleStatusMenu}></div>}
                     </div>
 
                     {/* Delivery Buttons (Mobile) */}
@@ -320,7 +320,7 @@ const OrderCard = memo(function OrderCard({
                             <ChevronDown size={14}/>
                         </button>
                         {isStatusMenuOpen && (
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white shadow-2xl rounded-xl p-2 z-[200] border border-slate-200 animate-in zoom-in-95">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white shadow-2xl rounded-xl p-2 z-[1000] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
                                     <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-3 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
@@ -328,7 +328,7 @@ const OrderCard = memo(function OrderCard({
                                 ))}
                             </div>
                         )}
-                        {isStatusMenuOpen && <div className="fixed inset-0 z-[150]" onClick={onToggleStatusMenu}></div>}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={onToggleStatusMenu}></div>}
                     </div>
                     </div>
 

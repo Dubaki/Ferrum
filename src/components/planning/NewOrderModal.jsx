@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { createPortal } from 'react-dom';
 import { X, Save, PenTool, Truck, Calendar, Droplet, AlertCircle } from 'lucide-react';
 import { orderSchema } from '../../utils/validation';
 
@@ -52,9 +53,9 @@ export default function NewOrderModal({ onClose, onCreate }) {
     </p>
   ) : null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
           <h3 className="font-bold text-lg">Новый заказ: Входной контроль</h3>
           <button onClick={onClose} type="button"><X size={20}/></button>
@@ -180,6 +181,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

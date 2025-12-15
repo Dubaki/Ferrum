@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Flame, Zap, Box, Layers, PackagePlus, ArrowRight, ShoppingBag } from 'lucide-react';
 import { PRESETS } from '../../utils/presets';
 
@@ -15,20 +16,20 @@ export default function AddProductModal({ onClose, onAdd }) {
 
     const handleCustom = () => {
         // Пустое изделие
-        onAdd([{ 
-            name: isResaleCustom ? 'Товар для перепродажи' : 'Новое изделие', 
+        onAdd([{
+            name: isResaleCustom ? 'Товар для перепродажи' : 'Новое изделие',
             ops: [],
             isResale: isResaleCustom
         }]);
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 
                 {/* Header */}
-                <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0">
+                <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0" onClick={e => e.stopPropagation()}>
                     <div>
                         <h2 className="text-2xl font-black uppercase tracking-wide">Добавить в производство</h2>
                         <p className="text-slate-400 text-sm">Выберите готовый комплект или отдельное изделие</p>
@@ -155,6 +156,7 @@ export default function AddProductModal({ onClose, onAdd }) {
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

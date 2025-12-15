@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Archive, ChevronDown, ChevronRight, AlertTriangle, Clock, Package } from 'lucide-react';
 
 export default function CopyFromArchiveModal({ onClose, onCopy, orders, products }) {
@@ -110,9 +111,9 @@ export default function CopyFromArchiveModal({ onClose, onCopy, orders, products
         });
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 text-white flex justify-between items-start shrink-0">
@@ -351,6 +352,7 @@ export default function CopyFromArchiveModal({ onClose, onCopy, orders, products
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
