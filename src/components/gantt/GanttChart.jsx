@@ -134,10 +134,10 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                         const isOrder = item.type === 'order';
                         const bar = getBarStyles(item);
 
-                        // Маркеры показываются только если дата есть И товар еще НЕ прибыл
-                        const drawLeft = isOrder && item.drawingsDeadline && !item.drawingsArrived ? getMarkerPosition(item.drawingsDeadline) : null;
-                        const matLeft = isOrder && item.materialsDeadline && !item.materialsArrived ? getMarkerPosition(item.materialsDeadline) : null;
-                        const paintLeft = isOrder && item.paintDeadline && !item.paintArrived ? getMarkerPosition(item.paintDeadline) : null;
+                        // Маркеры показываются если дата установлена
+                        const drawLeft = isOrder && item.drawingsDeadline ? getMarkerPosition(item.drawingsDeadline) : null;
+                        const matLeft = isOrder && item.materialsDeadline ? getMarkerPosition(item.materialsDeadline) : null;
+                        const paintLeft = isOrder && item.paintDeadline ? getMarkerPosition(item.paintDeadline) : null;
                         const deadlineLeft = isOrder && item.deadline ? getMarkerPosition(item.deadline) : null;
 
                         // Подсветка важного заказа
@@ -198,8 +198,8 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
 
                                     {matLeft !== null && (
                                         <div className="absolute top-1/2 -translate-y-1/2 z-30 flex flex-col items-center group/marker" style={{ left: matLeft }} title={`Металл: ${new Date(item.materialsDeadline).toLocaleDateString()}`}>
-                                            <div className="w-0.5 h-full bg-rose-300 absolute -top-10 bottom-0 pointer-events-none opacity-50 border-l border-dashed border-rose-400"></div>
-                                            <div className="w-6 h-6 bg-rose-100 border-2 border-rose-500 rounded-full flex items-center justify-center text-rose-700 shadow-sm z-10 relative hover:scale-125 transition-transform"><Truck size={12}/></div>
+                                            <div className="w-0.5 h-full bg-orange-300 absolute -top-10 bottom-0 pointer-events-none opacity-50 border-l border-dashed border-orange-400"></div>
+                                            <div className="w-6 h-6 bg-orange-100 border-2 border-orange-500 rounded-full flex items-center justify-center text-orange-700 shadow-sm z-10 relative hover:scale-125 transition-transform"><Truck size={12}/></div>
                                         </div>
                                     )}
 
