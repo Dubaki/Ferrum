@@ -216,16 +216,32 @@ const OrderCard = memo(function OrderCard({
                     </div>
 
                     {/* Delivery Buttons (Mobile) */}
-                    {order.drawingsDeadline && !order.drawingsArrived && isAdmin && (
-                        <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                            <PenTool size={10}/> {drawDiff}д
+                    {order.drawingsDeadline && isAdmin && (
+                        <button
+                            onClick={() => !order.drawingsArrived && window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${
+                                order.drawingsArrived
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
+                                    : drawDiff < 0
+                                        ? 'bg-red-50 border-red-200 text-red-700'
+                                        : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                            }`}
+                        >
+                            {order.drawingsArrived ? <CheckCircle size={10}/> : <PenTool size={10}/>} {order.drawingsArrived ? '✓' : `${drawDiff}д`}
                         </button>
                     )}
-                    {order.materialsDeadline && !order.materialsArrived && isAdmin && (
-                        <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                            <Truck size={10}/> {matDiff}д
+                    {order.materialsDeadline && isAdmin && (
+                        <button
+                            onClick={() => !order.materialsArrived && window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${
+                                order.materialsArrived
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
+                                    : matDiff < 0
+                                        ? 'bg-red-50 border-red-200 text-red-700'
+                                        : 'bg-amber-50 border-amber-200 text-amber-700'
+                            }`}
+                        >
+                            {order.materialsArrived ? <CheckCircle size={10}/> : <Truck size={10}/>} {order.materialsArrived ? '✓' : `${matDiff}д`}
                         </button>
                     )}
 
@@ -309,62 +325,79 @@ const OrderCard = memo(function OrderCard({
                         
                         {/* Кнопки поставок (слева от статуса) */}
                         {isAdmin && <div className="flex items-center gap-2">
-                    {order.drawingsDeadline && !order.drawingsArrived && (
+                    {order.drawingsDeadline && (
                         <button
                             onClick={() => {
-                                if (window.confirm('Подтвердить прибытие КМД?')) {
+                                if (!order.drawingsArrived && window.confirm('Подтвердить прибытие КМД?')) {
                                     actions.updateOrder(order.id, 'drawingsArrived', true);
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
-                                drawDiff < 0
-                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all ${
+                                order.drawingsArrived
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm cursor-default'
+                                    : drawDiff < 0
+                                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105 active:scale-95'
+                                        : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm hover:scale-105 active:scale-95'
                             }`}
-                            title="Нажмите для подтверждения прибытия"
+                            title={order.drawingsArrived ? "КМД прибыл" : "Нажмите для подтверждения прибытия"}
                         >
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><PenTool size={10}/> КМД</div>
-                            <div className="font-bold text-xs leading-none mt-0.5">{drawDiff < 0 ? `-${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`)}</div>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
+                                {order.drawingsArrived ? <CheckCircle size={10}/> : <PenTool size={10}/>} КМД
+                            </div>
+                            <div className="font-bold text-xs leading-none mt-0.5">
+                                {order.drawingsArrived ? '✓ Прибыл' : (drawDiff < 0 ? `-${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`))}
+                            </div>
                         </button>
                     )}
-                    {order.materialsDeadline && !order.materialsArrived && (
+                    {order.materialsDeadline && (
                         <button
                             onClick={() => {
-                                if (window.confirm('Подтвердить прибытие материалов?')) {
+                                if (!order.materialsArrived && window.confirm('Подтвердить прибытие материалов?')) {
                                     actions.updateOrder(order.id, 'materialsArrived', true);
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
-                                matDiff < 0
-                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-sm'
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all ${
+                                order.materialsArrived
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm cursor-default'
+                                    : matDiff < 0
+                                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105 active:scale-95'
+                                        : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-sm hover:scale-105 active:scale-95'
                             }`}
-                            title="Нажмите для подтверждения прибытия"
+                            title={order.materialsArrived ? "Материалы прибыли" : "Нажмите для подтверждения прибытия"}
                         >
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Truck size={10}/> Материалы</div>
-                            <div className="font-bold text-xs leading-none mt-0.5">{matDiff < 0 ? `-${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`)}</div>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
+                                {order.materialsArrived ? <CheckCircle size={10}/> : <Truck size={10}/>} Материалы
+                            </div>
+                            <div className="font-bold text-xs leading-none mt-0.5">
+                                {order.materialsArrived ? '✓ Прибыли' : (matDiff < 0 ? `-${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`))}
+                            </div>
                         </button>
                     )}
-                    {order.paintDeadline && !order.paintArrived && (
+                    {order.paintDeadline && (
                         <button
                             onClick={() => {
-                                if (window.confirm('Подтвердить прибытие краски?')) {
+                                if (!order.paintArrived && window.confirm('Подтвердить прибытие краски?')) {
                                     actions.updateOrder(order.id, 'paintArrived', true);
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
-                                getCountdown(order.paintDeadline) < 0
-                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                    : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-sm'
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all ${
+                                order.paintArrived
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm cursor-default'
+                                    : getCountdown(order.paintDeadline) < 0
+                                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105 active:scale-95'
+                                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-sm hover:scale-105 active:scale-95'
                             }`}
-                            title="Нажмите для подтверждения прибытия"
+                            title={order.paintArrived ? "Краска прибыла" : "Нажмите для подтверждения прибытия"}
                         >
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Droplet size={10}/> Краска</div>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
+                                {order.paintArrived ? <CheckCircle size={10}/> : <Droplet size={10}/>} Краска
+                            </div>
                             <div className="font-bold text-xs leading-none mt-0.5">
-                                {getCountdown(order.paintDeadline) < 0
-                                    ? `-${Math.abs(getCountdown(order.paintDeadline))} дн`
-                                    : (getCountdown(order.paintDeadline) === 0 ? 'Сегодня' : `${getCountdown(order.paintDeadline)} дн`)
-                                }
+                                {order.paintArrived ? '✓ Прибыла' : (
+                                    getCountdown(order.paintDeadline) < 0
+                                        ? `-${Math.abs(getCountdown(order.paintDeadline))} дн`
+                                        : (getCountdown(order.paintDeadline) === 0 ? 'Сегодня' : `${getCountdown(order.paintDeadline)} дн`)
+                                )}
                             </div>
                         </button>
                     )} 
