@@ -24,6 +24,10 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const monthDays = Array.from({length: daysInMonth}, (_, i) => i + 1);
 
+    // Исключаем определенные должности из КТУ
+    const excludedPositions = ['Мастер', 'Технолог', 'Электрик', 'Стажёр', 'Плазморез'];
+    const filteredResources = resources.filter(res => !excludedPositions.includes(res.position));
+
     const handleSafetyClick = (res) => {
         const violation = res.safetyViolations?.[dateStr];
         const isViolated = violation?.violated;
@@ -124,7 +128,7 @@ export default function MasterEfficiencyView({ resources, actions }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {resources.map((res, idx) => (
+                                {filteredResources.map((res, idx) => (
                                     <tr key={res.id} className={`transition-colors ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} hover:bg-blue-50`}>
                                         <td className={`p-3 text-left sticky left-0 border-r-4 border-b-2 border-slate-300 font-bold text-slate-800 shadow-md z-10 ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}`}>
                                             <div className="truncate">{res.name}</div>
@@ -188,7 +192,7 @@ export default function MasterEfficiencyView({ resources, actions }) {
 
             {/* Карточки ввода */}
             <div className="grid gap-3">
-                {resources.map(res => {
+                {filteredResources.map(res => {
                     const currentEff = (res.dailyEfficiency && res.dailyEfficiency[dateStr]) || 0;
                     const violation = res.safetyViolations?.[dateStr];
                     const isSafetyViolated = violation?.violated;
