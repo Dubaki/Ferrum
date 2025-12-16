@@ -14,7 +14,7 @@ const OrderCard = memo(function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
-
+    
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     let totalPlanMins = 0;
     let totalFactMins = 0;
@@ -27,27 +27,10 @@ const OrderCard = memo(function OrderCard({
             p.operations.forEach(op => {
                 const qty = p.quantity || 1;
                 totalPlanMins += (op.minutesPerUnit || 0) * qty;
-                totalFactMins += (op.actualMinutes || 0);
+                totalFactMins += (op.actualMinutes || 0); 
             });
         }
     });
-
-    // --- ПОИСК СЛЕДУЮЩЕЙ ОПЕРАЦИИ ДЛЯ ВСЕГО ЗАКАЗА ---
-    let nextOrderOp = null;
-    let nextOpProductName = null;
-
-    for (const product of orderPositions) {
-        if (product.isResale) continue;
-
-        const sortedOps = [...(product.operations || [])].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-        const productNextOp = sortedOps.find(op => (op.actualMinutes || 0) === 0);
-
-        if (productNextOp) {
-            nextOrderOp = productNextOp;
-            nextOpProductName = product.name;
-            break; // Берем первую найденную невыполненную операцию
-        }
-    }
 
     const remainingMins = Math.max(0, totalPlanMins - totalFactMins);
     const remainingManHours = (remainingMins / 60).toFixed(1);
@@ -168,23 +151,6 @@ const OrderCard = memo(function OrderCard({
                             <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 truncate uppercase tracking-wider">
                                 <User size={10} className="sm:w-3 sm:h-3" /> {order.clientName || 'Клиент не указан'}
                             </div>
-                            {/* Следующая операция */}
-                            {!isResaleOrder && nextOrderOp && (
-                                <div className="mt-1 flex items-center gap-1">
-                                    <span className="text-[9px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded uppercase tracking-wide">
-                                        → {nextOrderOp.name}
-                                    </span>
-                                    <span className="text-[8px] text-slate-400 truncate">({nextOpProductName})</span>
-                                </div>
-                            )}
-                            {/* Если все выполнено */}
-                            {!isResaleOrder && !nextOrderOp && totalPlanMins > 0 && (
-                                <div className="mt-1">
-                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wide flex items-center gap-1 w-fit">
-                                        <CheckCircle size={9} /> Готово
-                                    </span>
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -216,32 +182,16 @@ const OrderCard = memo(function OrderCard({
                     </div>
 
                     {/* Delivery Buttons (Mobile) */}
-                    {order.drawingsDeadline && isAdmin && (
-                        <button
-                            onClick={() => !order.drawingsArrived && window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${
-                                order.drawingsArrived
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
-                                    : drawDiff < 0
-                                        ? 'bg-red-50 border-red-200 text-red-700'
-                                        : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                            }`}
-                        >
-                            {order.drawingsArrived ? <CheckCircle size={10}/> : <PenTool size={10}/>} {order.drawingsArrived ? '✓' : `${drawDiff}д`}
+                    {order.drawingsDeadline && !order.drawingsArrived && isAdmin && (
+                        <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                            <PenTool size={10}/> {drawDiff}д
                         </button>
                     )}
-                    {order.materialsDeadline && isAdmin && (
-                        <button
-                            onClick={() => !order.materialsArrived && window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${
-                                order.materialsArrived
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
-                                    : matDiff < 0
-                                        ? 'bg-red-50 border-red-200 text-red-700'
-                                        : 'bg-amber-50 border-amber-200 text-amber-700'
-                            }`}
-                        >
-                            {order.materialsArrived ? <CheckCircle size={10}/> : <Truck size={10}/>} {order.materialsArrived ? '✓' : `${matDiff}д`}
+                    {order.materialsDeadline && !order.materialsArrived && isAdmin && (
+                        <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                            <Truck size={10}/> {matDiff}д
                         </button>
                     )}
 
@@ -300,23 +250,6 @@ const OrderCard = memo(function OrderCard({
                             <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-1 truncate uppercase tracking-wider">
                                 <User size={10} /> {order.clientName || 'Клиент не указан'}
                             </div>
-                            {/* Следующая операция */}
-                            {!isResaleOrder && nextOrderOp && (
-                                <div className="mt-1.5 flex items-center gap-1.5">
-                                    <span className="text-[10px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap">
-                                        → {nextOrderOp.name}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400 truncate">({nextOpProductName})</span>
-                                </div>
-                            )}
-                            {/* Если все выполнено */}
-                            {!isResaleOrder && !nextOrderOp && totalPlanMins > 0 && (
-                                <div className="mt-1.5">
-                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide flex items-center gap-1 w-fit">
-                                        <CheckCircle size={10} /> Готово
-                                    </span>
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -325,79 +258,62 @@ const OrderCard = memo(function OrderCard({
                         
                         {/* Кнопки поставок (слева от статуса) */}
                         {isAdmin && <div className="flex items-center gap-2">
-                    {order.drawingsDeadline && (
+                    {order.drawingsDeadline && !order.drawingsArrived && (
                         <button
                             onClick={() => {
-                                if (!order.drawingsArrived && window.confirm('Подтвердить прибытие КМД?')) {
+                                if (window.confirm('Подтвердить прибытие КМД?')) {
                                     actions.updateOrder(order.id, 'drawingsArrived', true);
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all ${
-                                order.drawingsArrived
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm cursor-default'
-                                    : drawDiff < 0
-                                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105 active:scale-95'
-                                        : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm hover:scale-105 active:scale-95'
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
+                                drawDiff < 0
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
                             }`}
-                            title={order.drawingsArrived ? "КМД прибыл" : "Нажмите для подтверждения прибытия"}
+                            title="Нажмите для подтверждения прибытия"
                         >
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
-                                {order.drawingsArrived ? <CheckCircle size={10}/> : <PenTool size={10}/>} КМД
-                            </div>
-                            <div className="font-bold text-xs leading-none mt-0.5">
-                                {order.drawingsArrived ? '✓ Прибыл' : (drawDiff < 0 ? `-${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`))}
-                            </div>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><PenTool size={10}/> КМД</div>
+                            <div className="font-bold text-xs leading-none mt-0.5">{drawDiff < 0 ? `-${Math.abs(drawDiff)} дн` : (drawDiff === 0 ? 'Сегодня' : `${drawDiff} дн`)}</div>
                         </button>
                     )}
-                    {order.materialsDeadline && (
+                    {order.materialsDeadline && !order.materialsArrived && (
                         <button
                             onClick={() => {
-                                if (!order.materialsArrived && window.confirm('Подтвердить прибытие материалов?')) {
+                                if (window.confirm('Подтвердить прибытие материалов?')) {
                                     actions.updateOrder(order.id, 'materialsArrived', true);
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all ${
-                                order.materialsArrived
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm cursor-default'
-                                    : matDiff < 0
-                                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105 active:scale-95'
-                                        : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-sm hover:scale-105 active:scale-95'
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
+                                matDiff < 0
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-sm'
                             }`}
-                            title={order.materialsArrived ? "Материалы прибыли" : "Нажмите для подтверждения прибытия"}
+                            title="Нажмите для подтверждения прибытия"
                         >
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
-                                {order.materialsArrived ? <CheckCircle size={10}/> : <Truck size={10}/>} Материалы
-                            </div>
-                            <div className="font-bold text-xs leading-none mt-0.5">
-                                {order.materialsArrived ? '✓ Прибыли' : (matDiff < 0 ? `-${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`))}
-                            </div>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Truck size={10}/> Материалы</div>
+                            <div className="font-bold text-xs leading-none mt-0.5">{matDiff < 0 ? `-${Math.abs(matDiff)} дн` : (matDiff === 0 ? 'Сегодня' : `${matDiff} дн`)}</div>
                         </button>
                     )}
-                    {order.paintDeadline && (
+                    {order.paintDeadline && !order.paintArrived && (
                         <button
                             onClick={() => {
-                                if (!order.paintArrived && window.confirm('Подтвердить прибытие краски?')) {
+                                if (window.confirm('Подтвердить прибытие краски?')) {
                                     actions.updateOrder(order.id, 'paintArrived', true);
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all ${
-                                order.paintArrived
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm cursor-default'
-                                    : getCountdown(order.paintDeadline) < 0
-                                        ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105 active:scale-95'
-                                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-sm hover:scale-105 active:scale-95'
+                            className={`flex flex-col items-center justify-center w-20 py-1.5 rounded-lg border-2 transition-all hover:scale-105 active:scale-95 ${
+                                getCountdown(order.paintDeadline) < 0
+                                    ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                                    : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-sm'
                             }`}
-                            title={order.paintArrived ? "Краска прибыла" : "Нажмите для подтверждения прибытия"}
+                            title="Нажмите для подтверждения прибытия"
                         >
-                            <div className="text-[9px] font-black uppercase flex items-center gap-1">
-                                {order.paintArrived ? <CheckCircle size={10}/> : <Droplet size={10}/>} Краска
-                            </div>
+                            <div className="text-[9px] font-black uppercase flex items-center gap-1"><Droplet size={10}/> Краска</div>
                             <div className="font-bold text-xs leading-none mt-0.5">
-                                {order.paintArrived ? '✓ Прибыла' : (
-                                    getCountdown(order.paintDeadline) < 0
-                                        ? `-${Math.abs(getCountdown(order.paintDeadline))} дн`
-                                        : (getCountdown(order.paintDeadline) === 0 ? 'Сегодня' : `${getCountdown(order.paintDeadline)} дн`)
-                                )}
+                                {getCountdown(order.paintDeadline) < 0
+                                    ? `-${Math.abs(getCountdown(order.paintDeadline))} дн`
+                                    : (getCountdown(order.paintDeadline) === 0 ? 'Сегодня' : `${getCountdown(order.paintDeadline)} дн`)
+                                }
                             </div>
                         </button>
                     )} 
