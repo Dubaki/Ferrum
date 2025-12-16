@@ -5,7 +5,7 @@ import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 
 const OrderCard = memo(function OrderCard({
-    order, products, actions, resources, isExpanded, onToggle,
+    order, products, orders, actions, resources, isExpanded, onToggle,
     openExecutorDropdown, setOpenExecutorDropdown,
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
     onAddProduct, // Функция добавления изделия
@@ -56,9 +56,15 @@ const OrderCard = memo(function OrderCard({
     // --- ДЕДЛАЙН И ЧАСЫ ---
     const calculateDeadlineInfo = (dateStr) => {
         if (!dateStr) return { days: null, color: 'text-slate-400', label: 'Нет срока', border: 'border-l-4 border-slate-400 bg-white' };
-        
+
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Вычитаем 1 день из дедлайна (нулевой день - день запаса перед отгрузкой)
         const target = new Date(dateStr);
+        target.setDate(target.getDate() - 1);
+        target.setHours(0, 0, 0, 0);
+
         const diffTime = target - today;
         const diffCalendarDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -432,10 +438,12 @@ const OrderCard = memo(function OrderCard({
                 <div className="bg-slate-50 border-t border-slate-200 p-4 md:p-6 animate-in slide-in-from-top-2">
                     <div className="space-y-3">
                         {orderPositions.map(product => (
-                            <ProductCard 
-                                key={product.id} 
+                            <ProductCard
+                                key={product.id}
                                 product={product}
-                                actions={actions} 
+                                products={products}
+                                orders={orders}
+                                actions={actions}
                                 resources={resources}
                                 sortedResources={resources}
                                 isAdmin={isAdmin}

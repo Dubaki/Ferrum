@@ -5,9 +5,13 @@ import { KtuInput } from './SharedComponents';
 export default function MasterEfficiencyView({ resources, actions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [showTable, setShowTable] = useState(false);
-    
+
     // Состояние для модалки нарушения ТБ
     const [safetyModal, setSafetyModal] = useState(null); // { resId, dateStr, currentComment }
+
+    // Состояние для редактирования КТУ прямо в таблице
+    const [editingCell, setEditingCell] = useState(null); // { resId, dateStr }
+    const [editValue, setEditValue] = useState('');
 
     const shiftDate = (days) => {
         const d = new Date(currentDate);
@@ -23,20 +27,47 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const handleSafetyClick = (res) => {
         const violation = res.safetyViolations?.[dateStr];
         const isViolated = violation?.violated;
-        
+
         if (!isViolated) {
             // Открываем модалку для ввода причины
-            setSafetyModal({ 
-                resId: res.id, 
-                dateStr: dateStr, 
+            setSafetyModal({
+                resId: res.id,
+                dateStr: dateStr,
                 name: res.name,
-                comment: '' 
+                comment: ''
             });
         } else {
             // Снимаем нарушение
             if(confirm("Снять нарушение ТБ?")) {
                 actions.updateResourceSafety(res.id, dateStr, null);
             }
+        }
+    };
+
+    const handleCellClick = (resId, dStr, currentValue) => {
+        setEditingCell({ resId, dateStr: dStr });
+        setEditValue(currentValue || '');
+    };
+
+    const handleCellSave = () => {
+        if (editingCell) {
+            const value = parseInt(editValue) || 0;
+            actions.updateResourceEfficiency(editingCell.resId, editingCell.dateStr, value);
+            setEditingCell(null);
+            setEditValue('');
+        }
+    };
+
+    const handleCellBlur = () => {
+        handleCellSave();
+    };
+
+    const handleCellKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleCellSave();
+        } else if (e.key === 'Escape') {
+            setEditingCell(null);
+            setEditValue('');
         }
     };
 
@@ -65,36 +96,93 @@ export default function MasterEfficiencyView({ resources, actions }) {
 
             {/* Сводная таблица */}
             {showTable && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto animate-in fade-in slide-in-from-top-4">
-                    <div className="p-4 border-b border-gray-200 bg-gray-50 text-xs font-bold text-gray-500 uppercase">
-                        КТУ за {currentDate.toLocaleDateString('ru-RU', { month: 'long' })}
+                <div className="bg-white rounded-xl shadow-lg border-4 border-slate-800 overflow-hidden animate-in fade-in slide-in-from-top-4">
+                    <div className="p-4 border-b-4 border-slate-800 bg-gradient-to-r from-slate-800 to-slate-700 text-sm font-black text-white uppercase tracking-wider flex items-center justify-between">
+                        <span>КТУ за {currentDate.toLocaleDateString('ru-RU', { month: 'long' })}</span>
+                        <span className="text-xs font-normal opacity-75">Нажмите на ячейку для редактирования</span>
                     </div>
-                    <table className="w-full text-xs text-center border-collapse">
-                        <thead>
-                            <tr>
-                                <th className="p-2 text-left sticky left-0 bg-white border-r border-b border-gray-200 min-w-[120px]">Сотрудник</th>
-                                {monthDays.map(d => (
-                                    <th key={d} className={`p-1 border-b border-gray-100 min-w-[30px] ${d === currentDate.getDate() ? 'bg-blue-100 text-blue-700' : ''}`}>{d}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {resources.map(res => (
-                                <tr key={res.id} className="hover:bg-gray-50">
-                                    <td className="p-2 text-left sticky left-0 bg-white border-r border-gray-200 font-medium truncate">{res.name}</td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-center border-collapse">
+                            <thead>
+                                <tr className="bg-gradient-to-br from-indigo-600 to-indigo-500">
+                                    <th className="p-3 text-left sticky left-0 bg-indigo-600 border-r-4 border-slate-800 border-b-4 min-w-[140px] text-white font-black uppercase tracking-wide shadow-lg z-20">Сотрудник</th>
                                     {monthDays.map(d => {
-                                        const dStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                                        const val = res.dailyEfficiency?.[dStr];
+                                        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
+                                        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                                        const isToday = d === currentDate.getDate();
                                         return (
-                                            <td key={d} className={`border-r border-gray-100 ${d === currentDate.getDate() ? 'bg-blue-50' : ''}`}>
-                                                {val > 0 ? <span className="font-bold text-gray-700">{val}</span> : <span className="text-gray-200">·</span>}
-                                            </td>
-                                        )
+                                            <th key={d} className={`p-2 border-r-2 border-b-4 min-w-[42px] font-bold transition-colors
+                                                ${isToday ? 'bg-orange-500 text-white border-orange-600' : ''}
+                                                ${!isToday && isWeekend ? 'bg-rose-100 text-rose-700 border-rose-300' : ''}
+                                                ${!isToday && !isWeekend ? 'bg-indigo-500 text-white border-indigo-400' : ''}
+                                            `}>
+                                                <div className="text-base font-black">{d}</div>
+                                                <div className="text-[9px] uppercase opacity-80">{date.toLocaleDateString('ru-RU', {weekday: 'short'})}</div>
+                                            </th>
+                                        );
                                     })}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {resources.map((res, idx) => (
+                                    <tr key={res.id} className={`transition-colors ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} hover:bg-blue-50`}>
+                                        <td className={`p-3 text-left sticky left-0 border-r-4 border-b-2 border-slate-300 font-bold text-slate-800 shadow-md z-10 ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}`}>
+                                            <div className="truncate">{res.name}</div>
+                                            <div className="text-[10px] text-slate-400 font-normal">{res.position}</div>
+                                        </td>
+                                        {monthDays.map(d => {
+                                            const dStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                                            const val = res.dailyEfficiency?.[dStr];
+                                            const isEditing = editingCell?.resId === res.id && editingCell?.dateStr === dStr;
+                                            const isToday = d === currentDate.getDate();
+                                            const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
+                                            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+                                            return (
+                                                <td
+                                                    key={d}
+                                                    className={`border-r-2 border-b-2 cursor-pointer transition-all relative group
+                                                        ${isToday ? 'bg-orange-50 border-orange-200' : ''}
+                                                        ${!isToday && isWeekend ? 'bg-rose-50/50 border-rose-200' : ''}
+                                                        ${!isToday && !isWeekend ? 'border-slate-200' : ''}
+                                                        ${isEditing ? 'ring-4 ring-blue-500 z-30' : 'hover:bg-blue-100 hover:ring-2 hover:ring-blue-300'}
+                                                    `}
+                                                    onClick={() => !isEditing && handleCellClick(res.id, dStr, val)}
+                                                >
+                                                    {isEditing ? (
+                                                        <input
+                                                            type="number"
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            onBlur={handleCellBlur}
+                                                            onKeyDown={handleCellKeyDown}
+                                                            autoFocus
+                                                            className="w-full h-full text-center font-black text-blue-700 bg-blue-50 border-2 border-blue-500 outline-none p-1"
+                                                        />
+                                                    ) : (
+                                                        <div className="py-2 px-1">
+                                                            {val > 0 ? (
+                                                                <span className={`font-black text-base
+                                                                    ${val >= 100 ? 'text-emerald-600' : ''}
+                                                                    ${val >= 80 && val < 100 ? 'text-blue-600' : ''}
+                                                                    ${val < 80 && val > 0 ? 'text-orange-600' : ''}
+                                                                `}>{val}</span>
+                                                            ) : (
+                                                                <span className="text-slate-300 text-lg">—</span>
+                                                            )}
+                                                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-blue-500/10 flex items-center justify-center transition-opacity">
+                                                                <span className="text-[9px] font-bold text-blue-600 bg-white/90 px-1.5 py-0.5 rounded">Изменить</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 

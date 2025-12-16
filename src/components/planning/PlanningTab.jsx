@@ -104,10 +104,11 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       {/* Список заказов */}
       <div className="grid gap-4">
         {activeOrders.map(order => (
-            <OrderCard 
-                key={order.id} 
-                order={order} 
-                products={products} 
+            <OrderCard
+                key={order.id}
+                order={order}
+                products={products}
+                orders={orders}
                 actions={actions}
                 resources={resources}
                 ganttItems={ganttItems}
@@ -116,7 +117,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 isAdmin={isAdmin}
                 openExecutorDropdown={openExecutorDropdown}
                 setOpenExecutorDropdown={setOpenExecutorDropdown}
-                
+
                 isStatusMenuOpen={openStatusMenuId === order.id}
                 onToggleStatusMenu={(e) => {
                     e.stopPropagation();
@@ -140,12 +141,17 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><Package/> Нераспределенные</h3>
               <div className="space-y-4">
                   {orphanProducts.map(product => (
-                      <ProductCard 
-                          key={product.id} product={product}
-                          actions={actions} resources={resources}
+                      <ProductCard
+                          key={product.id}
+                          product={product}
+                          products={products}
+                          orders={orders}
+                          actions={actions}
+                          resources={resources}
                           ganttItem={ganttItems.find(g => g.productId === product.id)}
                           sortedResources={resources}
-                          openExecutorDropdown={openExecutorDropdown} setOpenExecutorDropdown={setOpenExecutorDropdown}
+                          openExecutorDropdown={openExecutorDropdown}
+                          setOpenExecutorDropdown={setOpenExecutorDropdown}
                           isOrphan={true}
                           isAdmin={isAdmin}
                       />

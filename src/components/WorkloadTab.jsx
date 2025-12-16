@@ -22,6 +22,9 @@ export default function WorkloadTab({ resources, globalTimeline, dailyAllocation
     products.forEach(p => {
       const order = orders.find(o => o.id === p.orderId);
       p.operations.forEach(op => {
+        // Пропускаем выполненные операции (у которых есть фактическое время)
+        if ((op.actualMinutes || 0) > 0) return;
+
         if (op.plannedDate && op.resourceIds?.length > 0) {
           const opTotalHours = (op.minutesPerUnit * p.quantity) / 60;
           if (opTotalHours > 0) {

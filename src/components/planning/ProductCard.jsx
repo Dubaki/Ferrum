@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy, ShoppingBag } from 'lucide-react'; // Добавил Copy
 import OperationRow from './OperationRow';
 
-function ProductCard({ product, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown, isAdmin }) {
+function ProductCard({ product, products, orders, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown, isAdmin }) {
     const [isExpanded, setIsExpanded] = useState(false);
     
     // Расчет статуса по операциям
@@ -126,6 +126,9 @@ function ProductCard({ product, actions, resources, sortedResources, openExecuto
                                     <OperationRow
                                         key={op.id}
                                         op={op}
+                                        product={product}
+                                        products={products}
+                                        orders={orders}
                                         productId={product.id}
                                         actions={actions}
                                         resources={resources}

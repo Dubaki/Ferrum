@@ -69,6 +69,12 @@ export const useSimulation = (products, resources, orders = []) => {
     const ganttDataMap = {}; 
 
     allOperations.forEach(op => {
+        // Пропускаем выполненные операции (с галочкой готовности)
+        if ((op.actualMinutes || 0) > 0) return;
+
+        // Пропускаем операции с ручной датой (они учтены в manualAllocations)
+        if (op.plannedDate) return;
+
         const totalMinutesRequired = op.minutesPerUnit * op.quantity;
         const totalMinutesDone = op.actualMinutes * op.quantity;
         let remainingMinutes = Math.max(0, totalMinutesRequired - totalMinutesDone);

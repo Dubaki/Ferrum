@@ -1,12 +1,58 @@
 import React from 'react';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
+import { checkResourceOverload } from '../../utils/workloadCalculator';
+import { showError } from '../../utils/toast';
 
-function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropdown, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
+function OperationRow({ op, product, products, orders, productId, actions, resources, isOpen, onToggleDropdown, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
 
     // Операция считается выполненной если есть фактическое время
     const isCompleted = (op.actualMinutes || 0) > 0;
+
+    // Обработчик изменения даты с проверкой загрузки
+    const handleDateChange = (e) => {
+        const newDate = e.target.value;
+        if (!newDate) {
+            actions.updateOperation(productId, op.id, 'plannedDate', newDate);
+            return;
+        }
+
+        // Проверяем есть ли назначенные ресурсы
+        if (!op.resourceIds || op.resourceIds.length === 0) {
+            actions.updateOperation(productId, op.id, 'plannedDate', newDate);
+            return;
+        }
+
+        // Вычисляем часы этой операции на каждого ресурса
+        const quantity = parseInt(product.quantity) || 1;
+        const opTotalHours = (op.minutesPerUnit * quantity) / 60;
+        const hoursPerResource = opTotalHours / op.resourceIds.length;
+
+        // Проверяем перегрузку
+        const overloaded = checkResourceOverload(
+            op.resourceIds,
+            newDate,
+            products,
+            resources,
+            hoursPerResource,
+            op.id // Исключаем текущую операцию из расчета
+        );
+
+        if (overloaded.length > 0) {
+            // Формируем сообщение об ошибке
+            const dateFormatted = new Date(newDate).toLocaleDateString('ru-RU');
+            const warnings = overloaded.map(r =>
+                `${r.name}: уже занято ${r.currentLoad.toFixed(1)}ч из ${r.maxHours}ч, перегрузка на ${r.overflow.toFixed(1)}ч`
+            ).join('; ');
+
+            showError(`❌ Нельзя установить дату ${dateFormatted}! ${warnings}`);
+            return; // НЕ устанавливаем дату
+        }
+
+        // Устанавливаем дату только если нет перегрузки
+        actions.updateOperation(productId, op.id, 'plannedDate', newDate);
+    };
 
     const rowClass = isCompleted
         ? "grid grid-cols-12 gap-2 items-center bg-emerald-100 p-2 rounded border border-emerald-300 relative shadow-sm transition-colors"
@@ -76,7 +122,7 @@ function OperationRow({ op, productId, actions, resources, isOpen, onToggleDropd
                 <input
                     type="date"
                     value={op.plannedDate || ''}
-                    onChange={e => actions.updateOperation(productId, op.id, 'plannedDate', e.target.value)}
+                    onChange={handleDateChange}
                     disabled={!isAdmin}
                     className={`flex-1 min-w-0 text-[10px] font-medium text-slate-600 bg-slate-50 rounded py-1 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
                 />
