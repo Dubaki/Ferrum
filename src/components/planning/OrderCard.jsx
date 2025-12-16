@@ -14,7 +14,7 @@ const OrderCard = memo(function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
-    
+
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     let totalPlanMins = 0;
     let totalFactMins = 0;
@@ -27,10 +27,27 @@ const OrderCard = memo(function OrderCard({
             p.operations.forEach(op => {
                 const qty = p.quantity || 1;
                 totalPlanMins += (op.minutesPerUnit || 0) * qty;
-                totalFactMins += (op.actualMinutes || 0); 
+                totalFactMins += (op.actualMinutes || 0);
             });
         }
     });
+
+    // --- ПОИСК СЛЕДУЮЩЕЙ ОПЕРАЦИИ ДЛЯ ВСЕГО ЗАКАЗА ---
+    let nextOrderOp = null;
+    let nextOpProductName = null;
+
+    for (const product of orderPositions) {
+        if (product.isResale) continue;
+
+        const sortedOps = [...(product.operations || [])].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+        const productNextOp = sortedOps.find(op => (op.actualMinutes || 0) === 0);
+
+        if (productNextOp) {
+            nextOrderOp = productNextOp;
+            nextOpProductName = product.name;
+            break; // Берем первую найденную невыполненную операцию
+        }
+    }
 
     const remainingMins = Math.max(0, totalPlanMins - totalFactMins);
     const remainingManHours = (remainingMins / 60).toFixed(1);
@@ -151,6 +168,23 @@ const OrderCard = memo(function OrderCard({
                             <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 truncate uppercase tracking-wider">
                                 <User size={10} className="sm:w-3 sm:h-3" /> {order.clientName || 'Клиент не указан'}
                             </div>
+                            {/* Следующая операция */}
+                            {!isResaleOrder && nextOrderOp && (
+                                <div className="mt-1 flex items-center gap-1">
+                                    <span className="text-[9px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                        → {nextOrderOp.name}
+                                    </span>
+                                    <span className="text-[8px] text-slate-400 truncate">({nextOpProductName})</span>
+                                </div>
+                            )}
+                            {/* Если все выполнено */}
+                            {!isResaleOrder && !nextOrderOp && totalPlanMins > 0 && (
+                                <div className="mt-1">
+                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wide flex items-center gap-1 w-fit">
+                                        <CheckCircle size={9} /> Готово
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -250,6 +284,23 @@ const OrderCard = memo(function OrderCard({
                             <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-1 truncate uppercase tracking-wider">
                                 <User size={10} /> {order.clientName || 'Клиент не указан'}
                             </div>
+                            {/* Следующая операция */}
+                            {!isResaleOrder && nextOrderOp && (
+                                <div className="mt-1.5 flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap">
+                                        → {nextOrderOp.name}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 truncate">({nextOpProductName})</span>
+                                </div>
+                            )}
+                            {/* Если все выполнено */}
+                            {!isResaleOrder && !nextOrderOp && totalPlanMins > 0 && (
+                                <div className="mt-1.5">
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide flex items-center gap-1 w-fit">
+                                        <CheckCircle size={10} /> Готово
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
