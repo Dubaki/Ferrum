@@ -452,7 +452,112 @@ const OrderCard = memo(function OrderCard({
                             />
                         ))}
                     </div>
-                    
+
+                    {/* УПРАВЛЕНИЕ ПОСТАВКАМИ */}
+                    {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                        <div className="mt-4 bg-white rounded-xl border-2 border-slate-200 p-4">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Поставки</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                                {/* КМД */}
+                                {order.drawingsDeadline && (
+                                    <div className={`p-3 rounded-lg border-2 transition-all ${order.drawingsArrived ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <PenTool size={14} className={order.drawingsArrived ? 'text-emerald-600' : 'text-indigo-600'} />
+                                                <span className="font-bold text-xs uppercase tracking-wide text-slate-700">КМД</span>
+                                            </div>
+                                            <label className="flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={order.drawingsArrived || false}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            if (window.confirm('Подтвердить прибытие КМД?')) {
+                                                                actions.updateOrder(order.id, 'drawingsArrived', true);
+                                                            }
+                                                        } else {
+                                                            actions.updateOrder(order.id, 'drawingsArrived', false);
+                                                        }
+                                                    }}
+                                                    className="w-5 h-5 rounded text-emerald-600 border-slate-300"
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="text-xs text-slate-600">
+                                            <span className="font-mono">{new Date(order.drawingsDeadline).toLocaleDateString('ru-RU')}</span>
+                                            {order.drawingsArrived && <span className="ml-2 text-emerald-600 font-bold">✓ Прибыл</span>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Материалы */}
+                                {order.materialsDeadline && (
+                                    <div className={`p-3 rounded-lg border-2 transition-all ${order.materialsArrived ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-200'}`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Truck size={14} className={order.materialsArrived ? 'text-emerald-600' : 'text-orange-600'} />
+                                                <span className="font-bold text-xs uppercase tracking-wide text-slate-700">Материалы</span>
+                                            </div>
+                                            <label className="flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={order.materialsArrived || false}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            if (window.confirm('Подтвердить прибытие материалов?')) {
+                                                                actions.updateOrder(order.id, 'materialsArrived', true);
+                                                            }
+                                                        } else {
+                                                            actions.updateOrder(order.id, 'materialsArrived', false);
+                                                        }
+                                                    }}
+                                                    className="w-5 h-5 rounded text-emerald-600 border-slate-300"
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="text-xs text-slate-600">
+                                            <span className="font-mono">{new Date(order.materialsDeadline).toLocaleDateString('ru-RU')}</span>
+                                            {order.materialsArrived && <span className="ml-2 text-emerald-600 font-bold">✓ Прибыли</span>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Краска */}
+                                {order.paintDeadline && (
+                                    <div className={`p-3 rounded-lg border-2 transition-all ${order.paintArrived ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Droplet size={14} className="text-emerald-600" />
+                                                <span className="font-bold text-xs uppercase tracking-wide text-slate-700">Краска</span>
+                                            </div>
+                                            <label className="flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={order.paintArrived || false}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            if (window.confirm('Подтвердить прибытие краски?')) {
+                                                                actions.updateOrder(order.id, 'paintArrived', true);
+                                                            }
+                                                        } else {
+                                                            actions.updateOrder(order.id, 'paintArrived', false);
+                                                        }
+                                                    }}
+                                                    className="w-5 h-5 rounded text-emerald-600 border-slate-300"
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="text-xs text-slate-600">
+                                            <span className="font-mono">{new Date(order.paintDeadline).toLocaleDateString('ru-RU')}</span>
+                                            {order.paintArrived && <span className="ml-2 text-emerald-600 font-bold">✓ Прибыла</span>}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {isAdmin && (
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
