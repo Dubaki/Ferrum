@@ -5,6 +5,7 @@ export const orderSchema = z.object({
   orderNumber: z.string().min(1, 'Введите номер заказа'),
   clientName: z.string().optional(),
   deadline: z.string().min(1, 'Укажите срок сдачи заказа'),
+  isProductOrder: z.boolean().optional(), // Флаг товарного заказа
   hasDrawings: z.boolean(),
   drawingsDeadline: z.string().optional(),
   hasMaterials: z.boolean(),
@@ -12,13 +13,13 @@ export const orderSchema = z.object({
   hasPaint: z.boolean(),
   paintDeadline: z.string().optional(),
 }).refine(
-  (data) => data.hasDrawings || data.drawingsDeadline,
+  (data) => data.isProductOrder || data.hasDrawings || data.drawingsDeadline,
   { message: 'Укажите дату готовности чертежей', path: ['drawingsDeadline'] }
 ).refine(
-  (data) => data.hasMaterials || data.materialsDeadline,
+  (data) => data.isProductOrder || data.hasMaterials || data.materialsDeadline,
   { message: 'Укажите дату поставки материалов', path: ['materialsDeadline'] }
 ).refine(
-  (data) => data.hasPaint || data.paintDeadline,
+  (data) => data.isProductOrder || data.hasPaint || data.paintDeadline,
   { message: 'Укажите дату поставки краски', path: ['paintDeadline'] }
 );
 

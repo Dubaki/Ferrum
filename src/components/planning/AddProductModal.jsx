@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { X, Flame, Zap, Box, Layers, PackagePlus, ArrowRight, ShoppingBag } from 'lucide-react';
 import { PRESETS } from '../../utils/presets';
 
-export default function AddProductModal({ onClose, onAdd }) {
+export default function AddProductModal({ onClose, onAdd, isProductOrder = false }) {
     const [activeTab, setActiveTab] = useState('lines'); // lines | units | custom
-    const [isResaleCustom, setIsResaleCustom] = useState(false);
+    const [isResaleCustom, setIsResaleCustom] = useState(isProductOrder); // Для товарных заказов автоматически true
 
     const handleSelect = (presetKey) => {
         const preset = PRESETS[presetKey];
@@ -24,10 +24,53 @@ export default function AddProductModal({ onClose, onAdd }) {
         onClose();
     };
 
+    // Упрощенная версия для товарных заказов
+    if (isProductOrder) {
+        return createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                    {/* Header */}
+                    <div className="bg-cyan-600 p-6 text-white flex justify-between items-center">
+                        <div>
+                            <h2 className="text-2xl font-black uppercase tracking-wide">Добавить товар</h2>
+                            <p className="text-cyan-200 text-sm">Создать позицию для перепродажи</p>
+                        </div>
+                        <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><X size={24}/></button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-8">
+                        <div className="flex flex-col items-center justify-center text-center">
+                            <div className="w-20 h-20 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6 text-cyan-600">
+                                <ShoppingBag size={40}/>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">Товар для перепродажи</h3>
+                            <p className="text-slate-500 text-sm mb-8">
+                                Создаётся позиция без производственных операций
+                            </p>
+
+                            <button
+                                onClick={handleCustom}
+                                className="w-full bg-cyan-600 text-white py-4 rounded-xl font-bold hover:bg-cyan-700 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                            >
+                                <div className="flex items-center justify-center gap-2">
+                                    <ShoppingBag size={20} />
+                                    Создать товар
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    }
+
+    // Полная версия для производственных заказов
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                
+
                 {/* Header */}
                 <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0" onClick={e => e.stopPropagation()}>
                     <div>

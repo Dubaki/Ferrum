@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
@@ -14,7 +14,13 @@ const OrderCard = memo(function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
-    
+    const [paintColorInput, setPaintColorInput] = useState(order.paintColor || ''); // Локальное состояние для краски
+
+    // Синхронизировать локальное состояние с order.paintColor
+    useEffect(() => {
+        setPaintColorInput(order.paintColor || '');
+    }, [order.paintColor]);
+
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     let totalPlanMins = 0;
     let totalFactMins = 0;
@@ -471,8 +477,8 @@ const OrderCard = memo(function OrderCard({
                         ))}
                     </div>
 
-                    {/* УПРАВЛЕНИЕ ПОСТАВКАМИ */}
-                    {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                    {/* УПРАВЛЕНИЕ ПОСТАВКАМИ - только для производственных заказов */}
+                    {!order.isProductOrder && isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
                         <div className="mt-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 p-3">
                             <div className="flex items-center gap-3 flex-wrap">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Поставки:</span>
@@ -549,45 +555,81 @@ const OrderCard = memo(function OrderCard({
                         </div>
                     )}
 
-                    {/* ИНФОРМАЦИЯ О КРАСКЕ */}
-                    <div className="mt-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-3">
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <Droplet size={16} className="text-purple-600" />
-                            <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider">Окраска:</span>
-                            {isAdmin ? (
-                                <input
-                                    type="text"
-                                    value={order.paintColor || ''}
-                                    onChange={(e) => actions.updateOrder(order.id, 'paintColor', e.target.value)}
-                                    placeholder="Укажите тип краски (например: RAL 7035, порошковая)"
-                                    className="flex-1 min-w-[200px] px-3 py-1.5 text-sm font-semibold text-purple-900 bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
-                                />
-                            ) : (
-                                <div className="flex-1 px-3 py-1.5 text-sm font-bold text-purple-900 bg-purple-100 border border-purple-300 rounded-lg">
-                                    {order.paintColor || <span className="text-purple-400 italic">Не указана</span>}
+                    {/* ИНФОРМАЦИЯ О КРАСКЕ - только для производственных заказов */}
+                    {!order.isProductOrder && (
+                        order.paintColor ? (
+                            // Компактное отображение после ввода
+                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-lg border border-emerald-200">
+                                <Droplet size={14} className="text-emerald-500" />
+                                <span className="text-sm font-semibold text-slate-700">{order.paintColor}</span>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => {
+                                            setPaintColorInput('');
+                                            actions.updateOrder(order.id, 'paintColor', '');
+                                        }}
+                                        className="ml-auto text-slate-400 hover:text-red-500 text-xs"
+                                        title="Очистить"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            // Полный блок для ввода
+                            <div className="mt-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-3">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <Droplet size={16} className="text-purple-600" />
+                                    <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider">Окраска:</span>
+                                    {isAdmin ? (
+                                        <input
+                                            type="text"
+                                            value={paintColorInput}
+                                            onChange={(e) => setPaintColorInput(e.target.value)}
+                                            onBlur={() => {
+                                                if (paintColorInput !== order.paintColor) {
+                                                    actions.updateOrder(order.id, 'paintColor', paintColorInput);
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.target.blur(); // Сохранить при нажатии Enter
+                                                }
+                                            }}
+                                            placeholder="Укажите тип краски (например: RAL 7035, порошковая)"
+                                            className="flex-1 min-w-[200px] px-3 py-1.5 text-sm font-semibold text-purple-900 bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
+                                        />
+                                    ) : (
+                                        <div className="flex-1 px-3 py-1.5 text-sm font-bold text-purple-900 bg-purple-100 border border-purple-300 rounded-lg">
+                                            <span className="text-purple-400 italic">Не указана</span>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    </div>
+                            </div>
+                        )
+                    )}
 
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {isAdmin && (
                     <div className="mt-3 flex gap-2">
                         <button
                             onClick={() => onAddProduct()}
-                            className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className={`${order.isProductOrder ? 'w-full' : 'flex-1'} px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg ${order.isProductOrder ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95`}
                         >
-                            <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
-                            <span className="uppercase tracking-wide">Добавить изделие</span>
+                            {order.isProductOrder ? <ShoppingBag size={14} strokeWidth={3} className="sm:w-4 sm:h-4" /> : <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />}
+                            <span className="uppercase tracking-wide">{order.isProductOrder ? 'Добавить товар' : 'Добавить изделие'}</span>
                         </button>
 
-                        <button
-                            onClick={() => onCopyFromArchive()}
-                            className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
-                        >
-                            <Copy size={14} className="sm:w-4 sm:h-4" />
-                            <span className="uppercase tracking-wide">Из архива</span>
-                        </button>
+                        {/* Кнопка "Из архива" только для производственных заказов */}
+                        {!order.isProductOrder && (
+                            <button
+                                onClick={() => onCopyFromArchive()}
+                                className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            >
+                                <Copy size={14} className="sm:w-4 sm:h-4" />
+                                <span className="uppercase tracking-wide">Из архива</span>
+                            </button>
+                        )}
                     </div>
                     )}
                 </div>

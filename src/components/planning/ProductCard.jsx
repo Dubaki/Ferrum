@@ -30,14 +30,19 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
     const nextOp = sortedOps.find(op => (op.actualMinutes || 0) === 0);
 
     return (
-        <div className={`bg-white rounded-lg border shadow-sm transition-all duration-200 overflow-visible ${isExpanded ? 'border-orange-300 ring-1 ring-orange-100 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
-             
+        <div className={`relative bg-gradient-to-r from-white to-slate-50/30 rounded-lg border-l-4 border-y border-r shadow-lg hover:shadow-xl transition-all duration-200 overflow-visible ${
+            isExpanded
+                ? 'border-l-orange-500 border-orange-200 ring-2 ring-orange-100 shadow-orange-100'
+                : 'border-l-blue-400 border-slate-200 hover:border-l-blue-500 hover:border-slate-300'
+        }`}>
+
              {/* Заголовок карточки */}
              <div className="flex items-center p-3 gap-3 cursor-pointer select-none" onClick={() => setIsExpanded(!isExpanded)}>
-                <div className={`w-2 h-2 rounded-full ${statusColor} shrink-0`}></div>
-                
-                <div className="flex-1 font-bold text-slate-700 text-sm truncate flex items-center gap-2">
-                    {product.name} 
+                <div className={`w-2.5 h-2.5 rounded-full ${statusColor} shrink-0 shadow-sm`}></div>
+
+                <div className={`flex-1 font-bold text-slate-800 text-sm flex items-center gap-2 ${isExpanded ? 'flex-wrap' : ''}`}>
+                    <ShoppingBag size={14} className="text-blue-500 shrink-0" />
+                    <span className={isExpanded ? 'break-words' : 'truncate'}>{product.name}</span> 
                     {product.isResale && (
                         <span className="flex items-center gap-1 text-[10px] font-black text-cyan-600 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wide">
                             <ShoppingBag size={10} /> Перепродажа

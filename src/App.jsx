@@ -11,6 +11,7 @@ import ReportsTab from './components/ReportsTab';
 import WorkloadTab from './components/WorkloadTab';
 import ShippingTab from './components/ShippingTab';
 import PlanningTab from './components/planning/PlanningTab';
+import ProductsTab from './components/ProductsTab';
 import WorkshopMode from './components/WorkshopMode';
 
 // Компонент загрузки
@@ -93,6 +94,19 @@ export default function App() {
             path="/"
             element={
               <PlanningTab
+                products={products}
+                resources={resources}
+                orders={orders}
+                actions={actions}
+                ganttItems={ganttItems}
+                isAdmin={isAdmin}
+              />
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <ProductsTab
                 products={products}
                 resources={resources}
                 orders={orders}

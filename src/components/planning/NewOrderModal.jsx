@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPortal } from 'react-dom';
-import { X, Save, PenTool, Truck, Calendar, Droplet, AlertCircle } from 'lucide-react';
+import { X, Save, PenTool, Truck, Calendar, Droplet, AlertCircle, ShoppingBag } from 'lucide-react';
 import { orderSchema } from '../../utils/validation';
 
 export default function NewOrderModal({ onClose, onCreate }) {
@@ -16,6 +16,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
       orderNumber: '',
       clientName: '',
       deadline: '',
+      isProductOrder: false, // Товарный заказ?
       hasDrawings: false,
       drawingsDeadline: '',
       hasMaterials: false,
@@ -28,6 +29,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
   const hasDrawings = watch('hasDrawings');
   const hasMaterials = watch('hasMaterials');
   const hasPaint = watch('hasPaint');
+  const isProductOrder = watch('isProductOrder');
 
   const onSubmit = (data) => {
     // Логика статуса
@@ -39,6 +41,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
       orderNumber: data.orderNumber,
       clientName: data.clientName,
       deadline: data.deadline,
+      isProductOrder: data.isProductOrder, // Передаем флаг товарного заказа
       drawingsDeadline: data.hasDrawings ? null : data.drawingsDeadline,
       materialsDeadline: data.hasMaterials ? null : data.materialsDeadline,
       paintDeadline: data.hasPaint ? null : data.paintDeadline,
@@ -84,6 +87,25 @@ export default function NewOrderModal({ onClose, onCreate }) {
             </div>
           </div>
 
+          {/* Тип заказа */}
+          <div className="bg-cyan-50 p-4 rounded-xl border-2 border-cyan-200">
+            <label className="flex items-center gap-3 font-bold text-cyan-900 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('isProductOrder')}
+                className="w-5 h-5 accent-cyan-600"
+              />
+              <ShoppingBag size={20} className={isProductOrder ? 'text-cyan-600' : 'text-cyan-400'} />
+              <div>
+                <div className={isProductOrder ? 'text-cyan-900' : 'text-cyan-700'}>Товарный заказ (перепродажа)</div>
+                <div className="text-xs font-normal text-cyan-600">Не требует производственных операций</div>
+              </div>
+            </label>
+          </div>
+
+          {/* Блоки КМД, Материалы, Краска - только для производственных заказов */}
+          {!isProductOrder && (
+            <>
           {/* Блок КМД */}
           <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
             <div className="flex items-center justify-between mb-2">
@@ -158,6 +180,8 @@ export default function NewOrderModal({ onClose, onCreate }) {
               </div>
             )}
           </div>
+            </>
+          )}
 
           {/* Срок сдачи */}
           <div>

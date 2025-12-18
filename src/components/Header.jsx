@@ -1,9 +1,10 @@
 import { memo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock } from 'lucide-react';
+import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock, ShoppingBag } from 'lucide-react';
 
 const tabs = [
   { path: '/', label: 'Заказы', icon: Layers },
+  { path: '/products', label: 'Товары', icon: ShoppingBag },
   { path: '/shipping', label: 'Отгрузки', icon: Truck },
   { path: '/workload', label: 'Загрузка', icon: Calendar },
   { path: '/resources', label: 'Цех', icon: Users },

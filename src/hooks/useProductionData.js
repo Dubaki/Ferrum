@@ -43,8 +43,10 @@ export const useProductionData = () => {
         deadline: data?.deadline || '',
         status: 'active',
         customStatus: data?.customStatus || 'metal',
+        isProductOrder: data?.isProductOrder || false, // ИСПРАВЛЕНИЕ: Сохраняем тип заказа
         drawingsDeadline: data?.drawingsDeadline || null,
         materialsDeadline: data?.materialsDeadline || null,
+        paintDeadline: data?.paintDeadline || null, // Добавил paintDeadline который отсутствовал
         paymentDate: formatDate(new Date()),
         statusHistory: [{ status: data?.customStatus || 'metal', timestamp: now }],
         createdAt: now,
@@ -222,6 +224,7 @@ export const useProductionData = () => {
           startDate: startDate,
           status: 'active',
           operations: ops,
+          isResale: item.isResale || false, // ИСПРАВЛЕНИЕ: Учитываем флаг товара из item
           createdAt: Date.now()
         });
       }
