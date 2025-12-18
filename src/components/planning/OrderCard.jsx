@@ -162,12 +162,12 @@ const OrderCard = memo(function OrderCard({
                 </div>
 
                 {/* Mobile: Status + Delivery Buttons Row */}
-                <div className="flex flex-wrap items-center gap-2 sm:hidden" onClick={e => e.stopPropagation()}>
-                    {/* Status Button */}
-                    <div className="relative">
-                        <button onClick={isAdmin ? onToggleStatusMenu : undefined} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[10px] ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
-                            <span className="font-black uppercase tracking-wider">{currentStatus.label}</span>
-                            <ChevronDown size={12}/>
+                <div className="flex items-center gap-2 sm:hidden w-full" onClick={e => e.stopPropagation()}>
+                    {/* GROUP 1: Status */}
+                    <div className="relative flex-1">
+                        <button onClick={isAdmin ? onToggleStatusMenu : undefined} className={`w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[10px] ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
+                            <span className="font-black uppercase tracking-wider truncate">{currentStatus.label}</span>
+                            <ChevronDown size={12} className="shrink-0"/>
                         </button>
                         {isStatusMenuOpen && (
                             <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[1000] border border-slate-200 animate-in zoom-in-95">
@@ -181,21 +181,39 @@ const OrderCard = memo(function OrderCard({
                         {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={onToggleStatusMenu}></div>}
                     </div>
 
-                    {/* Delivery Buttons (Mobile) */}
-                    {order.drawingsDeadline && !order.drawingsArrived && isAdmin && (
-                        <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                            <PenTool size={10}/> {drawDiff}д
-                        </button>
-                    )}
-                    {order.materialsDeadline && !order.materialsArrived && isAdmin && (
-                        <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-bold ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                            <Truck size={10}/> {matDiff}д
-                        </button>
+                    {/* DIVIDER */}
+                    {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                        <div className="h-8 w-px bg-slate-200"></div>
                     )}
 
-                    {/* Завершить → перемещает в отгрузки (Mobile) */}
+                    {/* GROUP 2: Delivery Buttons (Compact Group) */}
+                    {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg border border-slate-200">
+                            {order.drawingsDeadline && !order.drawingsArrived && (
+                                <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
+                                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold transition ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
+                                    <PenTool size={9}/> {drawDiff}д
+                                </button>
+                            )}
+                            {order.materialsDeadline && !order.materialsArrived && (
+                                <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
+                                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold transition ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                                    <Truck size={9}/> {matDiff}д
+                                </button>
+                            )}
+                            {order.paintDeadline && !order.paintArrived && (
+                                <button onClick={() => window.confirm('Подтвердить прибытие краски?') && actions.updateOrder(order.id, 'paintArrived', true)}
+                                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold transition ${getCountdown(order.paintDeadline) < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                                    <Droplet size={9}/> {getCountdown(order.paintDeadline)}д
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* DIVIDER */}
+                    {isAdmin && <div className="h-8 w-px bg-slate-200"></div>}
+
+                    {/* GROUP 3: Complete Button */}
                     {isAdmin && (
                     <button
                         onClick={() => {
@@ -203,7 +221,7 @@ const OrderCard = memo(function OrderCard({
                                 actions.moveToShipping(order.id);
                             }
                         }}
-                        className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all"
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all shrink-0"
                         title="Завершить и переместить на склад"
                     >
                         <CheckCircle size={18} />

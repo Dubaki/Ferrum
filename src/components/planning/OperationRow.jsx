@@ -11,16 +11,15 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
     const isCompleted = (op.actualMinutes || 0) > 0;
 
     // Обработчик изменения даты с проверкой загрузки
-    const handleDateChange = (e) => {
-        const newDate = e.target.value;
+    const handleDateChange = (field, newDate) => {
         if (!newDate) {
-            actions.updateOperation(productId, op.id, 'plannedDate', newDate);
+            actions.updateOperation(productId, op.id, field, newDate);
             return;
         }
 
         // Проверяем есть ли назначенные ресурсы
         if (!op.resourceIds || op.resourceIds.length === 0) {
-            actions.updateOperation(productId, op.id, 'plannedDate', newDate);
+            actions.updateOperation(productId, op.id, field, newDate);
             return;
         }
 
@@ -51,7 +50,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
         }
 
         // Устанавливаем дату только если нет перегрузки
-        actions.updateOperation(productId, op.id, 'plannedDate', newDate);
+        actions.updateOperation(productId, op.id, field, newDate);
     };
 
     const rowClass = isCompleted
@@ -117,24 +116,49 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                 )}
             </div>
 
-            {/* Дата выполнения + Галочка готовности */}
-            <div className="col-span-2 flex items-center gap-1">
-                <input
-                    type="date"
-                    value={op.plannedDate || ''}
-                    onChange={handleDateChange}
-                    disabled={!isAdmin}
-                    className={`flex-1 min-w-0 text-[10px] font-medium text-slate-600 bg-slate-50 rounded py-1 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
-                />
-                {/* Галочка готовности (автоматическая, только для отображения) */}
-                <input
-                    type="checkbox"
-                    checked={isCompleted}
-                    readOnly
-                    disabled
-                    className="w-4 h-4 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
-                    title={isCompleted ? "Выполнено (есть фактическое время)" : "Не выполнено"}
-                />
+            {/* Диапазон дат + Галочка готовности */}
+            <div className="col-span-2 flex flex-col gap-0.5">
+                <div className="flex items-center gap-0.5">
+                    <input
+                        type="date"
+                        value={op.startDate || op.plannedDate || ''}
+                        onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        disabled={!isAdmin}
+                        className={`flex-1 min-w-0 text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-indigo-300' : ''}`}
+                        placeholder="Начало"
+                        title="Дата начала"
+                    />
+                    <span className="text-[8px] text-slate-400 font-bold">—</span>
+                    <input
+                        type="date"
+                        value={op.endDate || ''}
+                        onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        disabled={!isAdmin}
+                        className={`flex-1 min-w-0 text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-orange-300' : ''}`}
+                        placeholder="Конец"
+                        title="Дата окончания"
+                    />
+                    {/* Галочка готовности */}
+                    <input
+                        type="checkbox"
+                        checked={isCompleted}
+                        readOnly
+                        disabled
+                        className="w-3.5 h-3.5 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
+                        title={isCompleted ? "Выполнено" : "Не выполнено"}
+                    />
+                </div>
+                {/* Подсказка о длительности */}
+                {op.startDate && op.endDate && (
+                    <div className="text-[8px] text-slate-400 text-center font-mono">
+                        {(() => {
+                            const start = new Date(op.startDate);
+                            const end = new Date(op.endDate);
+                            const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                            return `${diffDays} дн.`;
+                        })()}
+                    </div>
+                )}
             </div>
             
             {/* Исполнитель (Выпадающий список) */}

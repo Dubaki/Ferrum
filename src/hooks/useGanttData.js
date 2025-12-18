@@ -126,21 +126,41 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
             
             // Собираем изделия
             const children = orderProducts.map(prod => {
-                const pStart = prod.startDate ? new Date(prod.startDate) : new Date();
                 const ops = prod.operations || [];
-                
+
                 // Считаем общее время в минутах
                 const totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
 
-                // Считаем кол-во рабочих смен (округляем вверх)
-                const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
+                // Определяем даты начала и конца изделия с учетом диапазонов операций
+                let pStart = null;
+                let pEnd = null;
 
-                // Рассчитываем дату окончания с учетом выходных
-                const pEnd = addWorkingDays(pStart, workDaysNeeded);
+                // Сначала проверяем есть ли у операций диапазоны дат
+                ops.forEach(op => {
+                    if (op.startDate) {
+                        const opStart = new Date(op.startDate);
+                        if (!pStart || opStart < pStart) pStart = opStart;
+                    }
+                    if (op.endDate) {
+                        const opEnd = new Date(op.endDate);
+                        if (!pEnd || opEnd > pEnd) pEnd = opEnd;
+                    }
+                });
 
-                // ИСПРАВЛЕНИЕ: Ширина полоски = рабочие дни (а не календарные)
-                // Это соответствует реальной трудоемкости задачи
-                const visualWidth = workDaysNeeded;
+                // Фоллбэк на старую логику если нет диапазонов
+                if (!pStart) {
+                    pStart = prod.startDate ? new Date(prod.startDate) : new Date();
+                }
+
+                if (!pEnd) {
+                    // Считаем кол-во рабочих смен (округляем вверх)
+                    const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
+                    pEnd = addWorkingDays(pStart, workDaysNeeded);
+                }
+
+                // Считаем календарную длительность для визуализации
+                const calendarDuration = Math.max(1, Math.ceil((pEnd - pStart) / (1000 * 60 * 60 * 24)) + 1);
+                const workDaysNeeded = countWorkingDays(pStart, pEnd);
 
                 return {
                     id: prod.id,
@@ -150,7 +170,7 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                     startDate: pStart,
                     endDate: pEnd,
                     totalHours: (totalMinutes / 60).toFixed(1),
-                    durationDays: visualWidth, // Ширина полоски = рабочие дни
+                    durationDays: calendarDuration, // Ширина полоски = календарные дни
                     workDays: workDaysNeeded // Количество рабочих дней
                 };
             });
@@ -171,13 +191,12 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 maxEnd = new Date();
             }
 
-            // ЛОГИКА: Ширина заказа = максимальная длительность среди изделий
+            // ЛОГИКА: Ширина заказа = календарные дни от минимальной до максимальной даты
             // Это корректно для параллельного производства (несколько изделий одновременно)
-            // Пример: 3 изделия по 1 дню каждое → заказ занимает 1 день (не 3!)
-            const maxProductDuration = children.length > 0
-                ? children.reduce((max, child) => Math.max(max, child.workDays), 1)
+            const calendarDuration = minStart && maxEnd
+                ? Math.max(1, Math.ceil((maxEnd - minStart) / (1000 * 60 * 60 * 24)) + 1)
                 : 1;
-            const visualWidth = maxProductDuration;
+            const visualWidth = calendarDuration;
 
             const startOffset = Math.ceil((minStart - startDate) / (1000 * 60 * 60 * 24));
 
