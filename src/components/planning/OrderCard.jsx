@@ -551,23 +551,21 @@ const OrderCard = memo(function OrderCard({
 
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {isAdmin && (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-3">
                         <button
                             onClick={() => onAddProduct()}
-                            className="px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className="p-3 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
-                            <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
-                            <span className="hidden sm:inline">Добавить изделие</span>
-                            <span className="sm:hidden">Изделие</span>
+                            <Plus size={24} strokeWidth={2.5} />
+                            <span className="text-[10px] uppercase tracking-wide leading-tight text-center">Добавить<br/>изделие</span>
                         </button>
 
                         <button
                             onClick={() => onCopyFromArchive()}
-                            className="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className="p-3 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
-                            <Copy size={14} className="sm:w-4 sm:h-4" />
-                            <span className="hidden sm:inline">Из архива</span>
-                            <span className="sm:hidden">Архив</span>
+                            <Copy size={24} strokeWidth={2} />
+                            <span className="text-[10px] uppercase tracking-wide leading-tight text-center">Копировать<br/>из архива</span>
                         </button>
                     </div>
                     )}
