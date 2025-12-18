@@ -131,11 +131,11 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 // Считаем общее время в минутах
                 const totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
 
-                // Определяем даты начала и конца изделия с учетом диапазонов операций
+                // Определяем даты начала и конца изделия
                 let pStart = null;
                 let pEnd = null;
 
-                // Сначала проверяем есть ли у операций диапазоны дат
+                // Приоритет 1: Даты из операций (если есть хотя бы у одной)
                 ops.forEach(op => {
                     if (op.startDate) {
                         const opStart = new Date(op.startDate);
@@ -145,15 +145,26 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                         const opEnd = new Date(op.endDate);
                         if (!pEnd || opEnd > pEnd) pEnd = opEnd;
                     }
+                    // Фоллбэк на старое поле plannedDate для обратной совместимости
+                    if (!op.startDate && op.plannedDate) {
+                        const opDate = new Date(op.plannedDate);
+                        if (!pStart || opDate < pStart) pStart = opDate;
+                        if (!pEnd || opDate > pEnd) pEnd = opDate;
+                    }
                 });
 
-                // Фоллбэк на старую логику если нет диапазонов
-                if (!pStart) {
-                    pStart = prod.startDate ? new Date(prod.startDate) : new Date();
+                // Приоритет 2: Дата начала изделия
+                if (!pStart && prod.startDate) {
+                    pStart = new Date(prod.startDate);
                 }
 
+                // Приоритет 3: Сегодняшняя дата
+                if (!pStart) {
+                    pStart = new Date();
+                }
+
+                // Если нет даты окончания - рассчитываем по трудоемкости
                 if (!pEnd) {
-                    // Считаем кол-во рабочих смен (округляем вверх)
                     const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
                     pEnd = addWorkingDays(pStart, workDaysNeeded);
                 }

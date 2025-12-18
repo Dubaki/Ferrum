@@ -551,19 +551,23 @@ const OrderCard = memo(function OrderCard({
 
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {isAdmin && (
-                    <div className="mt-3 flex gap-2 flex-wrap">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
                             onClick={() => onAddProduct()}
-                            className="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className="px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
-                            <Plus size={16} strokeWidth={3} /> Добавить изделие
+                            <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Добавить изделие</span>
+                            <span className="sm:hidden">Изделие</span>
                         </button>
 
                         <button
                             onClick={() => onCopyFromArchive()}
-                            className="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
-                            <Copy size={16} /> Из архива
+                            <Copy size={14} className="sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Из архива</span>
+                            <span className="sm:hidden">Архив</span>
                         </button>
                     </div>
                     )}
