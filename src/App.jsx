@@ -128,12 +128,26 @@ export default function App() {
           <Route
             path="/resources"
             element={
-              <ResourcesTab
-                resources={resources}
-                setResources={actions.setResources}
-                actions={actions}
-                isAdmin={isAdmin}
-              />
+              isAdmin ? (
+                <ResourcesTab
+                  resources={resources}
+                  setResources={actions.setResources}
+                  actions={actions}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <div className="text-center py-20">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h1 className="text-2xl font-bold text-slate-600 mb-4">Доступ запрещен</h1>
+                  <p className="text-slate-500 mb-6">Этот раздел доступен только администраторам</p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold"
+                  >
+                    Вернуться на главную
+                  </button>
+                </div>
+              )
             }
           />
           <Route
@@ -151,13 +165,28 @@ export default function App() {
           <Route
             path="/reports"
             element={
-              <ReportsTab
-                reports={reports}
-                actions={actions}
-                products={products}
-                orders={orders}
-                resources={resources}
-              />
+              isAdmin ? (
+                <ReportsTab
+                  reports={reports}
+                  actions={actions}
+                  products={products}
+                  orders={orders}
+                  resources={resources}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <div className="text-center py-20">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h1 className="text-2xl font-bold text-slate-600 mb-4">Доступ запрещен</h1>
+                  <p className="text-slate-500 mb-6">Этот раздел доступен только администраторам</p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold"
+                  >
+                    Вернуться на главную
+                  </button>
+                </div>
+              )
             }
           />
           {/* Fallback для несуществующих маршрутов */}

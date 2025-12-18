@@ -19,15 +19,33 @@ export default function SalaryView({ resources, actions }) {
 
     // --- ЛОГИКА РАСЧЕТА ---
     const payrollData = useMemo(() => {
-        // Фильтруем уволенных (показываем только если уволен ПОЗЖЕ текущего месяца или работает)
-        return resources.filter(r => r.status !== 'fired' || (r.firedAt && new Date(r.firedAt) > currentDate)).map(res => {
+        // Фильтруем:
+        // 1. Уволенных (показываем только если уволен ПОЗЖЕ текущего месяца или работает)
+        // 2. Сотрудников с отключенной зарплатой (salaryEnabled === false)
+        return resources.filter(r => {
+            // Проверка увольнения
+            const notFired = r.status !== 'fired' || (r.firedAt && new Date(r.firedAt) > currentDate);
+            // Проверка включенного расчета зарплаты (по умолчанию true)
+            const salaryEnabled = r.salaryEnabled !== false;
+            return notFired && salaryEnabled;
+        }).map(res => {
             let totalBase = 0;
             let totalTb = 0;
             let totalKtu = 0;
             let hoursWorked = 0;
 
-            const probationEnd = res.employmentDate ? new Date(res.employmentDate) : new Date(0);
-            probationEnd.setDate(probationEnd.getDate() + 7); // 7 дней испытательный срок для ТБ
+            // Используем probationEndDate если есть, иначе рассчитываем автоматически
+            let probationEnd;
+            if (res.probationEndDate) {
+                probationEnd = new Date(res.probationEndDate);
+            } else if (res.employmentDate) {
+                probationEnd = new Date(res.employmentDate);
+                // Плазморез - 30 дней, остальные - 7 дней
+                const probationDays = res.position === 'Плазморез' ? 30 : 7;
+                probationEnd.setDate(probationEnd.getDate() + probationDays);
+            } else {
+                probationEnd = new Date(0); // Очень давно = ТБ всегда начисляется
+            }
 
             monthDays.forEach(day => {
                 const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -56,18 +74,22 @@ export default function SalaryView({ resources, actions }) {
                     const hourlyRate = currentRate / standardHours;
                     const dailyBase = hourlyRate * dailyHours;
 
-                    // 3. Бонусы
+                    // 3. Бонусы (только после окончания испытательного срока)
                     const violation = res.safetyViolations?.[dateStr];
                     const ktuPercent = (res.dailyEfficiency?.[dateStr]) || 0;
+                    const isProbationPassed = dateObj > probationEnd;
 
                     // ТБ (22%) - если прошел исп. срок и нет нарушений в этот день
                     let dailyTb = 0;
-                    if (dateObj > probationEnd && !violation) {
+                    if (isProbationPassed && !violation) {
                         dailyTb = dailyBase * 0.22;
                     }
 
-                    // КТУ (процент от базы)
-                    const dailyKtu = dailyBase * (ktuPercent / 100);
+                    // КТУ (процент от базы) - только если прошел исп. срок
+                    let dailyKtu = 0;
+                    if (isProbationPassed) {
+                        dailyKtu = dailyBase * (ktuPercent / 100);
+                    }
 
                     totalBase += dailyBase;
                     totalTb += dailyTb;

@@ -229,29 +229,253 @@ export default function ResourcesTab({ resources, setResources, actions }) {
 
 function EmployeeModal({ resource, onClose, actions }) {
     const isNew = !resource.id;
+
+    // Список должностей
+    const POSITIONS = [
+        'Мастер',
+        'Технолог',
+        'Плазморез',
+        'Слесарь',
+        'Разнорабочий',
+        'Кладовщик',
+        'Маляр',
+        'Сварщик',
+        'Электрик',
+        'Лентопил'
+    ];
+
     const [formData, setFormData] = useState({
-        name: resource.name || '', position: resource.position || '', phone: resource.phone || '',
-        address: resource.address || '', dob: resource.dob || '', employmentDate: resource.employmentDate || new Date().toISOString().split('T')[0],
-        baseRate: resource.baseRate || '', hoursPerDay: resource.hoursPerDay || 8, workWeekends: resource.workWeekends || false, photoUrl: resource.photoUrl || ''
+        name: resource.name || '',
+        position: resource.position || '',
+        phone: resource.phone || '',
+        address: resource.address || '',
+        dob: resource.dob || '',
+        employmentDate: resource.employmentDate || new Date().toISOString().split('T')[0],
+        probationEndDate: resource.probationEndDate || '', // Дата окончания испытательного срока
+        baseRate: resource.baseRate || '',
+        hoursPerDay: resource.hoursPerDay || 8,
+        workWeekends: resource.workWeekends || false,
+        photoUrl: resource.photoUrl || '',
+        salaryEnabled: resource.salaryEnabled !== undefined ? resource.salaryEnabled : true
     });
-    const handleChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+
+    const handleChange = (field, value) => {
+        // Автоматически рассчитываем дату окончания испытательного срока при изменении даты трудоустройства или должности
+        if (field === 'employmentDate' || field === 'position') {
+            const empDate = field === 'employmentDate' ? value : formData.employmentDate;
+            const pos = field === 'position' ? value : formData.position;
+
+            if (empDate) {
+                const probationEnd = new Date(empDate);
+                // Плазморез - 30 дней, остальные - 7 дней
+                const probationDays = pos === 'Плазморез' ? 30 : 7;
+                probationEnd.setDate(probationEnd.getDate() + probationDays);
+
+                // Обновляем formData со всеми изменениями сразу
+                setFormData(prev => ({
+                    ...prev,
+                    [field]: value,
+                    probationEndDate: probationEnd.toISOString().split('T')[0]
+                }));
+                return;
+            }
+        }
+
+        // Для остальных полей - обычное обновление
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
     const handleSave = async () => {
         if (!formData.name) return alert("Введите имя");
-        if (!isNew) Object.keys(formData).forEach(key => { if (formData[key] !== resource[key]) actions.updateResource(resource.id, key, formData[key]); });
-        else await actions.addResource(formData);
+        if (!isNew) {
+            Object.keys(formData).forEach(key => {
+                if (formData[key] !== resource[key]) {
+                    actions.updateResource(resource.id, key, formData[key]);
+                }
+            });
+        } else {
+            await actions.addResource(formData);
+        }
         onClose();
     };
+
+    const handleDelete = () => {
+        if (window.confirm(`Вы уверены, что хотите УДАЛИТЬ сотрудника ${formData.name}? Это действие необратимо!`)) {
+            actions.deleteResource(resource.id);
+            onClose();
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="bg-slate-900 p-6 text-white flex justify-between items-start"><div><h2 className="text-2xl font-bold">{isNew ? 'Новый сотрудник' : formData.name}</h2></div><button onClick={onClose}><X size={20}/></button></div>
-                <div className="p-6 overflow-y-auto custom-scrollbar space-y-5">
-                    <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500">ФИО</label><input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div><div><label className="text-xs font-bold text-slate-500">Должность</label><input type="text" value={formData.position} onChange={e => handleChange('position', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div></div>
-                    <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500">Ставка (₽)</label><input type="number" value={formData.baseRate} onChange={e => handleChange('baseRate', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div><div><label className="text-xs font-bold text-slate-500">Часов</label><input type="number" value={formData.hoursPerDay} onChange={e => handleChange('hoursPerDay', e.target.value)} className="w-full border-2 border-slate-200 rounded p-2"/></div></div>
+                {/* Заголовок */}
+                <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
+                    <div>
+                        <h2 className="text-2xl font-bold">{isNew ? 'Новый сотрудник' : formData.name}</h2>
+                    </div>
+                    <button onClick={onClose} className="text-white hover:text-slate-300 transition">
+                        <X size={20}/>
+                    </button>
                 </div>
+
+                {/* Форма */}
+                <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
+                    {/* ФИО и Должность */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">ФИО</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={e => handleChange('name', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                        <div className="relative z-[70]">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Должность</label>
+                            <select
+                                value={formData.position}
+                                onChange={e => handleChange('position', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition bg-white cursor-pointer"
+                            >
+                                <option value="">Выберите должность</option>
+                                {POSITIONS.map(pos => (
+                                    <option key={pos} value={pos}>{pos}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Дата начала работы и Дата окончания испытательного срока */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Дата начала работы</label>
+                            <input
+                                type="date"
+                                value={formData.employmentDate}
+                                onChange={e => handleChange('employmentDate', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                                Окончание исп. срока
+                                <span className="text-[9px] text-slate-400 ml-1 normal-case">({formData.position === 'Плазморез' ? '30' : '7'} дн.)</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={formData.probationEndDate}
+                                onChange={e => handleChange('probationEndDate', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Телефон и Адрес */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Телефон</label>
+                            <input
+                                type="tel"
+                                value={formData.phone}
+                                onChange={e => handleChange('phone', e.target.value)}
+                                placeholder="+7 (___) ___-__-__"
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Адрес</label>
+                            <input
+                                type="text"
+                                value={formData.address}
+                                onChange={e => handleChange('address', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Ставка и Часов */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ставка (₽)</label>
+                            <input
+                                type="number"
+                                value={formData.baseRate}
+                                onChange={e => handleChange('baseRate', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Часов в день</label>
+                            <input
+                                type="number"
+                                value={formData.hoursPerDay}
+                                onChange={e => handleChange('hoursPerDay', e.target.value)}
+                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Переключатель расчета зарплаты */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.salaryEnabled}
+                                onChange={e => handleChange('salaryEnabled', e.target.checked)}
+                                className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500 border-slate-300"
+                            />
+                            <div>
+                                <div className="text-sm font-bold text-slate-700">Расчет зарплаты</div>
+                                <div className="text-xs text-slate-500">Включите для постоянных сотрудников</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                {/* Футер */}
                 <div className="p-6 border-t border-slate-100 flex justify-between bg-slate-50">
-                    {!isNew && resource.status !== 'fired' ? <button onClick={() => { actions.fireResource(resource.id); onClose(); }} className="text-red-500 font-bold text-xs">УВОЛИТЬ</button> : <div></div>}
-                    <div className="flex gap-3"><button onClick={onClose} className="px-4 py-2 font-bold text-slate-500">Отмена</button><button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white rounded font-bold">Сохранить</button></div>
+                    <div className="flex gap-2">
+                        {!isNew && resource.status !== 'fired' && (
+                            <button
+                                onClick={() => { actions.fireResource(resource.id); onClose(); }}
+                                className="px-4 py-2 text-orange-600 hover:bg-orange-50 rounded-lg font-bold text-xs uppercase transition"
+                            >
+                                Уволить
+                            </button>
+                        )}
+                        {!isNew && resource.status === 'fired' && (
+                            <button
+                                onClick={() => { actions.updateResource(resource.id, 'status', 'active'); onClose(); }}
+                                className="px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold text-xs uppercase transition"
+                            >
+                                Восстановить
+                            </button>
+                        )}
+                        {!isNew && (
+                            <button
+                                onClick={handleDelete}
+                                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-bold text-xs uppercase transition"
+                            >
+                                Удалить
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition"
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            className="px-6 py-2 bg-slate-900 hover:bg-orange-600 text-white rounded-lg font-bold transition"
+                        >
+                            Сохранить
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

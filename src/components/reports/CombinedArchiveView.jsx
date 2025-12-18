@@ -83,8 +83,11 @@ function ArchiveOrderRow({ order, products, resources, actions }) {
                     op.resourceIds.forEach(rid => {
                         const res = resources.find(r => r.id === rid);
                         if (res) {
+                            // Проверяем включен ли расчет зарплаты для этого сотрудника
+                            // Если salaryEnabled === false, то его ставка = 0 (не учитываем в себестоимости)
+                            const salaryEnabled = res.salaryEnabled !== false;
                             // Дневная ставка / 8 часов = Часовая ставка этого сотрудника
-                            const hourlyRate = (parseFloat(res.baseRate) || 0) / 8;
+                            const hourlyRate = salaryEnabled ? ((parseFloat(res.baseRate) || 0) / 8) : 0;
                             totalHourlyRateOfTeam += hourlyRate;
                         }
                     });

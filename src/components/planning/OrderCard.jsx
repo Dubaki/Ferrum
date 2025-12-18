@@ -549,23 +549,44 @@ const OrderCard = memo(function OrderCard({
                         </div>
                     )}
 
+                    {/* ИНФОРМАЦИЯ О КРАСКЕ */}
+                    <div className="mt-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <Droplet size={16} className="text-purple-600" />
+                            <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider">Окраска:</span>
+                            {isAdmin ? (
+                                <input
+                                    type="text"
+                                    value={order.paintColor || ''}
+                                    onChange={(e) => actions.updateOrder(order.id, 'paintColor', e.target.value)}
+                                    placeholder="Укажите тип краски (например: RAL 7035, порошковая)"
+                                    className="flex-1 min-w-[200px] px-3 py-1.5 text-sm font-semibold text-purple-900 bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
+                                />
+                            ) : (
+                                <div className="flex-1 px-3 py-1.5 text-sm font-bold text-purple-900 bg-purple-100 border border-purple-300 rounded-lg">
+                                    {order.paintColor || <span className="text-purple-400 italic">Не указана</span>}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {isAdmin && (
-                    <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="mt-3 flex gap-2">
                         <button
                             onClick={() => onAddProduct()}
-                            className="p-3 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
-                            <Plus size={24} strokeWidth={2.5} />
-                            <span className="text-[10px] uppercase tracking-wide leading-tight text-center">Добавить<br/>изделие</span>
+                            <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
+                            <span className="uppercase tracking-wide">Добавить изделие</span>
                         </button>
 
                         <button
                             onClick={() => onCopyFromArchive()}
-                            className="p-3 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold flex flex-col items-center justify-center gap-1.5 shadow-md hover:shadow-lg transition-all active:scale-95"
+                            className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
-                            <Copy size={24} strokeWidth={2} />
-                            <span className="text-[10px] uppercase tracking-wide leading-tight text-center">Копировать<br/>из архива</span>
+                            <Copy size={14} className="sm:w-4 sm:h-4" />
+                            <span className="uppercase tracking-wide">Из архива</span>
                         </button>
                     </div>
                     )}
