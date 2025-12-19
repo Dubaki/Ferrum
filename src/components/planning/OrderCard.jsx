@@ -15,12 +15,6 @@ const OrderCard = memo(function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
-    const [paintColorInput, setPaintColorInput] = useState(order.paintColor || '');
-
-    // Синхронизировать локальное состояние с order.paintColor
-    useEffect(() => {
-        setPaintColorInput(order.paintColor || '');
-    }, [order.paintColor]);
 
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     let totalPlanMins = 0;
@@ -554,60 +548,6 @@ const OrderCard = memo(function OrderCard({
                                 )}
                             </div>
                         </div>
-                    )}
-
-                    {/* ИНФОРМАЦИЯ О КРАСКЕ - только для производственных заказов */}
-                    {!order.isProductOrder && (
-                        order.paintColor ? (
-                            // Компактное отображение после ввода
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-lg border border-emerald-200">
-                                <Droplet size={14} className="text-emerald-500" />
-                                <span className="text-sm font-semibold text-slate-700">{order.paintColor}</span>
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => {
-                                            setPaintColorInput('');
-                                            actions.updateOrder(order.id, 'paintColor', '');
-                                        }}
-                                        className="ml-auto text-slate-400 hover:text-red-500 text-xs"
-                                        title="Очистить"
-                                    >
-                                        ✕
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            // Полный блок для ввода
-                            <div className="mt-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-3">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                    <Droplet size={16} className="text-purple-600" />
-                                    <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider">Окраска:</span>
-                                    {isAdmin ? (
-                                        <input
-                                            type="text"
-                                            value={paintColorInput}
-                                            onChange={(e) => setPaintColorInput(e.target.value)}
-                                            onBlur={() => {
-                                                if (paintColorInput !== order.paintColor) {
-                                                    actions.updateOrder(order.id, 'paintColor', paintColorInput);
-                                                }
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.target.blur();
-                                                }
-                                            }}
-                                            placeholder="Укажите тип краски (например: RAL 7035, порошковая)"
-                                            className="flex-1 min-w-[200px] px-3 py-1.5 text-sm font-semibold text-purple-900 bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition"
-                                        />
-                                    ) : (
-                                        <div className="flex-1 px-3 py-1.5 text-sm font-bold text-purple-900 bg-purple-100 border border-purple-300 rounded-lg">
-                                            <span className="text-purple-400 italic">Не указана</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )
                     )}
 
                     {/* СЕКЦИЯ ЧЕРТЕЖЕЙ - только для производственных заказов */}
