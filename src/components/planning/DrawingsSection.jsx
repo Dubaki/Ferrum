@@ -63,6 +63,22 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     });
   };
 
+  // Получить правильный URL для скачивания PDF
+  const getDownloadUrl = (drawing) => {
+    // Если URL уже содержит /raw/upload - используем как есть
+    if (drawing.url.includes('/raw/upload/')) {
+      return drawing.url;
+    }
+
+    // Если это старый формат /image/upload - заменяем на /raw/upload
+    if (drawing.url.includes('/image/upload/')) {
+      return drawing.url.replace('/image/upload/', '/raw/upload/');
+    }
+
+    // В остальных случаях возвращаем как есть
+    return drawing.url;
+  };
+
   // Если Cloudinary не настроен - показываем предупреждение
   if (!cloudinaryReady) {
     return (
@@ -150,7 +166,7 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
               <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 {/* Скачать */}
                 <a
-                  href={drawing.url}
+                  href={getDownloadUrl(drawing)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"

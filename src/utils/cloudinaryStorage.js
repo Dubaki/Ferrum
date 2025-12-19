@@ -51,11 +51,10 @@ export const uploadDrawing = async (file, orderId) => {
     formData.append('file', file);
     formData.append('upload_preset', uploadPreset);
     formData.append('folder', `planfer/drawings/${orderId}`); // Организация по папкам
-    formData.append('resource_type', 'raw'); // Для PDF нужен тип 'raw'
 
-    // Отправляем на Cloudinary
+    // Отправляем на Cloudinary (используем специальный endpoint для raw файлов)
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`,
       {
         method: 'POST',
         body: formData
