@@ -71,12 +71,15 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
 
         products.forEach(p => {
             if (!p.startDate || p.status !== 'active') return;
+            // ИСКЛЮЧАЕМ товары для перепродажи из расчёта загрузки
+            if (p.isResale === true) return;
+
             const pStart = new Date(p.startDate);
             if (isNaN(pStart.getTime())) return;
 
             const ops = p.operations || [];
             const totalHours = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (p.quantity || 1), 0) / 60;
-            
+
             if (totalHours <= 0) return;
 
             let hoursLeft = totalHours;
@@ -113,10 +116,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
     // 3. Структура для Ганта
     const ganttRows = useMemo(() => {
         const activeOrders = orders
-            .filter(o => o.status === 'active')
+            .filter(o => o.status === 'active' && o.isProductOrder !== true) // ИСКЛЮЧАЕМ товарные заказы
             .sort((a, b) => {
                 if (!a.deadline && !b.deadline) return 0;
-                if (!a.deadline) return 1; 
+                if (!a.deadline) return 1;
                 if (!b.deadline) return -1;
                 return new Date(a.deadline) - new Date(b.deadline);
             });

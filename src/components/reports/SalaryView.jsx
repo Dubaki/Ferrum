@@ -47,19 +47,27 @@ export default function SalaryView({ resources, actions }) {
                 probationEnd = new Date(0); // Очень давно = ТБ всегда начисляется
             }
 
+            const standardHours = parseFloat(res.hoursPerDay) || 8;
+
             monthDays.forEach(day => {
                 const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                const dateObj = new Date(dateStr);
+                const dateObj = new Date(dateStr + 'T00:00:00');
                 const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
 
                 // 1. Часы (Приоритет: Переопределение -> График -> 0)
                 const override = res.scheduleOverrides?.[dateStr];
-                const standardHours = parseFloat(res.hoursPerDay) || 8;
                 const isWorkDay = res.workWeekends ? true : !isWeekend;
-                
+
                 let dailyHours = 0;
-                if (override !== undefined) dailyHours = override;
-                else if (isWorkDay) dailyHours = standardHours;
+
+                // КРИТИЧЕСКАЯ ПРОВЕРКА: Если день ДО даты трудоустройства - часы ВСЕГДА 0
+                if (res.employmentDate && dateStr < res.employmentDate) {
+                    dailyHours = 0; // Сотрудник еще не работал - часы = 0
+                } else {
+                    // Только если сотрудник уже работал - берём часы
+                    if (override !== undefined) dailyHours = override;
+                    else if (isWorkDay) dailyHours = standardHours;
+                }
 
                 if (dailyHours > 0) {
                     hoursWorked += dailyHours;
@@ -70,8 +78,10 @@ export default function SalaryView({ resources, actions }) {
                     // Берем последнюю запись, дата которой меньше или равна текущему дню
                     const applicableRateEntry = sortedHistory.reverse().find(h => new Date(h.date) <= dateObj);
                     const currentRate = applicableRateEntry ? parseFloat(applicableRateEntry.rate) : (parseFloat(res.baseRate) || 0);
-                    
-                    const hourlyRate = currentRate / standardHours;
+
+                    // ПРАВИЛЬНАЯ ЛОГИКА: baseRate - дневная ставка за 8 часов
+                    // Пример: ставка 4000, работал 10 часов → 4000/8 = 500 руб/час → 500*10 = 5000 за смену
+                    const hourlyRate = currentRate / 8;
                     const dailyBase = hourlyRate * dailyHours;
 
                     // 3. Бонусы (только после окончания испытательного срока)

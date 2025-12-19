@@ -155,16 +155,23 @@ export const useProductionData = () => {
     }
   };
 
-  // Завершить отгрузку - перенести в архив с фиксацией даты
   const completeShipping = async (id) => {
     try {
-      await updateDoc(doc(db, 'orders', id), {
+      const order = orders.find(o => o.id === id);
+      const updates = {
         status: 'completed',
         inShipping: false,
         shippingToday: false,
         shippedAt: new Date().toISOString(),
         finishedAt: new Date().toISOString()
-      });
+      };
+
+      // Помечаем все чертежи как удалённые при отгрузке
+      if (order?.drawings && order.drawings.length > 0) {
+        updates.drawings = order.drawings.map(d => ({ ...d, deleted: true }));
+      }
+
+      await updateDoc(doc(db, 'orders', id), updates);
       showSuccess('Заказ отгружен и перемещён в архив');
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
@@ -176,6 +183,44 @@ export const useProductionData = () => {
     try {
       await deleteDoc(doc(db, 'orders', id));
       showSuccess('Заказ удалён');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
+  // --- ЧЕРТЕЖИ (Cloudinary) ---
+
+  // Добавить чертёж к заказу (метаданные)
+  const addDrawingToOrder = async (orderId, drawingData) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const currentDrawings = order.drawings || [];
+      const newDrawings = [...currentDrawings, { ...drawingData, deleted: false }];
+
+      await updateDoc(doc(db, 'orders', orderId), { drawings: newDrawings });
+      showSuccess('Чертёж загружен');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
+  // Удалить чертёж (мягкое удаление - пометить как deleted)
+  const deleteDrawingFromOrder = async (orderId, publicId) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const currentDrawings = order.drawings || [];
+      const newDrawings = currentDrawings.map(d =>
+        d.publicId === publicId ? { ...d, deleted: true } : d
+      );
+
+      await updateDoc(doc(db, 'orders', orderId), { drawings: newDrawings });
+      showSuccess('Чертёж удалён');
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
       throw error;
@@ -453,6 +498,7 @@ export const useProductionData = () => {
     try {
       const res = resources.find(r => r.id === id);
       const updates = { [field]: value };
+
       if (field === 'baseRate') {
         const empDate = res.employmentDate || '2023-01-01';
         const today = new Date().toISOString().split('T')[0];
@@ -463,6 +509,24 @@ export const useProductionData = () => {
         else history.push({ date: today, rate: value });
         updates.rateHistory = history;
       }
+
+      // ИСПРАВЛЕНИЕ: При установке даты трудоустройства обнуляем все смены ДО этой даты
+      if (field === 'employmentDate' && value) {
+        const currentSchedule = res.scheduleOverrides || {};
+        const newSchedule = {};
+
+        // Проходим по всем сменам и обнуляем те, что ДО даты трудоустройства
+        Object.keys(currentSchedule).forEach(dateStr => {
+          if (dateStr < value) {
+            newSchedule[dateStr] = 0; // Обнуляем смены до даты трудоустройства
+          } else {
+            newSchedule[dateStr] = currentSchedule[dateStr]; // Оставляем как есть
+          }
+        });
+
+        updates.scheduleOverrides = newSchedule;
+      }
+
       await updateDoc(doc(db, 'resources', id), updates);
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
@@ -561,6 +625,7 @@ export const useProductionData = () => {
     actions: {
         addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
         moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
+        addDrawingToOrder, deleteDrawingFromOrder,
         addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
         addOperation, updateOperation, toggleResourceForOp, deleteOperation,
         moveOperationUp, moveOperationDown,

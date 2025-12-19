@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
+import DrawingsSection from './DrawingsSection';
 
 const OrderCard = memo(function OrderCard({
     order, products, orders, actions, resources, isExpanded, onToggle,
@@ -14,7 +15,7 @@ const OrderCard = memo(function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
-    const [paintColorInput, setPaintColorInput] = useState(order.paintColor || ''); // Локальное состояние для краски
+    const [paintColorInput, setPaintColorInput] = useState(order.paintColor || '');
 
     // Синхронизировать локальное состояние с order.paintColor
     useEffect(() => {
@@ -593,7 +594,7 @@ const OrderCard = memo(function OrderCard({
                                             }}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
-                                                    e.target.blur(); // Сохранить при нажатии Enter
+                                                    e.target.blur();
                                                 }
                                             }}
                                             placeholder="Укажите тип краски (например: RAL 7035, порошковая)"
@@ -607,6 +608,15 @@ const OrderCard = memo(function OrderCard({
                                 </div>
                             </div>
                         )
+                    )}
+
+                    {/* СЕКЦИЯ ЧЕРТЕЖЕЙ - только для производственных заказов */}
+                    {!order.isProductOrder && (
+                        <DrawingsSection
+                            order={order}
+                            actions={actions}
+                            isAdmin={isAdmin}
+                        />
                     )}
 
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
