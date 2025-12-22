@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FileText, Upload, Download, Trash2, AlertCircle, Loader } from 'lucide-react';
-import { uploadDrawing, isCloudinaryConfigured } from '../../utils/cloudinaryStorage';
+import { uploadDrawing, deleteDrawing, isSupabaseConfigured } from '../../utils/supabaseStorage';
 
 /**
  * Компактная секция для загрузки и просмотра PDF чертежей заказа
@@ -12,8 +12,8 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
   // Только активные (не удалённые) чертежи
   const activeDrawings = (order.drawings || []).filter(d => !d.deleted);
 
-  // Проверяем настроен ли Cloudinary
-  const cloudinaryReady = isCloudinaryConfigured();
+  // Проверяем настроен ли Supabase
+  const supabaseReady = isSupabaseConfigured();
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -23,7 +23,7 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     setError('');
 
     try {
-      // Загружаем в Cloudinary
+      // Загружаем в Supabase
       const drawingData = await uploadDrawing(file, order.id);
 
       // Добавляем метаданные в Firestore
@@ -42,7 +42,13 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     if (!confirm(`Удалить чертёж "${drawing.name}"?`)) return;
 
     try {
-      await actions.deleteDrawingFromOrder(order.id, drawing.publicId);
+      // Удаляем из Supabase Storage
+      if (drawing.path) {
+        await deleteDrawing(drawing.path);
+      }
+
+      // Помечаем как удаленный в Firestore
+      await actions.deleteDrawingFromOrder(order.id, drawing.path);
     } catch (err) {
       setError(err.message);
     }
@@ -65,19 +71,18 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
 
   // Получить правильный URL для скачивания PDF
   const getDownloadUrl = (drawing) => {
-    // Cloudinary может отдавать PDF через любой endpoint (/image/upload/ или /raw/upload/)
-    // Просто используем URL который пришел от Cloudinary
-    return drawing.url;
+    // Supabase возвращает готовый публичный URL
+    return drawing.url || '';
   };
 
-  // Если Cloudinary не настроен - показываем предупреждение
-  if (!cloudinaryReady) {
+  // Если Supabase не настроен - показываем предупреждение
+  if (!supabaseReady) {
     return (
       <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
         <div className="flex items-center gap-2">
           <AlertCircle size={16} className="text-yellow-600 flex-shrink-0" />
           <p className="text-xs text-yellow-800">
-            Cloudinary не настроен. См. <span className="font-mono font-semibold">CLOUDINARY_SETUP.md</span>
+            Supabase не настроен. См. <span className="font-mono font-semibold">SUPABASE_SETUP.md</span>
           </p>
         </div>
       </div>

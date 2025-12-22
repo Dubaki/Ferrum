@@ -3,6 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch }
 import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
+import { deleteDrawing } from '../utils/supabaseStorage';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
@@ -166,8 +167,21 @@ export const useProductionData = () => {
         finishedAt: new Date().toISOString()
       };
 
-      // Помечаем все чертежи как удалённые при отгрузке
+      // Удаляем чертежи из Supabase Storage и помечаем как удалённые
       if (order?.drawings && order.drawings.length > 0) {
+        // Физически удаляем файлы из Supabase Storage
+        const deletePromises = order.drawings
+          .filter(d => !d.deleted && d.path) // Только активные файлы с путем
+          .map(drawing =>
+            deleteDrawing(drawing.path).catch(err => {
+              console.error(`Ошибка удаления файла ${drawing.path}:`, err);
+              // Не прерываем процесс если не удалось удалить файл
+            })
+          );
+
+        await Promise.all(deletePromises);
+
+        // Помечаем все чертежи как удалённые в метаданных
         updates.drawings = order.drawings.map(d => ({ ...d, deleted: true }));
       }
 
@@ -229,15 +243,15 @@ export const useProductionData = () => {
     }
   };
 
-  // Удалить чертёж (мягкое удаление - пометить как deleted)
-  const deleteDrawingFromOrder = async (orderId, publicId) => {
+  // Удалить чертёж (пометить как deleted)
+  const deleteDrawingFromOrder = async (orderId, filePath) => {
     try {
       const order = orders.find(o => o.id === orderId);
       if (!order) return;
 
       const currentDrawings = order.drawings || [];
       const newDrawings = currentDrawings.map(d =>
-        d.publicId === publicId ? { ...d, deleted: true } : d
+        d.path === filePath ? { ...d, deleted: true } : d
       );
 
       await updateDoc(doc(db, 'orders', orderId), { drawings: newDrawings });
