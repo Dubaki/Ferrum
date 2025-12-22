@@ -67,7 +67,6 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
   const getDownloadUrl = (drawing) => {
     // Cloudinary может отдавать PDF через любой endpoint (/image/upload/ или /raw/upload/)
     // Просто используем URL который пришел от Cloudinary
-    console.log('PDF URL:', drawing.url);
     return drawing.url;
   };
 

@@ -68,7 +68,6 @@ export const uploadDrawing = async (file, orderId) => {
     }
 
     const data = await response.json();
-    console.log('Cloudinary response:', data); // Отладка
 
     // Формируем объект с данными, фильтруя undefined значения
     const drawingData = {
