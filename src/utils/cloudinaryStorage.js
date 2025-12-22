@@ -67,19 +67,26 @@ export const uploadDrawing = async (file, orderId) => {
     }
 
     const data = await response.json();
+    console.log('Cloudinary response:', data); // Отладка
 
-    return {
+    // Формируем объект с данными, фильтруя undefined значения
+    const drawingData = {
       name: file.name,
-      url: data.secure_url, // HTTPS URL для скачивания
-      publicId: data.public_id, // ID для удаления
+      url: data.secure_url,
+      publicId: data.public_id,
       size: file.size,
-      uploadedAt: new Date().toISOString(),
-      cloudinaryData: {
-        format: data.format,
-        resourceType: data.resource_type,
-        bytes: data.bytes
-      }
+      uploadedAt: new Date().toISOString()
     };
+
+    // Добавляем cloudinaryData только если есть хотя бы одно значение
+    if (data.format || data.resource_type || data.bytes) {
+      drawingData.cloudinaryData = {};
+      if (data.format) drawingData.cloudinaryData.format = data.format;
+      if (data.resource_type) drawingData.cloudinaryData.resourceType = data.resource_type;
+      if (data.bytes) drawingData.cloudinaryData.bytes = data.bytes;
+    }
+
+    return drawingData;
   } catch (error) {
     console.error('Ошибка загрузки в Cloudinary:', error);
     throw error;

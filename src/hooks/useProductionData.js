@@ -191,6 +191,24 @@ export const useProductionData = () => {
 
   // --- ЧЕРТЕЖИ (Cloudinary) ---
 
+  // Вспомогательная функция для удаления undefined значений из объекта
+  const cleanUndefined = (obj) => {
+    if (obj === null || typeof obj !== 'object') return obj;
+
+    if (Array.isArray(obj)) {
+      return obj.map(cleanUndefined);
+    }
+
+    const cleaned = {};
+    Object.keys(obj).forEach(key => {
+      const value = obj[key];
+      if (value !== undefined) {
+        cleaned[key] = typeof value === 'object' ? cleanUndefined(value) : value;
+      }
+    });
+    return cleaned;
+  };
+
   // Добавить чертёж к заказу (метаданные)
   const addDrawingToOrder = async (orderId, drawingData) => {
     try {
@@ -198,7 +216,10 @@ export const useProductionData = () => {
       if (!order) return;
 
       const currentDrawings = order.drawings || [];
-      const newDrawings = [...currentDrawings, { ...drawingData, deleted: false }];
+
+      // Очищаем undefined значения перед добавлением
+      const cleanedData = cleanUndefined({ ...drawingData, deleted: false });
+      const newDrawings = [...currentDrawings, cleanedData];
 
       await updateDoc(doc(db, 'orders', orderId), { drawings: newDrawings });
       showSuccess('Чертёж загружен');
