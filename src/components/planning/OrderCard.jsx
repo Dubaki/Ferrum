@@ -147,18 +147,18 @@ const OrderCard = memo(function OrderCard({
                             <Star size={16} className={`sm:w-[18px] sm:h-[18px] ${order.isImportant ? 'fill-current' : ''}`} />
                         </button>
 
-                        <div className="flex flex-col min-w-0">
-                            <div className="font-black text-lg sm:text-xl text-slate-800 uppercase tracking-tight leading-none truncate">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
-                            <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 truncate uppercase tracking-wider">
-                                <User size={10} className="sm:w-3 sm:h-3" /> {order.clientName || 'Клиент не указан'}
+                        <div className="flex flex-col min-w-0 flex-1">
+                            <div className="font-black text-lg sm:text-xl text-slate-800 uppercase tracking-tight leading-tight break-words">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
+                            <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 break-words uppercase tracking-wider">
+                                <User size={10} className="sm:w-3 sm:h-3 shrink-0" /> <span className="break-words">{order.clientName || 'Клиент не указан'}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Right: Deadline (Mobile) */}
-                    <div className="flex flex-col items-end sm:hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex flex-col items-end sm:hidden shrink-0" onClick={e => e.stopPropagation()}>
                         <div className={`text-2xl font-black leading-none ${dlInfo.color}`}>{dlInfo.text || '—'}</div>
-                        <div className="text-[9px] font-bold text-slate-400">{dlInfo.sub}</div>
+                        <div className="text-[9px] font-bold text-slate-400 whitespace-nowrap">{dlInfo.sub}</div>
                     </div>
                 </div>
 
@@ -561,12 +561,12 @@ const OrderCard = memo(function OrderCard({
 
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {isAdmin && (
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
                         <button
                             onClick={() => onAddProduct()}
-                            className={`${order.isProductOrder ? 'w-full' : 'flex-1'} px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg ${order.isProductOrder ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95`}
+                            className={`${order.isProductOrder ? 'w-full' : 'flex-1'} px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg ${order.isProductOrder ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap`}
                         >
-                            {order.isProductOrder ? <ShoppingBag size={14} strokeWidth={3} className="sm:w-4 sm:h-4" /> : <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />}
+                            {order.isProductOrder ? <ShoppingBag size={14} strokeWidth={3} className="sm:w-4 sm:h-4 shrink-0" /> : <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4 shrink-0" />}
                             <span className="uppercase tracking-wide">{order.isProductOrder ? 'Добавить товар' : 'Добавить изделие'}</span>
                         </button>
 
@@ -574,9 +574,9 @@ const OrderCard = memo(function OrderCard({
                         {!order.isProductOrder && (
                             <button
                                 onClick={() => onCopyFromArchive()}
-                                className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-[9px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+                                className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap"
                             >
-                                <Copy size={14} className="sm:w-4 sm:h-4" />
+                                <Copy size={14} className="sm:w-4 sm:h-4 shrink-0" />
                                 <span className="uppercase tracking-wide">Из архива</span>
                             </button>
                         )}
