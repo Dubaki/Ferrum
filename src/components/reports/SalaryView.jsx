@@ -60,9 +60,12 @@ export default function SalaryView({ resources, actions }) {
 
                 let dailyHours = 0;
 
-                // КРИТИЧЕСКАЯ ПРОВЕРКА: Если день ДО даты трудоустройства - часы ВСЕГДА 0
-                if (res.employmentDate && dateStr < res.employmentDate) {
+                // КРИТИЧЕСКАЯ ПРОВЕРКА: Если день ДО даты трудоустройства или начала работы - часы ВСЕГДА 0
+                const employmentDate = res.employmentDate || res.startDate;
+                if (employmentDate && dateStr < employmentDate) {
                     dailyHours = 0; // Сотрудник еще не работал - часы = 0
+                } else if (res.startDate && dateStr < res.startDate) {
+                    dailyHours = 0; // Сотрудник еще не начал работу - часы = 0
                 } else {
                     // Только если сотрудник уже работал - берём часы
                     if (override !== undefined) dailyHours = override;

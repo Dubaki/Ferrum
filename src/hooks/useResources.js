@@ -47,6 +47,8 @@ export const useResources = () => {
     try {
       const res = resources.find(r => r.id === id);
       const updates = { [field]: value };
+
+      // При изменении baseRate - обновляем историю
       if (field === 'baseRate') {
         const empDate = res.employmentDate || '2023-01-01';
         const today = new Date().toISOString().split('T')[0];
@@ -57,6 +59,30 @@ export const useResources = () => {
         else history.push({ date: today, rate: value });
         updates.rateHistory = history;
       }
+
+      // При установке startDate - очищаем scheduleOverrides для дат до startDate
+      if (field === 'startDate' && value) {
+        const startDate = new Date(value);
+        const currentOverrides = res.scheduleOverrides || {};
+        const currentReasons = res.scheduleReasons || {};
+        const cleanedOverrides = {};
+        const cleanedReasons = {};
+
+        // Оставляем только записи на дату startDate и позже
+        Object.keys(currentOverrides).forEach(dateStr => {
+          const checkDate = new Date(dateStr);
+          if (checkDate >= startDate) {
+            cleanedOverrides[dateStr] = currentOverrides[dateStr];
+            if (currentReasons[dateStr]) {
+              cleanedReasons[dateStr] = currentReasons[dateStr];
+            }
+          }
+        });
+
+        updates.scheduleOverrides = cleanedOverrides;
+        updates.scheduleReasons = cleanedReasons;
+      }
+
       await updateDoc(doc(db, 'resources', id), updates);
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
