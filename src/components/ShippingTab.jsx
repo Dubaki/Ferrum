@@ -27,9 +27,9 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <Package className="w-5 h-5 text-slate-400" />
-                <h3 className="font-bold text-slate-800 break-words">{order.orderNumber}</h3>
+                <h3 className="font-bold text-slate-800">{order.orderNumber}</h3>
               </div>
-              <p className="text-sm text-slate-500 break-words">{order.clientName}</p>
+              <p className="text-sm text-slate-500">{order.clientName}</p>
               <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
                 <span>{totalProducts} изд.</span>
                 {order.deadline && (
@@ -101,7 +101,7 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <ShoppingBag size={14} className="text-blue-500 shrink-0" />
-                    <span className="text-sm font-semibold text-slate-800 break-words">
+                    <span className="text-sm font-semibold text-slate-800">
                       {product.name}
                     </span>
                     {product.isResale && (

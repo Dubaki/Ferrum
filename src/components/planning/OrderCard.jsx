@@ -148,9 +148,9 @@ const OrderCard = memo(function OrderCard({
                         </button>
 
                         <div className="flex flex-col min-w-0 flex-1">
-                            <div className="font-black text-lg sm:text-xl text-slate-800 uppercase tracking-tight leading-tight break-words">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
-                            <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 break-words uppercase tracking-wider">
-                                <User size={10} className="sm:w-3 sm:h-3 shrink-0" /> <span className="break-words">{order.clientName || 'Клиент не указан'}</span>
+                            <div className="font-black text-lg sm:text-xl text-slate-800 uppercase tracking-tight leading-tight">{order.orderNumber || 'БЕЗ НОМЕРА'}</div>
+                            <div className="text-[10px] sm:text-xs text-slate-500 font-bold flex items-center gap-1 mt-0.5 sm:mt-1 uppercase tracking-wider">
+                                <User size={10} className="sm:w-3 sm:h-3 shrink-0" /> <span>{order.clientName || 'Клиент не указан'}</span>
                             </div>
                         </div>
                     </div>

@@ -61,7 +61,7 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
 
     // 2. Расчет загрузки (Heatmap)
     const heatmapData = useMemo(() => {
-        const map = {}; 
+        const map = {};
         const dailyCapacity = resources.reduce((sum, r) => sum + (parseFloat(r.hoursPerDay) || 8), 0);
 
         calendarDays.forEach(date => {
@@ -69,44 +69,63 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
             map[dateStr] = { capacity: dailyCapacity, booked: 0, percent: 0 };
         });
 
+        // НОВАЯ ЛОГИКА: Учитываем даты операций и назначенных исполнителей
         products.forEach(p => {
-            if (!p.startDate || p.status !== 'active') return;
-            // ИСКЛЮЧАЕМ товары для перепродажи из расчёта загрузки
-            if (p.isResale === true) return;
-
-            const pStart = new Date(p.startDate);
-            if (isNaN(pStart.getTime())) return;
+            // Пропускаем товары для перепродажи и неактивные изделия
+            if (p.isResale === true || p.status !== 'active') return;
 
             const ops = p.operations || [];
-            const totalHours = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (p.quantity || 1), 0) / 60;
+            const quantity = p.quantity || 1;
 
-            if (totalHours <= 0) return;
+            ops.forEach(op => {
+                // Пропускаем операции без назначенных исполнителей
+                if (!op.resourceIds || op.resourceIds.length === 0) return;
 
-            let hoursLeft = totalHours;
-            let currentDate = new Date(pStart);
-            let loopGuard = 0;
+                // Пропускаем операции без дат
+                if (!op.startDate) return;
 
-            while (hoursLeft > 0 && loopGuard < 365) {
-                const dStr = currentDate.toISOString().split('T')[0];
-                const dayOfWeek = currentDate.getDay();
-                
-                // Пропускаем выходные при заливке Heatmap
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                    if (map[dStr]) {
-                        const hoursToday = Math.min(hoursLeft, 8); 
-                        map[dStr].booked += hoursToday;
-                        hoursLeft -= hoursToday;
+                const opMinutes = parseFloat(op.minutesPerUnit) || 0;
+                if (opMinutes <= 0) return;
+
+                // Общее время операции на всю партию
+                const totalOpHours = (opMinutes * quantity) / 60;
+
+                // Время на каждого исполнителя (делим поровну)
+                const hoursPerResource = totalOpHours / op.resourceIds.length;
+
+                // Определяем период распределения
+                let opStart = new Date(op.startDate);
+                let opEnd = op.endDate ? new Date(op.endDate) : new Date(op.startDate);
+
+                // Считаем рабочие дни в периоде
+                const workDays = countWorkingDays(opStart, opEnd);
+
+                // Распределяем часы равномерно по рабочим дням
+                const hoursPerDay = hoursPerResource / Math.max(1, workDays);
+
+                let currentDate = new Date(opStart);
+                let loopGuard = 0;
+
+                while (currentDate <= opEnd && loopGuard < 365) {
+                    const dStr = currentDate.toISOString().split('T')[0];
+                    const dayOfWeek = currentDate.getDay();
+
+                    // Учитываем только рабочие дни
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        if (map[dStr]) {
+                            map[dStr].booked += hoursPerDay;
+                        }
                     }
+
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    loopGuard++;
                 }
-                
-                currentDate.setDate(currentDate.getDate() + 1);
-                loopGuard++;
-            }
+            });
         });
 
         Object.keys(map).forEach(key => {
-            map[key].percent = map[key].capacity > 0 
-                ? Math.round((map[key].booked / map[key].capacity) * 100) 
+            map[key].percent = map[key].capacity > 0
+                ? Math.round((map[key].booked / map[key].capacity) * 100)
                 : 0;
         });
 

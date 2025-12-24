@@ -43,7 +43,7 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                 <div className="flex-1 font-bold text-slate-800 text-sm flex items-start sm:items-center gap-2 flex-wrap min-w-0">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                         <ShoppingBag size={14} className="text-blue-500 shrink-0" />
-                        <span className="break-words min-w-0">{product.name}</span>
+                        <span className="min-w-0">{product.name}</span>
                         {product.isResale && (
                             <span className="flex items-center gap-1 text-[10px] font-black text-cyan-600 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0">
                                 <ShoppingBag size={10} /> Перепродажа
