@@ -127,19 +127,26 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   
                                   {daysArray.map(day => {
                                       const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                                      
+
                                       const override = res.scheduleOverrides?.[dateStr];
-                                      const reason = res.scheduleReasons?.[dateStr]; 
+                                      const reason = res.scheduleReasons?.[dateStr];
                                       const standardHours = res.hoursPerDay || 8;
-                                      
+
                                       const dateObj = new Date(dateStr);
                                       const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                       const isWorkDay = res.workWeekends ? true : !isWeekend;
-                                      
+
+                                      // Проверяем дату начала работы сотрудника
+                                      const isBeforeStartDate = res.startDate && new Date(dateStr) < new Date(res.startDate);
+
                                       let content = null;
                                       let cellClass = isWeekend ? 'bg-slate-50' : 'bg-white';
 
-                                      if (reason === 'sick') {
+                                      if (isBeforeStartDate) {
+                                          // Дата до начала работы - показываем 0 и блокируем редактирование
+                                          content = <span className="text-slate-300 text-[10px]">0</span>;
+                                          cellClass = 'bg-slate-100';
+                                      } else if (reason === 'sick') {
                                           content = <Thermometer size={14} className="text-red-500 mx-auto"/>;
                                           cellClass = 'bg-red-50';
                                       } else if (reason === 'absent') {
@@ -159,10 +166,10 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       }
 
                                       return (
-                                          <td 
-                                            key={day} 
-                                            className={`border-r border-slate-100 text-center cursor-pointer hover:ring-2 hover:ring-orange-300 hover:z-20 transition-all p-0 h-10 ${cellClass}`}
-                                            onClick={() => setShiftModal({ resource: res, dateStr, currentHours: override ?? (isWorkDay ? standardHours : 0) })}
+                                          <td
+                                            key={day}
+                                            className={`border-r border-slate-100 text-center transition-all p-0 h-10 ${cellClass} ${isBeforeStartDate ? 'cursor-not-allowed' : 'cursor-pointer hover:ring-2 hover:ring-orange-300 hover:z-20'}`}
+                                            onClick={() => !isBeforeStartDate && setShiftModal({ resource: res, dateStr, currentHours: override ?? (isWorkDay ? standardHours : 0) })}
                                           >
                                               {content}
                                           </td>

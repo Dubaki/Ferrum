@@ -62,7 +62,9 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
     // 2. Расчет загрузки (Heatmap)
     const heatmapData = useMemo(() => {
         const map = {};
-        const dailyCapacity = resources.reduce((sum, r) => sum + (parseFloat(r.hoursPerDay) || 8), 0);
+        // Учитываем только активных сотрудников (не уволенных)
+        const activeResources = resources.filter(r => !r.firedAt);
+        const dailyCapacity = activeResources.reduce((sum, r) => sum + (parseFloat(r.hoursPerDay) || 8), 0);
 
         calendarDays.forEach(date => {
             const dateStr = date.toISOString().split('T')[0];
