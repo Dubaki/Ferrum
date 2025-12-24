@@ -1,8 +1,6 @@
 import React from 'react';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
-import { checkResourceOverload } from '../../utils/workloadCalculator';
-import { showError } from '../../utils/toast';
 
 function OperationRow({ op, product, products, orders, productId, actions, resources, isOpen, onToggleDropdown, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
@@ -10,46 +8,8 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
     // Операция считается выполненной если есть фактическое время
     const isCompleted = (op.actualMinutes || 0) > 0;
 
-    // Обработчик изменения даты с проверкой загрузки
+    // Обработчик изменения даты (без проверки перегрузки - она выполняется при назначении ресурсов)
     const handleDateChange = (field, newDate) => {
-        if (!newDate) {
-            actions.updateOperation(productId, op.id, field, newDate);
-            return;
-        }
-
-        // Проверяем есть ли назначенные ресурсы
-        if (!op.resourceIds || op.resourceIds.length === 0) {
-            actions.updateOperation(productId, op.id, field, newDate);
-            return;
-        }
-
-        // Вычисляем часы этой операции на каждого ресурса
-        const quantity = parseInt(product.quantity) || 1;
-        const opTotalHours = (op.minutesPerUnit * quantity) / 60;
-        const hoursPerResource = opTotalHours / op.resourceIds.length;
-
-        // Проверяем перегрузку
-        const overloaded = checkResourceOverload(
-            op.resourceIds,
-            newDate,
-            products,
-            resources,
-            hoursPerResource,
-            op.id // Исключаем текущую операцию из расчета
-        );
-
-        if (overloaded.length > 0) {
-            // Формируем сообщение об ошибке
-            const dateFormatted = new Date(newDate).toLocaleDateString('ru-RU');
-            const warnings = overloaded.map(r =>
-                `${r.name}: уже занято ${r.currentLoad.toFixed(1)}ч из ${r.maxHours}ч, перегрузка на ${r.overflow.toFixed(1)}ч`
-            ).join('; ');
-
-            showError(`❌ Нельзя установить дату ${dateFormatted}! ${warnings}`);
-            return; // НЕ устанавливаем дату
-        }
-
-        // Устанавливаем дату только если нет перегрузки
         actions.updateOperation(productId, op.id, field, newDate);
     };
 

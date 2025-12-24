@@ -40,12 +40,12 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
              <div className="flex items-center p-3 gap-3 cursor-pointer select-none" onClick={() => setIsExpanded(!isExpanded)}>
                 <div className={`w-2.5 h-2.5 rounded-full ${statusColor} shrink-0 shadow-sm`}></div>
 
-                <div className="flex-1 font-bold text-slate-800 text-sm flex items-start sm:items-center gap-2 flex-wrap min-w-0">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex-1 font-bold text-slate-800 text-sm flex items-start sm:items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-1 flex-wrap">
                         <ShoppingBag size={14} className="text-blue-500 shrink-0" />
-                        <span className="min-w-0">{product.name}</span>
+                        <span className="break-normal">{product.name}</span>
                         {product.isResale && (
-                            <span className="flex items-center gap-1 text-[10px] font-black text-cyan-600 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0">
+                            <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-cyan-600 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0">
                                 <ShoppingBag size={10} /> Перепродажа
                             </span>
                         )}
@@ -54,14 +54,14 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
 
                     {/* Показываем следующую операцию */}
                     {!product.isResale && nextOp && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
-                            Следующая: {nextOp.name}
+                        <span className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+                            <span className="hidden sm:inline">Следующая:</span> {nextOp.name}
                         </span>
                     )}
                     {/* Если все выполнено - показываем "Готово" */}
                     {!product.isResale && !nextOp && totalOps > 0 && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
-                            <CheckCircle size={10} /> Готово
+                        <span className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0">
+                            <CheckCircle size={8} className="sm:w-[10px] sm:h-[10px]" /> Готово
                         </span>
                     )}
                 </div>

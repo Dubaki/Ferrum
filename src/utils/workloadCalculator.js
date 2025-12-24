@@ -1,3 +1,25 @@
+// Хелпер: Посчитать рабочие дни между двумя датами
+const countWorkingDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 1;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    let count = 0;
+    let current = new Date(start);
+
+    while (current <= end) {
+        const day = current.getDay();
+        // Считаем только будние дни
+        if (day !== 0 && day !== 6) {
+            count++;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+
+    return Math.max(1, count);
+};
+
 /**
  * Вычисляет загрузку ресурса на конкретную дату
  * @param {string} resourceId - ID ресурса
@@ -19,18 +41,34 @@ export const calculateResourceLoadForDate = (resourceId, dateStr, products, excl
             // Пропускаем выполненные операции
             if ((op.actualMinutes || 0) > 0) return;
 
-            // Проверяем что эта операция запланирована на эту дату
-            if (op.plannedDate !== dateStr) return;
-
             // Проверяем что этот ресурс назначен на операцию
             if (!op.resourceIds?.includes(resourceId)) return;
 
-            // Считаем часы для этого ресурса
+            // Проверяем что у операции есть даты
+            if (!op.startDate) return;
+
+            // Определяем диапазон операции
+            const opStart = new Date(op.startDate);
+            const opEnd = op.endDate ? new Date(op.endDate) : new Date(op.startDate);
+            const checkDate = new Date(dateStr);
+
+            // Проверяем попадает ли проверяемая дата в диапазон операции
+            if (checkDate < opStart || checkDate > opEnd) return;
+
+            // Пропускаем выходные
+            const dayOfWeek = checkDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) return;
+
+            // Считаем часы для этого ресурса на эту дату
             const opTotalHours = (op.minutesPerUnit * quantity) / 60;
             const resourceCount = op.resourceIds.length;
             const hoursPerResource = opTotalHours / resourceCount;
 
-            totalHours += hoursPerResource;
+            // Распределяем часы равномерно по рабочим дням
+            const workDays = countWorkingDays(opStart, opEnd);
+            const hoursPerDay = hoursPerResource / workDays;
+
+            totalHours += hoursPerDay;
         });
     });
 
