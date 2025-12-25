@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Upload, Download, Trash2, AlertCircle, Loader } from 'lucide-react';
+import { FileText, Upload, Download, Eye, Trash2, AlertCircle, Loader } from 'lucide-react';
 import { uploadDrawing, deleteDrawing, isSupabaseConfigured } from '../../utils/supabaseStorage';
 
 /**
@@ -69,10 +69,19 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     });
   };
 
-  // Получить правильный URL для скачивания PDF
-  const getDownloadUrl = (drawing) => {
-    // Supabase возвращает готовый публичный URL
+  // Получить URL для просмотра PDF в браузере (inline)
+  const getViewUrl = (drawing) => {
+    // Supabase публичный URL - по умолчанию откроется в браузере
     return drawing.url || '';
+  };
+
+  // Получить URL для скачивания PDF (принудительное скачивание)
+  const getDownloadUrl = (drawing) => {
+    const url = drawing.url || '';
+    // Добавляем параметр download для принудительного скачивания
+    if (!url) return '';
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}download=${encodeURIComponent(drawing.name)}`;
   };
 
   // Если Supabase не настроен - показываем предупреждение
@@ -160,13 +169,23 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
 
               {/* Кнопки действий */}
               <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                {/* Скачать */}
+                {/* Просмотреть в браузере */}
                 <a
-                  href={getDownloadUrl(drawing)}
+                  href={getViewUrl(drawing)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
-                  title="Открыть/Скачать"
+                  title="Открыть в новой вкладке"
+                >
+                  <Eye size={14} />
+                </a>
+
+                {/* Скачать */}
+                <a
+                  href={getDownloadUrl(drawing)}
+                  download={drawing.name}
+                  className="p-1 text-slate-600 hover:bg-slate-50 rounded transition"
+                  title="Скачать файл"
                 >
                   <Download size={14} />
                 </a>
