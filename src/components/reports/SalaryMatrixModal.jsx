@@ -119,54 +119,54 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
                 
                 {/* ТАБЛИЦА */}
                 <div className="overflow-x-auto custom-scrollbar bg-slate-50/50 p-2 rounded-b-3xl flex-1">
-                    <table className="w-full text-[10px] border-collapse text-center whitespace-nowrap bg-white shadow-sm rounded-xl overflow-hidden table-fixed">
+                    <table className="w-full text-xs sm:text-[10px] border-collapse text-center whitespace-nowrap bg-white shadow-sm rounded-xl overflow-hidden">
                         <thead className="bg-slate-100">
                             <tr>
-                                <th className="p-2 border-b border-r border-slate-200 bg-slate-100 w-24 text-left font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-10">Параметр</th>
-                                {data.map(d => (<th key={d.day} className={`p-1 border-b border-r border-slate-200 ${d.isWeekend ? 'bg-rose-50/50' : ''}`}><div className={`font-bold ${d.isWeekend ? 'text-rose-500' : 'text-slate-700'}`}>{d.day}</div><div className={`text-[8px] uppercase font-bold ${d.isWeekend ? 'text-rose-300' : 'text-slate-400'}`}>{d.weekday}</div></th>))}
-                                <th className="p-2 border-b border-l border-slate-200 bg-slate-100 font-bold w-20 text-slate-700">ИТОГО</th>
+                                <th className="p-2 sm:p-2 border-b border-r border-slate-200 bg-slate-100 min-w-[80px] sm:min-w-[96px] text-left font-bold text-slate-500 uppercase tracking-wider sticky left-0 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">Параметр</th>
+                                {data.map(d => (<th key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-200 min-w-[48px] sm:min-w-[40px] ${d.isWeekend ? 'bg-rose-50/50' : ''}`}><div className={`font-bold text-sm sm:text-xs ${d.isWeekend ? 'text-rose-500' : 'text-slate-700'}`}>{d.day}</div><div className={`text-[9px] sm:text-[8px] uppercase font-bold ${d.isWeekend ? 'text-rose-300' : 'text-slate-400'}`}>{d.weekday}</div></th>))}
+                                <th className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-100 font-bold min-w-[70px] sm:min-w-[80px] text-slate-700 text-xs sm:text-[10px]">ИТОГО</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white">
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">Часы / Причина</td>
-                                {data.map(d => (<td key={d.day} className={`p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.statusContent}</td>))}
-                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-800">-</td>
-                            </tr>
-                            
-                            <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">Оклад</td>
-                                {data.map(d => (<td key={d.day} className={`p-1 border-b border-r border-slate-100 text-slate-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.basePay > 0 ? Math.round(d.basePay) : ''}</td>))}
-                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-800">{Math.round(totalBase)}</td>
+                                <td className="p-2 sm:p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 text-xs sm:text-[10px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">Часы / Причина</td>
+                                {data.map(d => (<td key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.statusContent}</td>))}
+                                <td className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-800 text-xs sm:text-[10px]">-</td>
                             </tr>
 
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">ТБ (22%)</td>
+                                <td className="p-2 sm:p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 text-xs sm:text-[10px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">Оклад</td>
+                                {data.map(d => (<td key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-100 text-slate-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.basePay > 0 ? Math.round(d.basePay) : ''}</td>))}
+                                <td className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-slate-800 text-xs sm:text-[10px]">{Math.round(totalBase)}</td>
+                            </tr>
+
+                            <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-2 sm:p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 text-xs sm:text-[10px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">ТБ (22%)</td>
                                 {data.map(d => {
                                     if(d.violation) return (
-                                        <td key={d.day} 
-                                            className="border-b border-r border-slate-100 bg-red-100 cursor-help relative group"
+                                        <td key={d.day}
+                                            className="p-2 sm:p-1 border-b border-r border-slate-100 bg-red-100 cursor-help relative group"
                                             title={d.violation.comment}
                                             onClick={() => alert(d.violation.comment)}
                                         >
-                                            <div className="text-[8px] font-bold text-red-600">НЕТ</div>
+                                            <div className="text-[9px] sm:text-[8px] font-bold text-red-600">НЕТ</div>
                                         </td>
                                     );
-                                    return <td key={d.day} className={`p-1 border-b border-r border-slate-100 text-emerald-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.tbBonus > 0 ? Math.round(d.tbBonus) : ''}</td>
+                                    return <td key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-100 text-emerald-600 font-medium ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.tbBonus > 0 ? Math.round(d.tbBonus) : ''}</td>
                                 })}
-                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-emerald-600">+{Math.round(totalTb)}</td>
+                                <td className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-emerald-600 text-xs sm:text-[10px]">+{Math.round(totalTb)}</td>
                             </tr>
 
                             <tr className="hover:bg-slate-50/50 transition-colors">
-                                <td className="p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700">КТУ</td>
-                                {data.map(d => (<td key={d.day} className={`p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.ktuBonus > 0 && <span className="text-indigo-600 font-bold">{Math.round(d.ktuBonus)}</span>}</td>))}
-                                <td className="p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-indigo-600 flex flex-col items-end"><span>+{Math.round(totalKtu)}</span><span className="text-[8px] text-slate-400">ср. {avgKtu}%</span></td>
+                                <td className="p-2 sm:p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 text-xs sm:text-[10px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">КТУ</td>
+                                {data.map(d => (<td key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.ktuBonus > 0 && <span className="text-indigo-600 font-bold">{Math.round(d.ktuBonus)}</span>}</td>))}
+                                <td className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-indigo-600 flex flex-col items-end text-xs sm:text-[10px]"><span>+{Math.round(totalKtu)}</span><span className="text-[9px] sm:text-[8px] text-slate-400">ср. {avgKtu}%</span></td>
                             </tr>
 
                             <tr className="bg-slate-900 text-white">
-                                <td className="p-2 border-r border-slate-700 bg-slate-900 sticky left-0 z-10 font-bold text-left shadow-[4px_0_24px_-2px_rgba(0,0,0,0.5)]">СУММА</td>
-                                {data.map(d => (<td key={d.day} className="p-1 border-r border-slate-800 font-bold">{d.total > 0 ? Math.round(d.total) : ''}</td>))}
-                                <td className="p-2 border-l border-slate-700 bg-slate-800 font-bold text-xs text-emerald-400">{Math.round(totalMonth).toLocaleString()}</td>
+                                <td className="p-2 sm:p-2 border-r border-slate-700 bg-slate-900 sticky left-0 z-10 font-bold text-left text-xs sm:text-[10px] shadow-[4px_0_24px_-2px_rgba(0,0,0,0.5)]">СУММА</td>
+                                {data.map(d => (<td key={d.day} className="p-2 sm:p-1 border-r border-slate-800 font-bold">{d.total > 0 ? Math.round(d.total) : ''}</td>))}
+                                <td className="p-2 sm:p-2 border-l border-slate-700 bg-slate-800 font-bold text-sm sm:text-xs text-emerald-400">{Math.round(totalMonth).toLocaleString()}</td>
                             </tr>
                         </tbody>
                     </table>
