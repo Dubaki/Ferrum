@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
 
@@ -149,7 +150,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                     </span>
                 </button>
 
-                {isOpen && (
+                {isOpen && createPortal(
                     <>
                         {/* Прозрачная подложка для закрытия при клике вне */}
                         <div
@@ -191,7 +192,8 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                                 ))}
                             </div>
                         </div>
-                    </>
+                    </>,
+                    document.body
                 )}
             </div>
 
