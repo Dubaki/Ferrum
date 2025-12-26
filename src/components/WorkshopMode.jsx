@@ -83,17 +83,27 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
     }
 
     // --- ПОДГОТОВКА СПИСКА ЗАДАЧ ---
-    // Ищем операции, где resourceIds включает текущего юзера
+    // Ищем операции, где resourceIds включает текущего юзера И дата операции = сегодня
+    const today = new Date().toISOString().split('T')[0]; // Сегодняшняя дата в формате YYYY-MM-DD
+
     const myTasks = [];
     products.forEach(prod => {
         if (prod.status === 'completed') return;
         prod.operations.forEach(op => {
             // Задача моя, если я в списке
             if (op.resourceIds && op.resourceIds.includes(currentUser.id)) {
-                // Если операция еще не выполнена полностью (факт < план)
-                // Или просто показываем всё, что назначено
+                // Проверка: операция не выполнена
                 const isDone = (op.actualMinutes || 0) >= ((op.minutesPerUnit || 0) * (prod.quantity || 1));
-                if (!isDone) {
+                if (isDone) return;
+
+                // КРИТИЧЕСКАЯ ПРОВЕРКА: Показываем только если сегодня входит в диапазон дат операции
+                if (!op.startDate) return; // Нет даты начала - пропускаем
+
+                const startDate = op.startDate;
+                const endDate = op.endDate || op.startDate; // Если нет endDate, берем startDate
+
+                // Проверяем: сегодня >= startDate И сегодня <= endDate
+                if (today >= startDate && today <= endDate) {
                     myTasks.push({ product: prod, operation: op });
                 }
             }
