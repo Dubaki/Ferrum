@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Upload, Download, Eye, Trash2, AlertCircle, Loader } from 'lucide-react';
+import { FileText, Upload, Eye, Trash2, AlertCircle, Loader } from 'lucide-react';
 import { uploadDrawing, deleteDrawing, isSupabaseConfigured } from '../../utils/supabaseStorage';
 
 /**
@@ -73,15 +73,6 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
   const getViewUrl = (drawing) => {
     // Supabase публичный URL - по умолчанию откроется в браузере
     return drawing.url || '';
-  };
-
-  // Получить URL для скачивания PDF (принудительное скачивание)
-  const getDownloadUrl = (drawing) => {
-    const url = drawing.url || '';
-    // Добавляем параметр download для принудительного скачивания
-    if (!url) return '';
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}download=${encodeURIComponent(drawing.name)}`;
   };
 
   // Если Supabase не настроен - показываем предупреждение
@@ -182,16 +173,6 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
                   title="Открыть в новой вкладке"
                 >
                   <Eye size={14} />
-                </a>
-
-                {/* Скачать */}
-                <a
-                  href={getDownloadUrl(drawing)}
-                  download={drawing.name}
-                  className="p-1 text-slate-600 hover:bg-slate-50 rounded transition"
-                  title="Скачать файл"
-                >
-                  <Download size={14} />
                 </a>
 
                 {/* Удалить (только для админов) */}
