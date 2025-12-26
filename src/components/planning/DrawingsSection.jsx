@@ -103,7 +103,11 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
       {/* ЗАГОЛОВОК С КНОПКОЙ */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <FileText size={16} className="text-blue-600" />
+          {isAdmin ? (
+            <FileText size={16} className="text-blue-600" />
+          ) : (
+            <Eye size={16} className="text-blue-600" />
+          )}
           <span className="text-xs font-bold text-blue-900 uppercase tracking-wider">
             Чертежи ({activeDrawings.length})
           </span>
