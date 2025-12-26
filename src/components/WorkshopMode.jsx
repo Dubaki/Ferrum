@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { User, LogOut, Play, Square, CheckCircle, Clock, ArrowLeft, AlertTriangle } from 'lucide-react';
 
-export default function WorkshopMode({ resources, products, actions, onExit }) {
+export default function WorkshopMode({ resources, products, orders, actions, onExit }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [activeOperation, setActiveOperation] = useState(null); // { product, operation, startTime }
-    
+    const [selectedOrder, setSelectedOrder] = useState(null); // Выбранный заказ для просмотра операций
+
     // Эмуляция таймера для активной задачи
     const [timer, setTimer] = useState(0);
 
@@ -86,6 +87,7 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
     // Показываем ВСЕ невыполненные операции из активных заказов
     const myTasks = []; // Назначенные на меня
     const availableTasks = []; // Доступные для выбора
+    const orderTasksMap = {}; // Группировка доступных задач по заказам
 
     products.forEach(prod => {
         // Пропускаем завершенные изделия
@@ -103,9 +105,22 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
                 myTasks.push(task);
             } else {
                 availableTasks.push(task);
+
+                // Группируем по заказам
+                const orderId = prod.orderId;
+                if (!orderTasksMap[orderId]) {
+                    orderTasksMap[orderId] = {
+                        orderId,
+                        tasks: []
+                    };
+                }
+                orderTasksMap[orderId].tasks.push(task);
             }
         });
     });
+
+    // Преобразуем в массив заказов
+    const availableOrders = Object.values(orderTasksMap);
 
     const allTasks = [...myTasks, ...availableTasks]; // Сначала мои, потом доступные
 
@@ -218,22 +233,58 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
                 )}
 
                 {/* Доступные для выбора задачи */}
-                {availableTasks.length > 0 && (
+                {availableTasks.length > 0 && !selectedOrder && (
                     <div className="space-y-3">
                         <h3 className="text-lg font-black text-slate-600 uppercase tracking-tight flex items-center gap-2 mt-6">
-                            <Clock className="text-blue-500"/> Доступные задачи ({availableTasks.length})
+                            <Clock className="text-blue-500"/> Выберите заказ ({availableOrders.length})
                         </h3>
-                        {availableTasks.map((task, idx) => (
+                        {availableOrders.map((orderGroup) => {
+                            const order = orders.find(o => o.id === orderGroup.orderId);
+                            return (
+                                <button
+                                    key={orderGroup.orderId}
+                                    onClick={() => setSelectedOrder(orderGroup)}
+                                    className="w-full bg-white rounded-2xl p-5 shadow-sm border-2 border-slate-200 hover:border-blue-400 transition-all active:scale-95 text-left"
+                                >
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="text-sm text-slate-500 font-bold mb-1">
+                                                Заказ {order?.orderNumber || '...'}
+                                            </div>
+                                            <div className="text-xl font-black text-slate-800">
+                                                {order?.clientName || 'Клиент'}
+                                            </div>
+                                            <div className="text-sm text-blue-600 font-bold mt-1">
+                                                {orderGroup.tasks.length} операций доступно
+                                            </div>
+                                        </div>
+                                        <div className="text-blue-500">
+                                            <ArrowLeft size={24} className="rotate-180" />
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Операции выбранного заказа */}
+                {selectedOrder && (
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3 mt-6 mb-4">
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                className="p-2 bg-slate-200 hover:bg-slate-300 rounded-lg transition-colors"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+                            <h3 className="text-lg font-black text-slate-600 uppercase tracking-tight flex items-center gap-2">
+                                <Clock className="text-blue-500"/> Операции ({selectedOrder.tasks.length})
+                            </h3>
+                        </div>
+                        {selectedOrder.tasks.map((task) => (
                             <div key={`available-${task.product.id}-${task.operation.id}`} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                                            Заказ {task.operation.orderNumber || '...'}
-                                        </span>
-                                        <span className="text-slate-400 text-xs font-bold">
-                                            #{task.operation.sequence}
-                                        </span>
-                                    </div>
                                     <div className="text-xl font-black text-slate-800 leading-tight mb-1">
                                         {task.product.name}
                                     </div>

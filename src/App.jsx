@@ -77,6 +77,7 @@ export default function App() {
       <WorkshopMode
         resources={resources}
         products={products}
+        orders={orders}
         actions={actions}
         onExit={() => setIsWorkshopMode(false)}
       />
