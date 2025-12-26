@@ -127,17 +127,19 @@ export const useProductionData = () => {
       const orderProducts = products.filter(p => p.orderId === id);
 
       for (const product of orderProducts) {
-        for (const operation of product.operations || []) {
-          // Если операция не выполнена - проставляем плановое время как фактическое
-          if ((operation.actualMinutes || 0) === 0) {
-            const productRef = doc(db, 'products', product.id);
-            const updatedOps = product.operations.map(op =>
-              op.id === operation.id
-                ? { ...op, actualMinutes: op.minutesPerUnit || 0 }
-                : op
-            );
-            await updateDoc(productRef, { operations: updatedOps });
-          }
+        const hasUnfinishedOps = product.operations?.some(op => (op.actualMinutes || 0) === 0);
+
+        if (hasUnfinishedOps) {
+          const productRef = doc(db, 'products', product.id);
+          const updatedOps = product.operations.map(op => {
+            // Если операция не выполнена - проставляем плановое время (или минимум 1 минуту)
+            if ((op.actualMinutes || 0) === 0) {
+              const plannedTime = op.minutesPerUnit || 1; // Минимум 1 минута
+              return { ...op, actualMinutes: plannedTime };
+            }
+            return op;
+          });
+          await updateDoc(productRef, { operations: updatedOps });
         }
       }
 
