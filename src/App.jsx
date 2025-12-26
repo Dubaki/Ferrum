@@ -26,6 +26,23 @@ function LoadingScreen() {
   );
 }
 
+// Компонент "Доступ запрещён"
+function AccessDenied({ navigate }) {
+  return (
+    <div className="text-center py-20">
+      <div className="text-6xl mb-4">🔒</div>
+      <h1 className="text-2xl font-bold text-slate-600 mb-4">Доступ запрещён</h1>
+      <p className="text-slate-500 mb-6">Этот раздел доступен только администраторам</p>
+      <button
+        onClick={() => navigate('/')}
+        className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold"
+      >
+        Вернуться на главную
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const { resources, products, orders, reports, loading, actions } = useProductionData();
   const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
@@ -106,37 +123,49 @@ export default function App() {
           <Route
             path="/products"
             element={
-              <ProductsTab
-                products={products}
-                resources={resources}
-                orders={orders}
-                actions={actions}
-                ganttItems={ganttItems}
-                isAdmin={isAdmin}
-              />
+              isAdmin ? (
+                <ProductsTab
+                  products={products}
+                  resources={resources}
+                  orders={orders}
+                  actions={actions}
+                  ganttItems={ganttItems}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <AccessDenied navigate={navigate} />
+              )
             }
           />
           <Route
             path="/shipping"
             element={
-              <ShippingTab
-                orders={orders}
-                products={products}
-                actions={actions}
-                isAdmin={isAdmin}
-              />
+              isAdmin ? (
+                <ShippingTab
+                  orders={orders}
+                  products={products}
+                  actions={actions}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <AccessDenied navigate={navigate} />
+              )
             }
           />
           <Route
             path="/workload"
             element={
-              <WorkloadTab
-                resources={resources}
-                globalTimeline={globalTimeline}
-                dailyAllocations={dailyAllocations}
-                products={products}
-                orders={orders}
-              />
+              isAdmin ? (
+                <WorkloadTab
+                  resources={resources}
+                  globalTimeline={globalTimeline}
+                  dailyAllocations={dailyAllocations}
+                  products={products}
+                  orders={orders}
+                />
+              ) : (
+                <AccessDenied navigate={navigate} />
+              )
             }
           />
           <Route
@@ -150,30 +179,24 @@ export default function App() {
                   isAdmin={isAdmin}
                 />
               ) : (
-                <div className="text-center py-20">
-                  <div className="text-6xl mb-4">🔒</div>
-                  <h1 className="text-2xl font-bold text-slate-600 mb-4">Доступ запрещен</h1>
-                  <p className="text-slate-500 mb-6">Этот раздел доступен только администраторам</p>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold"
-                  >
-                    Вернуться на главную
-                  </button>
-                </div>
+                <AccessDenied navigate={navigate} />
               )
             }
           />
           <Route
             path="/gantt"
             element={
-              <GanttTab
-                products={products}
-                resources={resources}
-                orders={orders}
-                actions={actions}
-                isAdmin={isAdmin}
-              />
+              isAdmin ? (
+                <GanttTab
+                  products={products}
+                  resources={resources}
+                  orders={orders}
+                  actions={actions}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <AccessDenied navigate={navigate} />
+              )
             }
           />
           <Route
@@ -189,17 +212,7 @@ export default function App() {
                   isAdmin={isAdmin}
                 />
               ) : (
-                <div className="text-center py-20">
-                  <div className="text-6xl mb-4">🔒</div>
-                  <h1 className="text-2xl font-bold text-slate-600 mb-4">Доступ запрещен</h1>
-                  <p className="text-slate-500 mb-6">Этот раздел доступен только администраторам</p>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold"
-                  >
-                    Вернуться на главную
-                  </button>
-                </div>
+                <AccessDenied navigate={navigate} />
               )
             }
           />
