@@ -84,17 +84,17 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                         value={op.startDate || op.plannedDate || ''}
                         onChange={(e) => handleDateChange('startDate', e.target.value)}
                         disabled={!isAdmin}
-                        className={`flex-1 min-w-0 text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-indigo-300' : ''}`}
+                        className={`flex-1 min-w-0 text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-indigo-300' : ''}`}
                         placeholder="Начало"
                         title="Дата начала"
                     />
-                    <span className="text-[8px] text-slate-400 font-bold">—</span>
+                    <span className="text-[10px] sm:text-[8px] text-slate-400 font-bold">—</span>
                     <input
                         type="date"
                         value={op.endDate || ''}
                         onChange={(e) => handleDateChange('endDate', e.target.value)}
                         disabled={!isAdmin}
-                        className={`flex-1 min-w-0 text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-orange-300' : ''}`}
+                        className={`flex-1 min-w-0 text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-orange-300' : ''}`}
                         placeholder="Конец"
                         title="Дата окончания"
                     />
@@ -104,7 +104,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                         checked={isCompleted}
                         readOnly
                         disabled
-                        className="w-3.5 h-3.5 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
+                        className="w-4 h-4 sm:w-3.5 sm:h-3.5 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
                         title={isCompleted ? "Выполнено" : "Не выполнено"}
                     />
                 </div>
@@ -155,28 +155,28 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                         ></div>
                         
                         {/* Само меню */}
-                        <div 
-                            className="fixed z-[200] w-64 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 max-h-64 overflow-y-auto animate-in zoom-in-95" 
+                        <div
+                            className="fixed z-[200] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 sm:p-4 max-h-[70vh] sm:max-h-96 overflow-y-auto animate-in zoom-in-95"
                             style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                             // ВАЖНО: Останавливаем всплытие кликов внутри самого меню
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="text-[10px] font-black text-slate-400 uppercase mb-2 px-1 tracking-wider">Выберите исполнителей</div>
-                            <div className="space-y-1">
+                            <div className="text-xs sm:text-[10px] font-black text-slate-400 uppercase mb-3 sm:mb-2 px-1 tracking-wider">Выберите исполнителей</div>
+                            <div className="space-y-1.5 sm:space-y-1">
                                 {resources.map(res => (
-                                    <label 
-                                        key={res.id} 
-                                        className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group"
+                                    <label
+                                        key={res.id}
+                                        className="flex items-center gap-3 p-3 sm:p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group"
                                         onClick={(e) => e.stopPropagation()} // Дополнительная защита
                                     >
-                                        <input 
-                                            type="checkbox" 
-                                            checked={op.resourceIds?.includes(res.id) || false} 
-                                            onChange={() => actions.toggleResourceForOp(productId, op.id, res.id)} 
-                                            className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 transition"
+                                        <input
+                                            type="checkbox"
+                                            checked={op.resourceIds?.includes(res.id) || false}
+                                            onChange={() => actions.toggleResourceForOp(productId, op.id, res.id)}
+                                            className="w-5 h-5 sm:w-4 sm:h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 transition"
                                         />
-                                        <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">{res.name}</span>
-                                        <span className="text-[10px] text-slate-400 ml-auto">{res.position}</span>
+                                        <span className="text-base sm:text-sm font-bold text-slate-700 group-hover:text-slate-900">{res.name}</span>
+                                        <span className="text-xs sm:text-[10px] text-slate-400 ml-auto">{res.position}</span>
                                     </label>
                                 ))}
                             </div>
