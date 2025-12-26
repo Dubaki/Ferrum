@@ -69,16 +69,8 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
         // Вычисляем общее количество выполненных изделий
         const totalCompleted = newCompletions.reduce((sum, c) => sum + c.quantity, 0);
 
-        // Добавляем сотрудника в исполнители, если его там нет
-        const currentResourceIds = operation.operation.resourceIds || [];
-        if (!currentResourceIds.includes(currentUser.id)) {
-            await actions.updateOperation(
-                operation.product.id,
-                operation.operation.id,
-                'resourceIds',
-                [...currentResourceIds, currentUser.id]
-            );
-        }
+        // Собираем ВСЕХ уникальных сотрудников из истории завершений
+        const allWorkerIds = [...new Set(newCompletions.map(c => c.workerId))];
 
         // Обновляем историю завершений
         await actions.updateOperation(
@@ -86,6 +78,14 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
             operation.operation.id,
             'completions',
             newCompletions
+        );
+
+        // Обновляем список исполнителей (все кто работал)
+        await actions.updateOperation(
+            operation.product.id,
+            operation.operation.id,
+            'resourceIds',
+            allWorkerIds
         );
 
         // Если всё выполнено - вычисляем фактическое время на единицу
