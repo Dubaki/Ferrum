@@ -104,13 +104,13 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                             title="Дата окончания"
                         />
                     </div>
-                    {/* Галочка готовности */}
+                    {/* Галочка готовности - скрыта на мобильных */}
                     <input
                         type="checkbox"
                         checked={isCompleted}
                         readOnly
                         disabled
-                        className="w-4 h-4 sm:w-3.5 sm:h-3.5 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
+                        className="hidden sm:block w-3.5 h-3.5 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
                         title={isCompleted ? "Выполнено" : "Не выполнено"}
                     />
                 </div>
@@ -162,8 +162,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
 
                         {/* Само меню */}
                         <div
-                            className="fixed z-[9999] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 sm:p-4 max-h-[70vh] sm:max-h-96 overflow-y-auto animate-in zoom-in-95"
-                            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                            className="fixed z-[9999] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 sm:p-4 max-h-[70vh] sm:max-h-96 overflow-y-auto animate-in zoom-in-95 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                             // ВАЖНО: Останавливаем всплытие кликов внутри самого меню
                             onClick={(e) => e.stopPropagation()}
                         >
