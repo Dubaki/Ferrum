@@ -83,32 +83,40 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
     }
 
     // --- ПОДГОТОВКА СПИСКА ЗАДАЧ ---
-    // Ищем операции, где resourceIds включает текущего юзера И дата операции = сегодня
+    // Показываем ВСЕ операции на сегодня (не только назначенные)
     const today = new Date().toISOString().split('T')[0]; // Сегодняшняя дата в формате YYYY-MM-DD
 
-    const myTasks = [];
+    const myTasks = []; // Назначенные на меня
+    const availableTasks = []; // Доступные для выбора
+
     products.forEach(prod => {
         if (prod.status === 'completed') return;
         prod.operations.forEach(op => {
-            // Задача моя, если я в списке
-            if (op.resourceIds && op.resourceIds.includes(currentUser.id)) {
-                // Проверка: операция не выполнена
-                const isDone = (op.actualMinutes || 0) >= ((op.minutesPerUnit || 0) * (prod.quantity || 1));
-                if (isDone) return;
+            // Проверка: операция не выполнена
+            const isDone = (op.actualMinutes || 0) >= ((op.minutesPerUnit || 0) * (prod.quantity || 1));
+            if (isDone) return;
 
-                // КРИТИЧЕСКАЯ ПРОВЕРКА: Показываем только если сегодня входит в диапазон дат операции
-                if (!op.startDate) return; // Нет даты начала - пропускаем
+            // КРИТИЧЕСКАЯ ПРОВЕРКА: Показываем только если сегодня входит в диапазон дат операции
+            if (!op.startDate) return; // Нет даты начала - пропускаем
 
-                const startDate = op.startDate;
-                const endDate = op.endDate || op.startDate; // Если нет endDate, берем startDate
+            const startDate = op.startDate;
+            const endDate = op.endDate || op.startDate; // Если нет endDate, берем startDate
 
-                // Проверяем: сегодня >= startDate И сегодня <= endDate
-                if (today >= startDate && today <= endDate) {
-                    myTasks.push({ product: prod, operation: op });
+            // Проверяем: сегодня >= startDate И сегодня <= endDate
+            if (today >= startDate && today <= endDate) {
+                const task = { product: prod, operation: op };
+
+                // Разделяем на назначенные и доступные
+                if (op.resourceIds && op.resourceIds.includes(currentUser.id)) {
+                    myTasks.push(task);
+                } else {
+                    availableTasks.push(task);
                 }
             }
         });
     });
+
+    const allTasks = [...myTasks, ...availableTasks]; // Сначала мои, потом доступные
 
     // --- ЭКРАН 3: АКТИВНАЯ ЗАДАЧА (ТАЙМЕР) ---
     if (activeOperation) {
@@ -171,52 +179,104 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
             </div>
 
             <div className="p-4 space-y-4 max-w-3xl mx-auto w-full pb-20">
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                    <CheckCircle className="text-orange-500"/> Мои задания ({myTasks.length})
-                </h3>
-
-                {myTasks.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">
-                        <CheckCircle size={64} className="mx-auto mb-4 opacity-20"/>
-                        <p className="font-bold text-lg">Нет назначенных задач</p>
-                        <p className="text-sm">Попросите мастера назначить вас на операцию</p>
-                    </div>
-                ) : (
-                    myTasks.map((task, idx) => (
-                        <div key={`${task.product.id}-${task.operation.id}`} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                                        Заказ {task.operation.orderNumber || '...'}
-                                    </span>
-                                    <span className="text-slate-400 text-xs font-bold">
-                                        #{task.operation.sequence}
-                                    </span>
-                                </div>
-                                <div className="text-xl font-black text-slate-800 leading-tight mb-1">
-                                    {task.product.name}
-                                </div>
-                                <div className="text-orange-600 font-bold uppercase text-sm flex items-center gap-2">
-                                    <AlertTriangle size={14}/> {task.operation.name} — {task.product.quantity} шт.
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-4 w-full md:w-auto bg-slate-50 p-3 rounded-xl">
-                                <div className="text-right">
-                                    <div className="text-[10px] uppercase font-bold text-slate-400">План / Факт</div>
-                                    <div className="font-mono font-bold text-slate-700">
-                                        {((task.operation.minutesPerUnit * task.product.quantity) / 60).toFixed(1)} / {((task.operation.actualMinutes||0) / 60).toFixed(1)} ч
+                {/* Мои назначенные задачи */}
+                {myTasks.length > 0 && (
+                    <div className="space-y-3">
+                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                            <CheckCircle className="text-orange-500"/> Мои задания ({myTasks.length})
+                        </h3>
+                        {myTasks.map((task, idx) => (
+                            <div key={`my-${task.product.id}-${task.operation.id}`} className="bg-white rounded-2xl p-5 shadow-sm border-2 border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2 py-0.5 rounded uppercase">
+                                            Заказ {task.operation.orderNumber || '...'}
+                                        </span>
+                                        <span className="text-slate-400 text-xs font-bold">
+                                            #{task.operation.sequence}
+                                        </span>
+                                        <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase">
+                                            МОЯ
+                                        </span>
+                                    </div>
+                                    <div className="text-xl font-black text-slate-800 leading-tight mb-1">
+                                        {task.product.name}
+                                    </div>
+                                    <div className="text-orange-600 font-bold uppercase text-sm flex items-center gap-2">
+                                        <AlertTriangle size={14}/> {task.operation.name} — {task.product.quantity} шт.
                                     </div>
                                 </div>
-                                <button 
-                                    onClick={() => setActiveOperation({ ...task, startTime: Date.now() })}
-                                    className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl p-4 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center gap-2 font-black uppercase text-sm"
-                                >
-                                    <Play fill="currentColor" /> Старт
-                                </button>
+
+                                <div className="flex items-center gap-4 w-full md:w-auto bg-slate-50 p-3 rounded-xl">
+                                    <div className="text-right">
+                                        <div className="text-[10px] uppercase font-bold text-slate-400">План / Факт</div>
+                                        <div className="font-mono font-bold text-slate-700">
+                                            {((task.operation.minutesPerUnit * task.product.quantity) / 60).toFixed(1)} / {((task.operation.actualMinutes||0) / 60).toFixed(1)} ч
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setActiveOperation({ ...task, startTime: Date.now() })}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl p-4 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center gap-2 font-black uppercase text-sm"
+                                    >
+                                        <Play fill="currentColor" /> Старт
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        ))}
+                    </div>
+                )}
+
+                {/* Доступные для выбора задачи */}
+                {availableTasks.length > 0 && (
+                    <div className="space-y-3">
+                        <h3 className="text-lg font-black text-slate-600 uppercase tracking-tight flex items-center gap-2 mt-6">
+                            <Clock className="text-blue-500"/> Доступные задачи ({availableTasks.length})
+                        </h3>
+                        {availableTasks.map((task, idx) => (
+                            <div key={`available-${task.product.id}-${task.operation.id}`} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded uppercase">
+                                            Заказ {task.operation.orderNumber || '...'}
+                                        </span>
+                                        <span className="text-slate-400 text-xs font-bold">
+                                            #{task.operation.sequence}
+                                        </span>
+                                    </div>
+                                    <div className="text-xl font-black text-slate-800 leading-tight mb-1">
+                                        {task.product.name}
+                                    </div>
+                                    <div className="text-blue-600 font-bold uppercase text-sm flex items-center gap-2">
+                                        {task.operation.name} — {task.product.quantity} шт.
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 w-full md:w-auto bg-slate-50 p-3 rounded-xl">
+                                    <div className="text-right">
+                                        <div className="text-[10px] uppercase font-bold text-slate-400">План / Факт</div>
+                                        <div className="font-mono font-bold text-slate-700">
+                                            {((task.operation.minutesPerUnit * task.product.quantity) / 60).toFixed(1)} / {((task.operation.actualMinutes||0) / 60).toFixed(1)} ч
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setActiveOperation({ ...task, startTime: Date.now() })}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl p-4 shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center gap-2 font-black uppercase text-sm"
+                                    >
+                                        <Play fill="currentColor" /> Старт
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Нет задач вообще */}
+                {allTasks.length === 0 && (
+                    <div className="text-center py-20 text-slate-400">
+                        <CheckCircle size={64} className="mx-auto mb-4 opacity-20"/>
+                        <p className="font-bold text-lg">Нет задач на сегодня</p>
+                        <p className="text-sm">Все операции выполнены или не запланированы</p>
+                    </div>
                 )}
             </div>
         </div>
