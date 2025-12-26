@@ -53,6 +53,10 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
 
         const { operation, minutesSpent } = completionModal;
 
+        // ВАЖНО: Берем СВЕЖИЕ данные из products, а не из activeOperation!
+        const freshProduct = products.find(p => p.id === operation.product.id);
+        const freshOperation = freshProduct?.operations?.find(op => op.id === operation.operation.id);
+
         // Создаем запись о завершении
         const completionRecord = {
             workerId: currentUser.id,
@@ -62,8 +66,8 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
             timestamp: new Date().toISOString()
         };
 
-        // Получаем текущую историю завершений
-        const completions = operation.operation.completions || [];
+        // Получаем текущую историю завершений (из СВЕЖИХ данных!)
+        const completions = freshOperation?.completions || [];
         const newCompletions = [...completions, completionRecord];
 
         // Вычисляем общее количество выполненных изделий
@@ -156,6 +160,10 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
     products.forEach(prod => {
         // Пропускаем завершенные изделия
         if (prod.status === 'completed') return;
+
+        // Проверяем что заказ активный
+        const order = orders?.find(o => o.id === prod.orderId);
+        if (!order || order.status !== 'active') return;
 
         prod.operations?.forEach(op => {
             // Показываем только операции БЕЗ фактического времени
