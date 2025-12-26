@@ -69,13 +69,13 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     });
   };
 
-  // Проверка мобильного устройства
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
   // Получить URL для просмотра PDF в браузере (inline)
   const getViewUrl = (drawing) => {
     const url = drawing.url || '';
     if (!url) return '';
+
+    // Проверка мобильного устройства
+    const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     // На мобильных устройствах используем Google Docs Viewer для надежного просмотра
     if (isMobile) {

@@ -89,6 +89,11 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
     const availableTasks = []; // Доступные для выбора
     const orderTasksMap = {}; // Группировка доступных задач по заказам
 
+    // Безопасная проверка
+    if (!products || !Array.isArray(products)) {
+        return null;
+    }
+
     products.forEach(prod => {
         // Пропускаем завершенные изделия
         if (prod.status === 'completed') return;
@@ -239,7 +244,7 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                             <Clock className="text-blue-500"/> Выберите заказ ({availableOrders.length})
                         </h3>
                         {availableOrders.map((orderGroup) => {
-                            const order = orders.find(o => o.id === orderGroup.orderId);
+                            const order = orders?.find(o => o.id === orderGroup.orderId);
                             return (
                                 <button
                                     key={orderGroup.orderId}
