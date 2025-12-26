@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
 
 function OperationRow({ op, product, products, orders, productId, actions, resources, isOpen, onToggleDropdown, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
@@ -79,25 +79,31 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
             {/* Диапазон дат + Галочка готовности */}
             <div className="col-span-2 flex flex-col gap-0.5">
                 <div className="flex items-center gap-0.5">
-                    <input
-                        type="date"
-                        value={op.startDate || op.plannedDate || ''}
-                        onChange={(e) => handleDateChange('startDate', e.target.value)}
-                        disabled={!isAdmin}
-                        className={`flex-1 min-w-0 text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-indigo-300' : ''}`}
-                        placeholder="Начало"
-                        title="Дата начала"
-                    />
+                    <div className="flex-1 relative min-w-0">
+                        <Calendar size={14} className="absolute left-1 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none sm:hidden" />
+                        <input
+                            type="date"
+                            value={op.startDate || op.plannedDate || ''}
+                            onChange={(e) => handleDateChange('startDate', e.target.value)}
+                            disabled={!isAdmin}
+                            className={`w-full text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 pl-6 sm:pl-1 pr-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-indigo-300' : ''}`}
+                            placeholder="Начало"
+                            title="Дата начала"
+                        />
+                    </div>
                     <span className="text-[10px] sm:text-[8px] text-slate-400 font-bold">—</span>
-                    <input
-                        type="date"
-                        value={op.endDate || ''}
-                        onChange={(e) => handleDateChange('endDate', e.target.value)}
-                        disabled={!isAdmin}
-                        className={`flex-1 min-w-0 text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 px-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-orange-300' : ''}`}
-                        placeholder="Конец"
-                        title="Дата окончания"
-                    />
+                    <div className="flex-1 relative min-w-0">
+                        <Calendar size={14} className="absolute left-1 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none sm:hidden" />
+                        <input
+                            type="date"
+                            value={op.endDate || ''}
+                            onChange={(e) => handleDateChange('endDate', e.target.value)}
+                            disabled={!isAdmin}
+                            className={`w-full text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 pl-6 sm:pl-1 pr-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-orange-300' : ''}`}
+                            placeholder="Конец"
+                            title="Дата окончания"
+                        />
+                    </div>
                     {/* Галочка готовности */}
                     <input
                         type="checkbox"
@@ -146,17 +152,17 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                 {isOpen && (
                     <>
                         {/* Прозрачная подложка для закрытия при клике вне */}
-                        <div 
-                            className="fixed inset-0 z-[190] cursor-default" 
-                            onClick={(e) => { 
-                                e.stopPropagation(); 
-                                onToggleDropdown(); 
+                        <div
+                            className="fixed inset-0 z-[9998] bg-slate-900/20 backdrop-blur-sm cursor-default"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleDropdown();
                             }}
                         ></div>
-                        
+
                         {/* Само меню */}
                         <div
-                            className="fixed z-[200] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 sm:p-4 max-h-[70vh] sm:max-h-96 overflow-y-auto animate-in zoom-in-95"
+                            className="fixed z-[9999] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 sm:p-4 max-h-[70vh] sm:max-h-96 overflow-y-auto animate-in zoom-in-95"
                             style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                             // ВАЖНО: Останавливаем всплытие кликов внутри самого меню
                             onClick={(e) => e.stopPropagation()}

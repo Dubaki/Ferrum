@@ -69,10 +69,21 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     });
   };
 
+  // Проверка мобильного устройства
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   // Получить URL для просмотра PDF в браузере (inline)
   const getViewUrl = (drawing) => {
-    // Supabase публичный URL - по умолчанию откроется в браузере
-    return drawing.url || '';
+    const url = drawing.url || '';
+    if (!url) return '';
+
+    // На мобильных устройствах используем Google Docs Viewer для надежного просмотра
+    if (isMobile) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+    }
+
+    // На десктопе - прямой URL
+    return url;
   };
 
   // Если Supabase не настроен - показываем предупреждение
