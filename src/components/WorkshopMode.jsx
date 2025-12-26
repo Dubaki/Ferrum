@@ -161,9 +161,9 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
         // Пропускаем завершенные изделия
         if (prod.status === 'completed') return;
 
-        // Проверяем что заказ активный
+        // Проверяем что заказ активный и НЕ в отгрузке
         const order = orders?.find(o => o.id === prod.orderId);
-        if (!order || order.status !== 'active') return;
+        if (!order || order.status !== 'active' || order.inShipping) return;
 
         prod.operations?.forEach(op => {
             // Показываем только операции БЕЗ фактического времени

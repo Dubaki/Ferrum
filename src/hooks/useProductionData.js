@@ -117,11 +117,31 @@ export const useProductionData = () => {
   // Переместить заказ в раздел отгрузок
   const moveToShipping = async (id) => {
     try {
+      // Помечаем заказ как в отгрузке
       await updateDoc(doc(db, 'orders', id), {
         inShipping: true,
         shippingToday: false
       });
-      showSuccess('Заказ перемещён в отгрузки');
+
+      // Автоматически завершаем все незавершённые операции
+      const orderProducts = products.filter(p => p.orderId === id);
+
+      for (const product of orderProducts) {
+        for (const operation of product.operations || []) {
+          // Если операция не выполнена - проставляем плановое время как фактическое
+          if ((operation.actualMinutes || 0) === 0) {
+            const productRef = doc(db, 'products', product.id);
+            const updatedOps = product.operations.map(op =>
+              op.id === operation.id
+                ? { ...op, actualMinutes: op.minutesPerUnit || 0 }
+                : op
+            );
+            await updateDoc(productRef, { operations: updatedOps });
+          }
+        }
+      }
+
+      showSuccess('Заказ перемещён в отгрузки (все операции завершены)');
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
       throw error;
