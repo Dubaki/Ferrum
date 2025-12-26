@@ -69,7 +69,18 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
         // Вычисляем общее количество выполненных изделий
         const totalCompleted = newCompletions.reduce((sum, c) => sum + c.quantity, 0);
 
-        // Обновляем операцию
+        // Добавляем сотрудника в исполнители, если его там нет
+        const currentResourceIds = operation.operation.resourceIds || [];
+        if (!currentResourceIds.includes(currentUser.id)) {
+            await actions.updateOperation(
+                operation.product.id,
+                operation.operation.id,
+                'resourceIds',
+                [...currentResourceIds, currentUser.id]
+            );
+        }
+
+        // Обновляем историю завершений
         await actions.updateOperation(
             operation.product.id,
             operation.operation.id,
@@ -77,14 +88,17 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
             newCompletions
         );
 
-        // Если всё выполнено - проставляем фактическое время
+        // Если всё выполнено - вычисляем фактическое время на единицу
         if (totalCompleted >= operation.product.quantity) {
             const totalMinutes = newCompletions.reduce((sum, c) => sum + c.minutes, 0);
+            // Время на ОДНУ единицу = общее время / количество изделий
+            const minutesPerUnit = totalMinutes / operation.product.quantity;
+
             await actions.updateOperation(
                 operation.product.id,
                 operation.operation.id,
                 'actualMinutes',
-                totalMinutes
+                minutesPerUnit
             );
         }
 
@@ -344,8 +358,17 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                                     Выполнено {totalCompleted} из {task.product.quantity} шт.
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] text-slate-600">
-                                                Работали: {completions.map(c => c.workerName).join(', ')}
+                                            <div className="text-[10px] text-slate-600 space-y-0.5">
+                                                <div>Работали: {completions.map(c => c.workerName).join(', ')}</div>
+                                                {(() => {
+                                                    const totalMinutes = completions.reduce((sum, c) => sum + c.minutes, 0);
+                                                    const avgPerUnit = totalMinutes / totalCompleted;
+                                                    return (
+                                                        <div className="font-mono">
+                                                            Время: {Math.round(totalMinutes)} мин общ. / {Math.round(avgPerUnit)} мин/ед.
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     )}
@@ -445,8 +468,17 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                                     Выполнено {totalCompleted} из {task.product.quantity} шт.
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] text-slate-600">
-                                                Работали: {completions.map(c => c.workerName).join(', ')}
+                                            <div className="text-[10px] text-slate-600 space-y-0.5">
+                                                <div>Работали: {completions.map(c => c.workerName).join(', ')}</div>
+                                                {(() => {
+                                                    const totalMinutes = completions.reduce((sum, c) => sum + c.minutes, 0);
+                                                    const avgPerUnit = totalMinutes / totalCompleted;
+                                                    return (
+                                                        <div className="font-mono">
+                                                            Время: {Math.round(totalMinutes)} мин общ. / {Math.round(avgPerUnit)} мин/ед.
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     )}
