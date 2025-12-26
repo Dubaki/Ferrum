@@ -5,6 +5,7 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
     const [currentUser, setCurrentUser] = useState(null);
     const [activeOperation, setActiveOperation] = useState(null); // { product, operation, startTime }
     const [selectedOrder, setSelectedOrder] = useState(null); // Выбранный заказ для просмотра операций
+    const [completionModal, setCompletionModal] = useState(null); // Модальное окно завершения
 
     // Эмуляция таймера для активной задачи
     const [timer, setTimer] = useState(0);
@@ -30,21 +31,61 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
     };
 
     // --- ЛОГИКА ЗАВЕРШЕНИЯ ---
-    const handleStop = async () => {
+    const handleStop = () => {
         if (!activeOperation) return;
-        
-        const minutesSpent = Math.ceil(timer / 60);
-        const previousMinutes = activeOperation.operation.actualMinutes || 0;
-        const newTotal = previousMinutes + minutesSpent;
 
-        // Сохраняем в базу (обновляем операцию)
+        const minutesSpent = Math.ceil(timer / 60);
+
+        // Открываем модалку для ввода количества
+        setCompletionModal({
+            operation: activeOperation,
+            minutesSpent: minutesSpent,
+            maxQuantity: activeOperation.product.quantity
+        });
+    };
+
+    const handleSaveCompletion = async (quantityCompleted) => {
+        if (!completionModal) return;
+
+        const { operation, minutesSpent } = completionModal;
+
+        // Создаем запись о завершении
+        const completionRecord = {
+            workerId: currentUser.id,
+            workerName: currentUser.name,
+            quantity: quantityCompleted,
+            minutes: minutesSpent,
+            timestamp: new Date().toISOString()
+        };
+
+        // Получаем текущую историю завершений
+        const completions = operation.operation.completions || [];
+        const newCompletions = [...completions, completionRecord];
+
+        // Вычисляем общее количество выполненных изделий
+        const totalCompleted = newCompletions.reduce((sum, c) => sum + c.quantity, 0);
+
+        // Обновляем операцию
         await actions.updateOperation(
-            activeOperation.product.id, 
-            activeOperation.operation.id, 
-            'actualMinutes', 
-            newTotal
+            operation.product.id,
+            operation.operation.id,
+            'completions',
+            newCompletions
         );
 
+        // Если всё выполнено - проставляем фактическое время
+        if (totalCompleted >= operation.product.quantity) {
+            const totalMinutes = newCompletions.reduce((sum, c) => sum + c.minutes, 0);
+            await actions.updateOperation(
+                operation.product.id,
+                operation.operation.id,
+                'actualMinutes',
+                totalMinutes
+            );
+        }
+
+        // Закрываем всё
+        setCompletionModal(null);
         setActiveOperation(null);
         setTimer(0);
     };
@@ -129,6 +170,76 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
 
     const allTasks = [...myTasks, ...availableTasks]; // Сначала мои, потом доступные
 
+    // --- МОДАЛЬНОЕ ОКНО ЗАВЕРШЕНИЯ ---
+    if (completionModal) {
+        const [quantityInput, setQuantityInput] = useState(completionModal.maxQuantity);
+
+        return (
+            <div className="min-h-screen bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
+                    <h2 className="text-2xl font-black text-slate-800 mb-2">
+                        Завершение работы
+                    </h2>
+                    <p className="text-sm text-slate-500 mb-6">
+                        Укажите сколько изделий вы выполнили
+                    </p>
+
+                    <div className="bg-slate-50 rounded-xl p-4 mb-6">
+                        <div className="text-xs text-slate-400 uppercase font-bold mb-1">Операция</div>
+                        <div className="text-lg font-bold text-slate-800 mb-2">
+                            {completionModal.operation.product.name}
+                        </div>
+                        <div className="text-sm text-orange-600 font-bold uppercase">
+                            {completionModal.operation.operation.name}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-3">
+                            Всего в заказе: <span className="font-bold">{completionModal.maxQuantity} шт.</span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                            Время работы: <span className="font-bold font-mono">{formatTime(timer)}</span>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                            Выполнено изделий
+                        </label>
+                        <input
+                            type="number"
+                            min="1"
+                            max={completionModal.maxQuantity}
+                            value={quantityInput}
+                            onChange={(e) => setQuantityInput(parseInt(e.target.value) || 0)}
+                            className="w-full text-3xl font-black text-center bg-slate-50 border-2 border-slate-200 rounded-xl py-4 px-6 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100 transition"
+                            autoFocus
+                        />
+                        <p className="text-xs text-slate-400 text-center mt-2">
+                            Введите число от 1 до {completionModal.maxQuantity}
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => {
+                                setCompletionModal(null);
+                            }}
+                            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition uppercase text-sm"
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            onClick={() => handleSaveCompletion(quantityInput)}
+                            disabled={quantityInput < 1 || quantityInput > completionModal.maxQuantity}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black py-3 rounded-xl transition uppercase text-sm shadow-lg"
+                        >
+                            Сохранить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // --- ЭКРАН 3: АКТИВНАЯ ЗАДАЧА (ТАЙМЕР) ---
     if (activeOperation) {
         return (
@@ -196,7 +307,12 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                         <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                             <CheckCircle className="text-orange-500"/> Мои задания ({myTasks.length})
                         </h3>
-                        {myTasks.map((task, idx) => (
+                        {myTasks.map((task, idx) => {
+                            const completions = task.operation.completions || [];
+                            const totalCompleted = completions.reduce((sum, c) => sum + c.quantity, 0);
+                            const hasProgress = completions.length > 0;
+
+                            return (
                             <div key={`my-${task.product.id}-${task.operation.id}`} className="bg-white rounded-2xl p-5 shadow-sm border-2 border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
@@ -216,6 +332,21 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                     <div className="text-orange-600 font-bold uppercase text-sm flex items-center gap-2">
                                         <AlertTriangle size={14}/> {task.operation.name} — {task.product.quantity} шт.
                                     </div>
+
+                                    {/* Прогресс выполнения */}
+                                    {hasProgress && (
+                                        <div className="mt-2 bg-emerald-50 rounded-lg p-2 border border-emerald-200">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <CheckCircle size={12} className="text-emerald-600" />
+                                                <span className="text-xs font-bold text-emerald-700">
+                                                    Выполнено {totalCompleted} из {task.product.quantity} шт.
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-600">
+                                                Работали: {completions.map(c => c.workerName).join(', ')}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-4 w-full md:w-auto bg-slate-50 p-3 rounded-xl">
@@ -233,7 +364,8 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
@@ -287,7 +419,12 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                 <Clock className="text-blue-500"/> Операции ({selectedOrder.tasks.length})
                             </h3>
                         </div>
-                        {selectedOrder.tasks.map((task) => (
+                        {selectedOrder.tasks.map((task) => {
+                            const completions = task.operation.completions || [];
+                            const totalCompleted = completions.reduce((sum, c) => sum + c.quantity, 0);
+                            const hasProgress = completions.length > 0;
+
+                            return (
                             <div key={`available-${task.product.id}-${task.operation.id}`} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                 <div className="flex-1">
                                     <div className="text-xl font-black text-slate-800 leading-tight mb-1">
@@ -296,6 +433,21 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                     <div className="text-blue-600 font-bold uppercase text-sm flex items-center gap-2">
                                         {task.operation.name} — {task.product.quantity} шт.
                                     </div>
+
+                                    {/* Прогресс выполнения */}
+                                    {hasProgress && (
+                                        <div className="mt-2 bg-emerald-50 rounded-lg p-2 border border-emerald-200">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <CheckCircle size={12} className="text-emerald-600" />
+                                                <span className="text-xs font-bold text-emerald-700">
+                                                    Выполнено {totalCompleted} из {task.product.quantity} шт.
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-600">
+                                                Работали: {completions.map(c => c.workerName).join(', ')}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-4 w-full md:w-auto bg-slate-50 p-3 rounded-xl">
@@ -313,7 +465,8 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
