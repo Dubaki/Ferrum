@@ -6,6 +6,7 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
     const [activeOperation, setActiveOperation] = useState(null); // { product, operation, startTime }
     const [selectedOrder, setSelectedOrder] = useState(null); // Выбранный заказ для просмотра операций
     const [completionModal, setCompletionModal] = useState(null); // Модальное окно завершения
+    const [quantityInput, setQuantityInput] = useState(0); // Количество выполненных изделий
 
     // Эмуляция таймера для активной задачи
     const [timer, setTimer] = useState(0);
@@ -42,6 +43,9 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
             minutesSpent: minutesSpent,
             maxQuantity: activeOperation.product.quantity
         });
+
+        // Устанавливаем начальное значение - максимум
+        setQuantityInput(activeOperation.product.quantity);
     };
 
     const handleSaveCompletion = async (quantityCompleted) => {
@@ -172,8 +176,6 @@ export default function WorkshopMode({ resources, products, orders, actions, onE
 
     // --- МОДАЛЬНОЕ ОКНО ЗАВЕРШЕНИЯ ---
     if (completionModal) {
-        const [quantityInput, setQuantityInput] = useState(completionModal.maxQuantity);
-
         return (
             <div className="min-h-screen bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
