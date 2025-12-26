@@ -83,35 +83,26 @@ export default function WorkshopMode({ resources, products, actions, onExit }) {
     }
 
     // --- ПОДГОТОВКА СПИСКА ЗАДАЧ ---
-    // Показываем ВСЕ операции на сегодня (не только назначенные)
-    const today = new Date().toISOString().split('T')[0]; // Сегодняшняя дата в формате YYYY-MM-DD
-
+    // Показываем ВСЕ невыполненные операции из активных заказов
     const myTasks = []; // Назначенные на меня
     const availableTasks = []; // Доступные для выбора
 
     products.forEach(prod => {
+        // Пропускаем завершенные изделия
         if (prod.status === 'completed') return;
-        prod.operations.forEach(op => {
-            // Проверка: операция не выполнена
-            const isDone = (op.actualMinutes || 0) >= ((op.minutesPerUnit || 0) * (prod.quantity || 1));
-            if (isDone) return;
 
-            // КРИТИЧЕСКАЯ ПРОВЕРКА: Показываем только если сегодня входит в диапазон дат операции
-            if (!op.startDate) return; // Нет даты начала - пропускаем
+        prod.operations?.forEach(op => {
+            // Показываем только операции БЕЗ фактического времени
+            const hasActualTime = (op.actualMinutes || 0) > 0;
+            if (hasActualTime) return;
 
-            const startDate = op.startDate;
-            const endDate = op.endDate || op.startDate; // Если нет endDate, берем startDate
+            const task = { product: prod, operation: op };
 
-            // Проверяем: сегодня >= startDate И сегодня <= endDate
-            if (today >= startDate && today <= endDate) {
-                const task = { product: prod, operation: op };
-
-                // Разделяем на назначенные и доступные
-                if (op.resourceIds && op.resourceIds.includes(currentUser.id)) {
-                    myTasks.push(task);
-                } else {
-                    availableTasks.push(task);
-                }
+            // Разделяем на назначенные и доступные
+            if (op.resourceIds && op.resourceIds.includes(currentUser.id)) {
+                myTasks.push(task);
+            } else {
+                availableTasks.push(task);
             }
         });
     });
