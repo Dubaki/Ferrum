@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save, CheckCircle, Circle, AlertCircle, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save, AlertCircle, Users } from 'lucide-react';
 import { KtuInput } from './SharedComponents';
 
 export default function MasterEfficiencyView({ resources, actions }) {
@@ -107,32 +107,15 @@ export default function MasterEfficiencyView({ resources, actions }) {
         }
     };
 
-    const handleAttendanceToggle = (res, dStr) => {
-        // Проверяем текущее состояние присутствия
-        const override = res.scheduleOverrides?.[dStr];
-        const reason = res.scheduleReasons?.[dStr];
+    const handleMarkPresent = (res, dStr) => {
+        // Отмечаем как присутствующего (стандартные часы)
         const standardHours = res.hoursPerDay || 8;
+        actions.updateResourceSchedule(res.id, dStr, standardHours, null);
+    };
 
-        const dateObj = new Date(dStr);
-        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-        const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
-
-        // Определяем, присутствует ли сотрудник
-        let isPresent = false;
-        if (override !== undefined) {
-            isPresent = override > 0;
-        } else if (isStandardWorkDay && reason !== 'sick' && reason !== 'absent') {
-            isPresent = true;
-        }
-
-        // Переключаем состояние
-        if (isPresent) {
-            // Отмечаем как отсутствующего (отгул)
-            actions.updateResourceSchedule(res.id, dStr, 0, 'absent');
-        } else {
-            // Отмечаем как присутствующего (стандартные часы)
-            actions.updateResourceSchedule(res.id, dStr, standardHours, null);
-        }
+    const handleMarkAbsent = (res, dStr) => {
+        // Отмечаем как отсутствующего (0 часов + причина 'absent')
+        actions.updateResourceSchedule(res.id, dStr, 0, 'absent');
     };
 
     return (
@@ -259,7 +242,7 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     <div className="flex-1">
                         <h4 className="font-bold text-amber-900 text-base">Отметьте присутствие сотрудников</h4>
                         <p className="text-sm text-amber-700 mt-1">
-                            {notMarkedCount} {notMarkedCount === 1 ? 'сотрудник не отмечен' : 'сотрудников не отмечены'} — нажмите на кружок, чтобы отметить присутствие
+                            {notMarkedCount} {notMarkedCount === 1 ? 'сотрудник не отмечен' : 'сотрудников не отмечены'} — нажмите "Пришел" или "Не пришел" для каждого
                         </p>
                     </div>
                 </div>
@@ -288,34 +271,49 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     // КТУ не начисляется стажёрам
                     const isKtuDisabled = res.position === 'Стажёр';
 
-                    // Определяем, присутствует ли сотрудник
+                    // Определяем состояние присутствия сотрудника
                     const override = res.scheduleOverrides?.[dateStr];
                     const reason = res.scheduleReasons?.[dateStr];
                     const standardHours = res.hoursPerDay || 8;
-                    const dateObj = new Date(dateStr);
-                    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                    const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
 
-                    let isPresent = false;
-                    if (override !== undefined) {
-                        isPresent = override > 0;
-                    } else if (isStandardWorkDay && reason !== 'sick' && reason !== 'absent') {
-                        isPresent = true;
-                    }
+                    // Три состояния:
+                    // 1. Не отмечен (ни override, ни reason)
+                    // 2. Пришел (override > 0)
+                    // 3. Не пришел (override === 0 или reason === 'absent')
+                    const isMarkedPresent = override !== undefined && override > 0;
+                    const isMarkedAbsent = override === 0 || reason === 'absent';
+                    const isNotMarked = override === undefined && !reason;
 
                     return (
                         <div key={res.id} className={`bg-white p-4 rounded-xl border transition flex items-center justify-between
                              ${isSafetyViolated ? 'border-red-300 bg-red-50/30' : 'border-gray-200 shadow-sm'}
                         `}>
                             <div className="flex items-center gap-3">
-                                {/* Чекбокс присутствия */}
-                                <button
-                                    onClick={() => handleAttendanceToggle(res, dateStr)}
-                                    className={`flex-shrink-0 transition-all ${isPresent ? 'text-emerald-500 hover:text-emerald-600' : 'text-gray-300 hover:text-gray-400'}`}
-                                    title={isPresent ? 'Отметить отсутствие' : 'Отметить присутствие'}
-                                >
-                                    {isPresent ? <CheckCircle size={28} fill="currentColor" /> : <Circle size={28} />}
-                                </button>
+                                {/* Две кнопки: Пришел / Не пришел */}
+                                <div className="flex flex-col gap-1">
+                                    <button
+                                        onClick={() => handleMarkPresent(res, dateStr)}
+                                        className={`flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            isMarkedPresent
+                                                ? 'bg-emerald-500 text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'
+                                        }`}
+                                        title="Отметить присутствие"
+                                    >
+                                        ✓ Пришел
+                                    </button>
+                                    <button
+                                        onClick={() => handleMarkAbsent(res, dateStr)}
+                                        className={`flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                            isMarkedAbsent
+                                                ? 'bg-red-500 text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'
+                                        }`}
+                                        title="Отметить отсутствие"
+                                    >
+                                        ✗ Не пришел
+                                    </button>
+                                </div>
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
                                     ${isSafetyViolated ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}
                                 `}>
