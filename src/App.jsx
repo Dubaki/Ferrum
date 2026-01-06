@@ -61,6 +61,12 @@ export default function App() {
     const excludedPositions = ['Мастер', 'Технолог', 'Электрик', 'Стажёр', 'Плазморез'];
     const activeResources = resources.filter(res => !res.firedAt && !excludedPositions.includes(res.position));
 
+    // Проверяем текущее время - КТУ проверяем только после 17:30
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const isAfter1730 = currentHour > 17 || (currentHour === 17 && currentMinute >= 30);
+
     let notMarked = 0;
     let noKtu = 0;
 
@@ -82,8 +88,8 @@ export default function App() {
       // Неотмечен только если мастер вообще не трогал (ни override, ни reason) в рабочий день
       if (override === undefined && !reason && isWorkDay) notMarked++;
 
-      // Проверяем КТУ только у присутствующих (исключая стажеров)
-      if (isPresent && res.position !== 'Стажёр') {
+      // Проверяем КТУ только у присутствующих (исключая стажеров) И только после 17:30
+      if (isAfter1730 && isPresent && res.position !== 'Стажёр') {
         const ktu = res.dailyEfficiency?.[today];
         if (ktu === undefined || ktu === 0) noKtu++;
       }
