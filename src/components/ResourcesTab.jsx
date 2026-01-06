@@ -126,7 +126,10 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                                   const override = res.scheduleOverrides?.[dateStr];
                                   const reason = res.scheduleReasons?.[dateStr];
-                                  const standardHours = res.hoursPerDay || 8;
+                                  // ЗАЩИТА: ограничиваем standardHours разумными пределами (1-24 часа)
+                                  const rawStandardHours = res.hoursPerDay || 8;
+                                  const standardHours = Math.min(Math.max(rawStandardHours, 0), 24);
+
                                   const dateObj = new Date(dateStr);
                                   const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                   const isWorkDay = res.workWeekends ? true : !isWeekend;
@@ -135,7 +138,8 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
                                       let dayHours = 0;
                                       if (override !== undefined) {
-                                          dayHours = override;
+                                          // ЗАЩИТА: ограничиваем override разумными пределами
+                                          dayHours = Math.min(Math.max(override, 0), 24);
                                       } else if (isWorkDay) {
                                           dayHours = standardHours;
                                       }
@@ -166,12 +170,18 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                   const override = res.scheduleOverrides?.[dateStr];
                                   const reason = res.scheduleReasons?.[dateStr];
-                                  const standardHours = res.hoursPerDay || 8;
+                                  // ЗАЩИТА: ограничиваем standardHours разумными пределами
+                                  const rawStandardHours = res.hoursPerDay || 8;
+                                  const standardHours = Math.min(Math.max(rawStandardHours, 0), 24);
                                   const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
 
                                   let workedHours = 0;
-                                  if (override !== undefined) workedHours = override;
-                                  else if (isStandardWorkDay) workedHours = standardHours;
+                                  if (override !== undefined) {
+                                      // ЗАЩИТА: ограничиваем override разумными пределами
+                                      workedHours = Math.min(Math.max(override, 0), 24);
+                                  } else if (isStandardWorkDay) {
+                                      workedHours = standardHours;
+                                  }
 
                                   if (workedHours > 0) {
                                       const history = res.rateHistory || [];
