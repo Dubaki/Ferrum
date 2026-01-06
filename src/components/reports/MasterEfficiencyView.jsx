@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save, AlertCircle, Users } from 'lucide-react';
 import { KtuInput } from './SharedComponents';
 
 export default function MasterEfficiencyView({ resources, actions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [showTable, setShowTable] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    // Обновляем время каждую минуту для проверки КТУ после 17:30
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000); // Каждую минуту
+        return () => clearInterval(interval);
+    }, []);
 
     // Состояние для модалки нарушения ТБ
     const [safetyModal, setSafetyModal] = useState(null); // { resId, dateStr, currentComment }
@@ -32,6 +41,11 @@ export default function MasterEfficiencyView({ resources, actions }) {
     let notMarkedCount = 0;
     let noKtuCount = 0;
 
+    // Проверяем текущее время - КТУ проверяем только после 17:30
+    const currentHour = currentTime.getHours();
+    const currentMinute = currentTime.getMinutes();
+    const isAfter1730 = currentHour > 17 || (currentHour === 17 && currentMinute >= 30);
+
     filteredResources.forEach(res => {
         const override = res.scheduleOverrides?.[dateStr];
         const reason = res.scheduleReasons?.[dateStr];
@@ -47,12 +61,13 @@ export default function MasterEfficiencyView({ resources, actions }) {
             isPresent = true;
         }
 
-        if (!isPresent && isStandardWorkDay) {
+        // Неотмечен только если мастер вообще не трогал (ни override, ни reason) в рабочий день
+        if (override === undefined && !reason && isStandardWorkDay) {
             notMarkedCount++;
         }
 
-        // Проверяем КТУ только у присутствующих (исключая стажеров)
-        if (isPresent && res.position !== 'Стажёр') {
+        // Проверяем КТУ только у присутствующих (исключая стажеров) И только после 17:30
+        if (isAfter1730 && isPresent && res.position !== 'Стажёр') {
             const ktuValue = res.dailyEfficiency?.[dateStr];
             if (ktuValue === undefined || ktuValue === 0) {
                 noKtuCount++;
