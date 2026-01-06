@@ -112,9 +112,12 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       </th>
                                   );
                               })}
-                              <th className="p-3 text-center bg-emerald-700 border-l-2 border-emerald-500 min-w-[80px] font-bold uppercase tracking-wider sticky right-0 z-10">
+                              <th className="p-3 text-center bg-emerald-700 border-l-2 border-emerald-500 min-w-[80px] font-bold uppercase tracking-wider sticky right-[120px] z-10">
                                   <Clock size={14} className="inline mr-1"/>
-                                  Итого часов
+                                  Часов
+                              </th>
+                              <th className="p-3 text-center bg-orange-700 border-l-2 border-orange-500 min-w-[120px] font-bold uppercase tracking-wider sticky right-0 z-10">
+                                  💰 Зарплата
                               </th>
                           </tr>
                       </thead>
@@ -122,6 +125,8 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                           {activeResources.map(res => {
                               // Подсчет общего количества часов за месяц
                               let totalHours = 0;
+                              const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+
                               daysArray.forEach(day => {
                                   const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                                   const override = res.scheduleOverrides?.[dateStr];
@@ -144,10 +149,13 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                           dayHours = standardHours;
                                       }
 
-                                      // ВАЖНО: Проверяем КТУ - если не проставлено ВООБЩЕ (undefined), часы = 0
-                                      const ktuValue = res.dailyEfficiency?.[dateStr];
-                                      if (ktuValue === undefined) {
-                                          dayHours = 0;
+                                      // ВАЖНО: Проверяем КТУ только для должностей, у которых КТУ обязательно
+                                      // Для Мастера, Технолога и Стажёра КТУ не требуется
+                                      if (!noKtuPositions.includes(res.position)) {
+                                          const ktuValue = res.dailyEfficiency?.[dateStr];
+                                          if (ktuValue === undefined) {
+                                              dayHours = 0;
+                                          }
                                       }
 
                                       totalHours += dayHours;
@@ -218,14 +226,12 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                               else if (res.position === 'Технолог') prevMonthTotal += 20000;
 
                               const avgHourlyRate = prevMonthHours > 0 ? Math.round(prevMonthTotal / prevMonthHours) : 0;
-
-                              // Подсветка зеленым если есть часы
-                              const rowBgClass = totalHours > 0 ? 'bg-emerald-50/50' : '';
+                              const totalSalary = Math.round(avgHourlyRate * totalHours);
 
                               return (
-                              <tr key={res.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${rowBgClass}`}>
+                              <tr key={res.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                   <td
-                                    className={`p-3 sticky left-0 ${totalHours > 0 ? 'bg-emerald-50/50' : 'bg-white'} border-r border-slate-200 z-10 font-bold text-slate-700 cursor-pointer hover:text-orange-600 truncate`}
+                                    className="p-3 sticky left-0 bg-white border-r border-slate-200 z-10 font-bold text-slate-700 cursor-pointer hover:text-orange-600 truncate"
                                     onClick={() => setSelectedResource(res)}
                                   >
                                       {res.name}
@@ -251,8 +257,31 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       // Проверяем дату начала работы сотрудника
                                       const isBeforeStartDate = res.startDate && new Date(dateStr) < new Date(res.startDate);
 
+                                      // Определяем был ли день отработан (для зеленой подсветки)
+                                      let dayWorked = false;
+                                      if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
+                                          if (override !== undefined && override > 0) {
+                                              dayWorked = true;
+                                          } else if (isWorkDay && override === undefined) {
+                                              // Стандартный рабочий день
+                                              // Для должностей с КТУ проверяем наличие КТУ
+                                              if (!noKtuPositions.includes(res.position)) {
+                                                  const ktuValue = res.dailyEfficiency?.[dateStr];
+                                                  if (ktuValue !== undefined) dayWorked = true;
+                                              } else {
+                                                  // Для должностей без КТУ - день считается отработанным
+                                                  dayWorked = true;
+                                              }
+                                          }
+                                      }
+
                                       let content = null;
                                       let cellClass = isWeekend ? 'bg-slate-50' : 'bg-white';
+
+                                      // Зеленая подсветка для отработанных дней
+                                      if (dayWorked) {
+                                          cellClass = 'bg-emerald-50';
+                                      }
 
                                       if (isBeforeStartDate) {
                                           // Дата до начала работы - показываем 0 и блокируем редактирование
@@ -272,7 +301,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                           cellClass = 'bg-blue-50';
                                       } else if (override !== undefined) {
                                           content = <span className="font-medium text-slate-700">{override}</span>;
-                                          if(override === 0) cellClass = 'bg-slate-100'; 
+                                          if(override === 0) cellClass = 'bg-slate-100';
                                       } else {
                                           content = isWorkDay ? <span className="text-slate-300 text-[10px]">{standardHours}</span> : <span className="text-slate-200">-</span>;
                                       }
@@ -289,8 +318,13 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   })}
 
                                   {/* Итоговая ячейка с часами */}
-                                  <td className={`p-3 text-center font-black text-lg ${totalHours > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-emerald-500 sticky right-0 z-10`}>
+                                  <td className={`p-3 text-center font-black text-lg ${totalHours > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-emerald-500 sticky right-[120px] z-10`}>
                                       {totalHours}
+                                  </td>
+
+                                  {/* Итоговая ячейка с зарплатой */}
+                                  <td className={`p-3 text-center font-black text-base ${totalSalary > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-orange-500 sticky right-0 z-10`}>
+                                      {totalSalary > 0 ? `${totalSalary.toLocaleString()}₽` : '—'}
                                   </td>
                               </tr>
                               );
