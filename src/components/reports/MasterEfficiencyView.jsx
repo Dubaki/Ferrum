@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save, CheckCircle, Circle } from 'lucide-react';
 import { KtuInput } from './SharedComponents';
 
 export default function MasterEfficiencyView({ resources, actions }) {
@@ -72,6 +72,34 @@ export default function MasterEfficiencyView({ resources, actions }) {
         } else if (e.key === 'Escape') {
             setEditingCell(null);
             setEditValue('');
+        }
+    };
+
+    const handleAttendanceToggle = (res, dStr) => {
+        // Проверяем текущее состояние присутствия
+        const override = res.scheduleOverrides?.[dStr];
+        const reason = res.scheduleReasons?.[dStr];
+        const standardHours = res.hoursPerDay || 8;
+
+        const dateObj = new Date(dStr);
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
+
+        // Определяем, присутствует ли сотрудник
+        let isPresent = false;
+        if (override !== undefined) {
+            isPresent = override > 0;
+        } else if (isStandardWorkDay && reason !== 'sick' && reason !== 'absent') {
+            isPresent = true;
+        }
+
+        // Переключаем состояние
+        if (isPresent) {
+            // Отмечаем как отсутствующего (отгул)
+            actions.updateResourceSchedule(res.id, dStr, 0, 'absent');
+        } else {
+            // Отмечаем как присутствующего (стандартные часы)
+            actions.updateResourceSchedule(res.id, dStr, standardHours, null);
         }
     };
 
@@ -197,13 +225,36 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     const violation = res.safetyViolations?.[dateStr];
                     const isSafetyViolated = violation?.violated;
                     // КТУ не начисляется стажёрам
-                    const isKtuDisabled = res.position === 'Стажёр'; 
+                    const isKtuDisabled = res.position === 'Стажёр';
+
+                    // Определяем, присутствует ли сотрудник
+                    const override = res.scheduleOverrides?.[dateStr];
+                    const reason = res.scheduleReasons?.[dateStr];
+                    const standardHours = res.hoursPerDay || 8;
+                    const dateObj = new Date(dateStr);
+                    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                    const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
+
+                    let isPresent = false;
+                    if (override !== undefined) {
+                        isPresent = override > 0;
+                    } else if (isStandardWorkDay && reason !== 'sick' && reason !== 'absent') {
+                        isPresent = true;
+                    }
 
                     return (
                         <div key={res.id} className={`bg-white p-4 rounded-xl border transition flex items-center justify-between
                              ${isSafetyViolated ? 'border-red-300 bg-red-50/30' : 'border-gray-200 shadow-sm'}
                         `}>
                             <div className="flex items-center gap-3">
+                                {/* Чекбокс присутствия */}
+                                <button
+                                    onClick={() => handleAttendanceToggle(res, dateStr)}
+                                    className={`flex-shrink-0 transition-all ${isPresent ? 'text-emerald-500 hover:text-emerald-600' : 'text-gray-300 hover:text-gray-400'}`}
+                                    title={isPresent ? 'Отметить отсутствие' : 'Отметить присутствие'}
+                                >
+                                    {isPresent ? <CheckCircle size={28} fill="currentColor" /> : <Circle size={28} />}
+                                </button>
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
                                     ${isSafetyViolated ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}
                                 `}>
