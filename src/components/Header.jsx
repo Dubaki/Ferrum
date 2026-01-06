@@ -12,7 +12,7 @@ const tabs = [
   { path: '/reports', label: 'Финансы', icon: FileText },
 ];
 
-export default memo(function Header({ hasUrgentShipping = false, isAdmin, onToggleAuth }) {
+export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAlert = false, isAdmin, onToggleAuth }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -69,6 +69,7 @@ export default memo(function Header({ hasUrgentShipping = false, isAdmin, onTogg
         <nav className="hidden md:flex overflow-x-auto pb-0 gap-1 no-scrollbar -mb-px">
           {tabs.map(tab => {
             const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
+            const isWorkshopAlert = tab.path === '/resources' && hasWorkshopAlert;
             return (
               <NavLink
                 key={tab.path}
@@ -78,18 +79,23 @@ export default memo(function Header({ hasUrgentShipping = false, isAdmin, onTogg
                   relative flex items-center gap-2 px-4 lg:px-6 py-3 text-sm font-bold transition-all duration-200 border-b-2 whitespace-nowrap
                   ${isShippingUrgent
                     ? 'border-orange-500 text-orange-400 bg-orange-500/20 animate-pulse-shipping'
-                    : isActive
-                      ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
-                      : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
+                    : isWorkshopAlert
+                      ? 'border-blue-500 text-blue-400 bg-blue-500/20 animate-pulse-workshop'
+                      : isActive
+                        ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
+                        : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
                   }
                 `}
               >
                 {({ isActive }) => (
                   <>
-                    <tab.icon size={18} className={isShippingUrgent ? "text-orange-400" : isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
+                    <tab.icon size={18} className={isShippingUrgent ? "text-orange-400" : isWorkshopAlert ? "text-blue-400" : isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
                     {tab.label}
                     {isShippingUrgent && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-ping" />
+                    )}
+                    {isWorkshopAlert && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" />
                     )}
                   </>
                 )}
@@ -105,6 +111,7 @@ export default memo(function Header({ hasUrgentShipping = false, isAdmin, onTogg
           <nav className="flex flex-col p-2">
             {tabs.map(tab => {
               const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
+              const isWorkshopAlert = tab.path === '/resources' && hasWorkshopAlert;
               return (
                 <NavLink
                   key={tab.path}
@@ -115,9 +122,11 @@ export default memo(function Header({ hasUrgentShipping = false, isAdmin, onTogg
                     relative flex items-center gap-3 px-4 py-3 rounded-lg text-base font-bold transition-all
                     ${isShippingUrgent
                       ? 'bg-orange-500 text-white animate-pulse'
-                      : isActive
-                        ? 'bg-[#d32f2f] text-white'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      : isWorkshopAlert
+                        ? 'bg-blue-500 text-white animate-pulse'
+                        : isActive
+                          ? 'bg-[#d32f2f] text-white'
+                          : 'text-white/70 hover:bg-white/10 hover:text-white'
                     }
                   `}
                 >
@@ -125,6 +134,9 @@ export default memo(function Header({ hasUrgentShipping = false, isAdmin, onTogg
                   {tab.label}
                   {isShippingUrgent && (
                     <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">Сегодня!</span>
+                  )}
+                  {isWorkshopAlert && (
+                    <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">КТУ!</span>
                   )}
                 </NavLink>
               );
@@ -141,6 +153,13 @@ export default memo(function Header({ hasUrgentShipping = false, isAdmin, onTogg
         }
         .animate-pulse-shipping {
           animation: pulse-shipping 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-workshop {
+          0%, 100% { opacity: 1; background-color: rgba(59, 130, 246, 0.2); }
+          50% { opacity: 0.7; background-color: rgba(59, 130, 246, 0.4); }
+        }
+        .animate-pulse-workshop {
+          animation: pulse-workshop 1.5s ease-in-out infinite;
         }
       `}</style>
     </div>

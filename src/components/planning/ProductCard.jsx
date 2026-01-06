@@ -74,7 +74,16 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                     )}
                     
                     <div className="flex gap-1 pl-2 border-l border-slate-100" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => actions.deleteProduct(product.id)} className="p-1 text-slate-300 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                        <button
+                            onClick={() => {
+                                if (confirm(`Удалить изделие "${product.name}"?\n\nЭто действие нельзя отменить.`)) {
+                                    actions.deleteProduct(product.id);
+                                }
+                            }}
+                            className="p-1 text-slate-300 hover:text-red-500 transition"
+                        >
+                            <Trash2 size={14}/>
+                        </button>
                         <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}/>
                     </div>
                 </div>

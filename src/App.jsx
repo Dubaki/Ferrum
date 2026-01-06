@@ -55,6 +55,42 @@ export default function App() {
     return orders.some(o => o.status === 'active' && o.inShipping && o.shippingToday);
   }, [orders]);
 
+  // Проверяем требуется ли внимание мастера в разделе Цех (КТУ)
+  const hasWorkshopAlert = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const excludedPositions = ['Мастер', 'Технолог', 'Электрик', 'Стажёр', 'Плазморез'];
+    const activeResources = resources.filter(res => !res.firedAt && !excludedPositions.includes(res.position));
+
+    let notMarked = 0;
+    let noKtu = 0;
+
+    activeResources.forEach(res => {
+      const override = res.scheduleOverrides?.[today];
+      const reason = res.scheduleReasons?.[today];
+      const dateObj = new Date(today);
+      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+      const isWorkDay = res.workWeekends ? true : !isWeekend;
+
+      // Проверяем присутствие
+      let isPresent = false;
+      if (override !== undefined) {
+        isPresent = override > 0;
+      } else if (isWorkDay && reason !== 'sick' && reason !== 'absent') {
+        isPresent = true;
+      }
+
+      if (!isPresent && isWorkDay) notMarked++;
+
+      // Проверяем КТУ только у присутствующих (исключая стажеров)
+      if (isPresent && res.position !== 'Стажёр') {
+        const ktu = res.dailyEfficiency?.[today];
+        if (ktu === undefined || ktu === 0) noKtu++;
+      }
+    });
+
+    return notMarked > 0 || noKtu > 0;
+  }, [resources]);
+
   const handleToggleAuth = () => {
     if (isAdmin) {
       setIsAdmin(false);
@@ -86,10 +122,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <Header 
-        hasUrgentShipping={hasUrgentShipping} 
-        isAdmin={isAdmin} 
-        onToggleAuth={handleToggleAuth} 
+      <Header
+        hasUrgentShipping={hasUrgentShipping}
+        hasWorkshopAlert={hasWorkshopAlert}
+        isAdmin={isAdmin}
+        onToggleAuth={handleToggleAuth}
       />
 
       {/* Кнопка входа в режим цеха */}
