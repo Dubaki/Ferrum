@@ -187,8 +187,11 @@ export default function ResourcesTab({ resources, setResources, actions }) {
 
                                       let basePay = hourlyRate * workedHours;
                                       let tbBonus = 0, ktuBonus = 0;
-                                      if (dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
-                                      ktuBonus = basePay * (ktu / 100);
+
+                                      // Стажёрам бонусы не начисляются
+                                      const isIntern = res.position === 'Стажёр';
+                                      if (!isIntern && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
+                                      if (!isIntern) ktuBonus = basePay * (ktu / 100);
 
                                       prevMonthTotal += basePay + tbBonus + ktuBonus;
                                       prevMonthHours += workedHours;
@@ -335,6 +338,7 @@ function EmployeeModal({ resource, onClose, actions }) {
 
     // Список должностей
     const POSITIONS = [
+        'Стажёр',
         'Мастер',
         'Технолог',
         'Плазморез',
@@ -370,7 +374,7 @@ function EmployeeModal({ resource, onClose, actions }) {
 
             if (empDate) {
                 const probationEnd = new Date(empDate);
-                // Плазморез - 30 дней, остальные - 7 дней
+                // Плазморез - 30 дней, Стажёр - 7 дней (максимум), остальные - 7 дней
                 const probationDays = pos === 'Плазморез' ? 30 : 7;
                 probationEnd.setDate(probationEnd.getDate() + probationDays);
 

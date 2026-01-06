@@ -196,7 +196,8 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     const currentEff = (res.dailyEfficiency && res.dailyEfficiency[dateStr]) || 0;
                     const violation = res.safetyViolations?.[dateStr];
                     const isSafetyViolated = violation?.violated;
-                    const isKtuDisabled = res.ktuEligible === false; 
+                    // КТУ не начисляется стажёрам
+                    const isKtuDisabled = res.position === 'Стажёр'; 
 
                     return (
                         <div key={res.id} className={`bg-white p-4 rounded-xl border transition flex items-center justify-between

@@ -55,10 +55,16 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
         if (worked) {
             statusContent = <span className="font-bold text-slate-700">{workedHours}</span>;
             basePay = hourlyRate * workedHours;
-            
-            if (dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
-            ktuBonus = basePay * (ktu / 100);
-            ktuSum += ktu; ktuCount++;
+
+            // Стажёрам бонусы не начисляются
+            const isIntern = resource.position === 'Стажёр';
+
+            if (!isIntern && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
+            if (!isIntern) {
+                ktuBonus = basePay * (ktu / 100);
+                ktuSum += ktu;
+                ktuCount++;
+            }
         } else {
             // Если не работал - проверяем причину
             if (reason === 'sick') {
