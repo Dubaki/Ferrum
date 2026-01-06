@@ -79,7 +79,8 @@ export default function App() {
         isPresent = true;
       }
 
-      if (!isPresent && isWorkDay) notMarked++;
+      // Неотмечен только если мастер вообще не трогал (ни override, ни reason) в рабочий день
+      if (override === undefined && !reason && isWorkDay) notMarked++;
 
       // Проверяем КТУ только у присутствующих (исключая стажеров)
       if (isPresent && res.position !== 'Стажёр') {
