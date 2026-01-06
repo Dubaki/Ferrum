@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save, CheckCircle, Circle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, ShieldAlert, X, Save, CheckCircle, Circle, AlertCircle, Users } from 'lucide-react';
 import { KtuInput } from './SharedComponents';
 
 export default function MasterEfficiencyView({ resources, actions }) {
@@ -27,6 +27,38 @@ export default function MasterEfficiencyView({ resources, actions }) {
     // Исключаем определенные должности из КТУ
     const excludedPositions = ['Мастер', 'Технолог', 'Электрик', 'Стажёр', 'Плазморез'];
     const filteredResources = resources.filter(res => !excludedPositions.includes(res.position));
+
+    // Подсчет статистики для напоминаний
+    let notMarkedCount = 0;
+    let noKtuCount = 0;
+
+    filteredResources.forEach(res => {
+        const override = res.scheduleOverrides?.[dateStr];
+        const reason = res.scheduleReasons?.[dateStr];
+        const dateObj = new Date(dateStr);
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
+
+        // Проверяем присутствие
+        let isPresent = false;
+        if (override !== undefined) {
+            isPresent = override > 0;
+        } else if (isStandardWorkDay && reason !== 'sick' && reason !== 'absent') {
+            isPresent = true;
+        }
+
+        if (!isPresent && isStandardWorkDay) {
+            notMarkedCount++;
+        }
+
+        // Проверяем КТУ только у присутствующих (исключая стажеров)
+        if (isPresent && res.position !== 'Стажёр') {
+            const ktuValue = res.dailyEfficiency?.[dateStr];
+            if (ktuValue === undefined || ktuValue === 0) {
+                noKtuCount++;
+            }
+        }
+    });
 
     const handleSafetyClick = (res) => {
         const violation = res.safetyViolations?.[dateStr];
@@ -214,6 +246,35 @@ export default function MasterEfficiencyView({ resources, actions }) {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Напоминания мастеру */}
+            {notMarkedCount > 0 && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-4 flex items-center gap-4 shadow-lg animate-in slide-in-from-top-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-amber-400 rounded-full flex items-center justify-center">
+                        <AlertCircle size={28} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="font-bold text-amber-900 text-base">Отметьте присутствие сотрудников</h4>
+                        <p className="text-sm text-amber-700 mt-1">
+                            {notMarkedCount} {notMarkedCount === 1 ? 'сотрудник не отмечен' : 'сотрудников не отмечены'} — нажмите на кружок, чтобы отметить присутствие
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {noKtuCount > 0 && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-4 flex items-center gap-4 shadow-lg animate-in slide-in-from-top-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                        <Users size={28} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="font-bold text-blue-900 text-base">Проставьте КТУ сотрудникам</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                            {noKtuCount} {noKtuCount === 1 ? 'сотруднику требуется' : 'сотрудникам требуется'} оценка КТУ за сегодня
+                        </p>
                     </div>
                 </div>
             )}
