@@ -33,8 +33,8 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const monthDays = Array.from({length: daysInMonth}, (_, i) => i + 1);
 
-    // Исключаем определенные должности из КТУ
-    const excludedPositions = ['Мастер', 'Технолог', 'Электрик', 'Стажёр', 'Плазморез'];
+    // Исключаем определенные должности из списка сотрудников (не участвуют в КТУ вообще)
+    const excludedPositions = ['Электрик', 'Плазморез'];
     const filteredResources = resources.filter(res => !excludedPositions.includes(res.position));
 
     // Подсчет статистики для напоминаний
@@ -66,8 +66,9 @@ export default function MasterEfficiencyView({ resources, actions }) {
             notMarkedCount++;
         }
 
-        // Проверяем КТУ только у присутствующих (исключая стажеров) И только после 17:30
-        if (isAfter1730 && isPresent && res.position !== 'Стажёр') {
+        // Проверяем КТУ только у присутствующих (исключая должности без КТУ) И только после 17:30
+        const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+        if (isAfter1730 && isPresent && !noKtuPositions.includes(res.position)) {
             const ktuValue = res.dailyEfficiency?.[dateStr];
             if (ktuValue === undefined || ktuValue === 0) {
                 noKtuCount++;
@@ -283,8 +284,9 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     const currentEff = (res.dailyEfficiency && res.dailyEfficiency[dateStr]) || 0;
                     const violation = res.safetyViolations?.[dateStr];
                     const isSafetyViolated = violation?.violated;
-                    // КТУ не начисляется стажёрам
-                    const isKtuDisabled = res.position === 'Стажёр';
+                    // КТУ не начисляется для определенных должностей
+                    const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+                    const isKtuDisabled = noKtuPositions.includes(res.position);
 
                     // Определяем состояние присутствия сотрудника
                     const override = res.scheduleOverrides?.[dateStr];

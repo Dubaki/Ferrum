@@ -50,17 +50,21 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
         const ktu = (resource.dailyEfficiency?.[dateStr]) || 0;
 
         // --- ЛОГИКА СТАТУСА (ИКОНКИ) ---
-        let statusContent = null; 
-        
+        let statusContent = null;
+
         if (worked) {
             statusContent = <span className="font-bold text-slate-700">{workedHours}</span>;
             basePay = hourlyRate * workedHours;
 
-            // Стажёрам бонусы не начисляются
-            const isIntern = resource.position === 'Стажёр';
+            // Позиции без ТБ и КТУ
+            const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+            const noTbPositions = ['Стажёр', 'Мастер', 'Технолог'];
 
-            if (!isIntern && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
-            if (!isIntern) {
+            const hasKtu = !noKtuPositions.includes(resource.position);
+            const hasTb = !noTbPositions.includes(resource.position);
+
+            if (hasTb && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
+            if (hasKtu) {
                 ktuBonus = basePay * (ktu / 100);
                 ktuSum += ktu;
                 ktuCount++;
@@ -100,7 +104,13 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
     const totalBase = data.reduce((acc, d) => acc + d.basePay, 0);
     const totalTb = data.reduce((acc, d) => acc + d.tbBonus, 0);
     const totalKtu = data.reduce((acc, d) => acc + d.ktuBonus, 0);
-    const totalMonth = totalBase + totalTb + totalKtu;
+
+    // Месячные премии для определенных должностей
+    let monthlyBonus = 0;
+    if (resource.position === 'Мастер') monthlyBonus = 30000;
+    else if (resource.position === 'Технолог') monthlyBonus = 20000;
+
+    const totalMonth = totalBase + totalTb + totalKtu + monthlyBonus;
     const avgKtu = ktuCount > 0 ? Math.round(ktuSum / ktuCount) : 0;
 
     return createPortal(
@@ -168,6 +178,14 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
                                 {data.map(d => (<td key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}>{d.ktuBonus > 0 && <span className="text-indigo-600 font-bold">{Math.round(d.ktuBonus)}</span>}</td>))}
                                 <td className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-indigo-600 flex flex-col items-end text-xs sm:text-[10px]"><span>+{Math.round(totalKtu)}</span><span className="text-[9px] sm:text-[8px] text-slate-400">ср. {avgKtu}%</span></td>
                             </tr>
+
+                            {monthlyBonus > 0 && (
+                                <tr className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="p-2 sm:p-2 border-b border-r border-slate-100 bg-white sticky left-0 z-10 font-bold text-left text-slate-700 text-xs sm:text-[10px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">Премия</td>
+                                    {data.map(d => (<td key={d.day} className={`p-2 sm:p-1 border-b border-r border-slate-100 ${d.isWeekend ? 'bg-rose-50/20' : ''}`}></td>))}
+                                    <td className="p-2 sm:p-2 border-b border-l border-slate-200 bg-slate-50 font-bold text-orange-600 text-xs sm:text-[10px]">+{Math.round(monthlyBonus).toLocaleString()}</td>
+                                </tr>
+                            )}
 
                             <tr className="bg-slate-900 text-white">
                                 <td className="p-2 sm:p-2 border-r border-slate-700 bg-slate-900 sticky left-0 z-10 font-bold text-left text-xs sm:text-[10px] shadow-[4px_0_24px_-2px_rgba(0,0,0,0.5)]">СУММА</td>

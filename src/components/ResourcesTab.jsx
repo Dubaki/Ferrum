@@ -198,15 +198,24 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       let basePay = hourlyRate * workedHours;
                                       let tbBonus = 0, ktuBonus = 0;
 
-                                      // Стажёрам бонусы не начисляются
-                                      const isIntern = res.position === 'Стажёр';
-                                      if (!isIntern && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
-                                      if (!isIntern) ktuBonus = basePay * (ktu / 100);
+                                      // Позиции без ТБ и КТУ
+                                      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+                                      const noTbPositions = ['Стажёр', 'Мастер', 'Технолог'];
+
+                                      const hasKtu = !noKtuPositions.includes(res.position);
+                                      const hasTb = !noTbPositions.includes(res.position);
+
+                                      if (hasTb && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
+                                      if (hasKtu) ktuBonus = basePay * (ktu / 100);
 
                                       prevMonthTotal += basePay + tbBonus + ktuBonus;
                                       prevMonthHours += workedHours;
                                   }
                               });
+
+                              // Добавляем месячные премии для определенных должностей
+                              if (res.position === 'Мастер') prevMonthTotal += 30000;
+                              else if (res.position === 'Технолог') prevMonthTotal += 20000;
 
                               const avgHourlyRate = prevMonthHours > 0 ? Math.round(prevMonthTotal / prevMonthHours) : 0;
 
