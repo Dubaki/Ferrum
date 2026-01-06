@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
 import { useSimulation } from './hooks/useSimulation';
@@ -48,7 +48,16 @@ export default function App() {
   const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false); // Состояние прав администратора
+  const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
+
+  // Обновляем время каждую минуту для проверки КТУ после 17:30
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Каждую минуту
+    return () => clearInterval(interval);
+  }, []);
 
   // Проверяем есть ли срочные отгрузки (на сегодня)
   const hasUrgentShipping = useMemo(() => {
@@ -96,7 +105,7 @@ export default function App() {
     });
 
     return notMarked > 0 || noKtu > 0;
-  }, [resources]);
+  }, [resources, currentTime]);
 
   const handleToggleAuth = () => {
     if (isAdmin) {
