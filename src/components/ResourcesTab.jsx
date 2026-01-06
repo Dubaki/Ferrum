@@ -132,9 +132,6 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   const isWorkDay = res.workWeekends ? true : !isWeekend;
                                   const isBeforeStartDate = res.startDate && new Date(dateStr) < new Date(res.startDate);
 
-                                  // Проверяем КТУ за этот день
-                                  const ktu = res.dailyEfficiency?.[dateStr] || 0;
-
                                   if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
                                       let dayHours = 0;
                                       if (override !== undefined) {
@@ -142,8 +139,13 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       } else if (isWorkDay) {
                                           dayHours = standardHours;
                                       }
-                                      // ВАЖНО: Если КТУ не проставлено (= 0), часы тоже = 0
-                                      if (ktu === 0) dayHours = 0;
+
+                                      // ВАЖНО: Проверяем КТУ - если не проставлено ВООБЩЕ (undefined), часы = 0
+                                      const ktuValue = res.dailyEfficiency?.[dateStr];
+                                      if (ktuValue === undefined) {
+                                          dayHours = 0;
+                                      }
+
                                       totalHours += dayHours;
                                   }
                               });
