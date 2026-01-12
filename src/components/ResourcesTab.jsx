@@ -101,7 +101,10 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                   <table className="w-full text-xs border-collapse">
                       <thead>
                           <tr className="bg-slate-800 text-slate-300">
-                              <th className="p-3 text-left sticky left-0 bg-slate-800 z-10 min-w-[180px] border-r border-slate-700 font-bold uppercase tracking-wider">Сотрудник</th>
+                              <th className="p-2 text-center sticky left-0 bg-slate-800 z-10 min-w-[50px] border-r border-slate-700 font-bold text-xs" title="Официальное трудоустройство">
+                                  ✓
+                              </th>
+                              <th className="p-3 text-left sticky left-[50px] bg-slate-800 z-10 min-w-[180px] border-r border-slate-700 font-bold uppercase tracking-wider">Сотрудник</th>
                               {daysArray.map(day => {
                                   const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                                   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
@@ -228,10 +231,25 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                               const avgHourlyRate = prevMonthHours > 0 ? Math.round(prevMonthTotal / prevMonthHours) : 0;
                               const totalSalary = Math.round(avgHourlyRate * totalHours);
 
+                              const isOfficial = res.isOfficiallyEmployed ?? false;
+
                               return (
                               <tr key={res.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                  {/* Чекбокс официального трудоустройства */}
+                                  <td className="p-2 sticky left-0 bg-white border-r border-slate-200 z-10 text-center">
+                                      <input
+                                          type="checkbox"
+                                          checked={isOfficial}
+                                          onChange={(e) => actions.updateResource(res.id, 'isOfficiallyEmployed', e.target.checked)}
+                                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                                          title="Официальное трудоустройство"
+                                          onClick={(e) => e.stopPropagation()}
+                                      />
+                                  </td>
+
+                                  {/* Фамилия сотрудника */}
                                   <td
-                                    className="p-3 sticky left-0 bg-white border-r border-slate-200 z-10 font-bold text-slate-700 cursor-pointer hover:text-orange-600 truncate"
+                                    className={`p-3 sticky left-[50px] bg-white border-r border-slate-200 z-10 font-bold cursor-pointer hover:text-orange-600 truncate ${isOfficial ? 'text-emerald-600' : 'text-slate-700'}`}
                                     onClick={() => setSelectedResource(res)}
                                   >
                                       {res.name}
@@ -416,7 +434,8 @@ function EmployeeModal({ resource, onClose, actions }) {
         hoursPerDay: resource.hoursPerDay || 8,
         workWeekends: resource.workWeekends || false,
         photoUrl: resource.photoUrl || '',
-        salaryEnabled: resource.salaryEnabled !== undefined ? resource.salaryEnabled : true
+        salaryEnabled: resource.salaryEnabled !== undefined ? resource.salaryEnabled : true,
+        isOfficiallyEmployed: resource.isOfficiallyEmployed !== undefined ? resource.isOfficiallyEmployed : false
     });
 
     const handleChange = (field, value) => {
@@ -589,6 +608,22 @@ function EmployeeModal({ resource, onClose, actions }) {
                             <div>
                                 <div className="text-sm font-bold text-slate-700">Расчет зарплаты</div>
                                 <div className="text-xs text-slate-500">Включите для постоянных сотрудников</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    {/* Переключатель официального трудоустройства */}
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.isOfficiallyEmployed}
+                                onChange={e => handleChange('isOfficiallyEmployed', e.target.checked)}
+                                className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                            />
+                            <div>
+                                <div className="text-sm font-bold text-emerald-700">Официальное трудоустройство</div>
+                                <div className="text-xs text-slate-500">Отображается зеленым в таблице смен</div>
                             </div>
                         </label>
                     </div>
