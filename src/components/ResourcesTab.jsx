@@ -249,18 +249,18 @@ export default function ResourcesTab({ resources, setResources, actions }) {
 
                                   {/* Фамилия сотрудника */}
                                   <td
-                                    className={`p-3 sticky left-[50px] border-r border-slate-200 z-10 font-bold cursor-pointer hover:text-orange-600 truncate transition-colors ${
+                                    className={`p-3 sticky left-[50px] border-r z-10 font-bold cursor-pointer hover:text-orange-600 truncate transition-colors ${
                                         isOfficial
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                            : 'bg-white text-slate-700'
+                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                            : 'bg-white text-slate-700 border-slate-200'
                                     }`}
                                     onClick={() => setSelectedResource(res)}
                                   >
                                       {res.name}
-                                      <div className={`text-[9px] font-normal flex items-center gap-1 ${isOfficial ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                      <div className={`text-[9px] font-normal flex items-center gap-1 ${isOfficial ? 'text-emerald-700' : 'text-slate-400'}`}>
                                           {res.position}
                                           {avgHourlyRate > 0 && (
-                                              <span className="text-emerald-600 font-bold ml-1">• {avgHourlyRate}₽/ч</span>
+                                              <span className="text-emerald-700 font-bold ml-1">• {avgHourlyRate}₽/ч</span>
                                           )}
                                       </div>
                                   </td>
