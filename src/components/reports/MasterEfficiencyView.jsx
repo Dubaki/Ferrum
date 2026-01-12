@@ -34,7 +34,7 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const monthDays = Array.from({length: daysInMonth}, (_, i) => i + 1);
 
     // Исключаем определенные должности из списка сотрудников (не участвуют в КТУ вообще)
-    const excludedPositions = ['Электрик', 'Плазморез'];
+    const excludedPositions = ['Электрик'];
     const filteredResources = resources.filter(res => !excludedPositions.includes(res.position));
 
     // Подсчет статистики для напоминаний
@@ -67,7 +67,7 @@ export default function MasterEfficiencyView({ resources, actions }) {
         }
 
         // Проверяем КТУ только у присутствующих (исключая должности без КТУ) И только после 17:30
-        const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+        const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
         if (isAfter1730 && isPresent && !noKtuPositions.includes(res.position)) {
             const ktuValue = res.dailyEfficiency?.[dateStr];
             if (ktuValue === undefined || ktuValue === 0) {
@@ -285,7 +285,7 @@ export default function MasterEfficiencyView({ resources, actions }) {
                     const violation = res.safetyViolations?.[dateStr];
                     const isSafetyViolated = violation?.violated;
                     // КТУ не начисляется для определенных должностей
-                    const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+                    const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
                     const isKtuDisabled = noKtuPositions.includes(res.position);
 
                     // Определяем состояние присутствия сотрудника

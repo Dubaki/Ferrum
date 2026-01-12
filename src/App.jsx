@@ -67,7 +67,7 @@ export default function App() {
   // Проверяем требуется ли внимание мастера в разделе Цех (КТУ)
   const hasWorkshopAlert = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const excludedPositions = ['Электрик', 'Плазморез'];
+    const excludedPositions = ['Электрик'];
     const activeResources = resources.filter(res => !res.firedAt && !excludedPositions.includes(res.position));
 
     // Проверяем текущее время - КТУ проверяем только после 17:30
@@ -98,7 +98,7 @@ export default function App() {
       if (override === undefined && !reason && isWorkDay) notMarked++;
 
       // Проверяем КТУ только у присутствующих (исключая должности без КТУ) И только после 17:30
-      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
       if (isAfter1730 && isPresent && !noKtuPositions.includes(res.position)) {
         const ktu = res.dailyEfficiency?.[today];
         if (ktu === undefined || ktu === 0) noKtu++;

@@ -57,8 +57,8 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
             basePay = hourlyRate * workedHours;
 
             // Позиции без ТБ и КТУ
-            const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
-            const noTbPositions = ['Стажёр', 'Мастер', 'Технолог'];
+            const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
+            const noTbPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
 
             const hasKtu = !noKtuPositions.includes(resource.position);
             const hasTb = !noTbPositions.includes(resource.position);

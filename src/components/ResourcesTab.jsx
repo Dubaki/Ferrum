@@ -125,7 +125,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                           {activeResources.map(res => {
                               // Подсчет общего количества часов за месяц
                               let totalHours = 0;
-                              const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
+                              const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
 
                               daysArray.forEach(day => {
                                   const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -207,8 +207,8 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       let tbBonus = 0, ktuBonus = 0;
 
                                       // Позиции без ТБ и КТУ
-                                      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог'];
-                                      const noTbPositions = ['Стажёр', 'Мастер', 'Технолог'];
+                                      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
+                                      const noTbPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
 
                                       const hasKtu = !noKtuPositions.includes(res.position);
                                       const hasTb = !noTbPositions.includes(res.position);

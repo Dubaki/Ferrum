@@ -6,7 +6,10 @@
       "Bash(npm run build:*)",
       "Bash(git revert:*)",
       "Bash(cat:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(firebase --version:*)",
+      "Bash(firebase login:*)",
+      "Bash(firebase projects:list:*)"
     ]
   }
 }
