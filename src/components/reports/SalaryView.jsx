@@ -49,9 +49,20 @@ export default function SalaryView({ resources, actions }) {
 
             const standardHours = parseFloat(res.hoursPerDay) || 8;
 
+            // Текущая дата для проверки будущих дней
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
             monthDays.forEach(day => {
                 const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 const dateObj = new Date(dateStr + 'T00:00:00');
+
+                // Пропускаем будущие дни - учитываем только фактически отработанные
+                if (dateStr > todayStr) {
+                    return;
+                }
+
                 const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
 
                 // 1. Часы (Приоритет: Переопределение -> График -> 0)

@@ -18,11 +18,19 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
     // Подготовка данных
     let ktuSum = 0; let ktuCount = 0;
 
+    // Текущая дата для проверки будущих дней
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
     const data = days.map(day => {
         const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         const dateObj = new Date(dateStr);
         const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-        
+
+        // Проверка на будущий день - не учитываем в расчётах
+        const isFutureDay = dateStr > todayStr;
+
         // Читаем данные
         const override = resource.scheduleOverrides?.[dateStr];
         const reason = resource.scheduleReasons?.[dateStr]; // Причина отсутствия
@@ -30,9 +38,12 @@ export default function SalaryMatrixModal({ resource, initialDate, onClose }) {
         const isStandardWorkDay = resource.workWeekends ? true : !isWeekend;
         
         let workedHours = 0;
-        if (override !== undefined) workedHours = override;
-        else if (isStandardWorkDay) workedHours = standardHours;
-        
+        // Для будущих дней часы всегда 0 - учитываем только фактически отработанные
+        if (!isFutureDay) {
+            if (override !== undefined) workedHours = override;
+            else if (isStandardWorkDay) workedHours = standardHours;
+        }
+
         const worked = workedHours > 0;
 
         // Ставка
