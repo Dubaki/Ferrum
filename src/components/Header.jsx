@@ -25,17 +25,12 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
         {/* Верхняя строка с логотипом */}
         <div className="flex justify-between items-center h-[56px] sm:h-[70px]">
           <NavLink to="/" className="flex items-center gap-2 sm:gap-3">
-            {/* SVG Лошадь */}
-            <svg
-              className="w-[36px] h-[36px] sm:w-[50px] sm:h-[50px]"
-              style={{ filter: 'brightness(0) invert(1)' }}
-              viewBox="0 0 100 100"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M20 80 Q25 60, 35 55 L40 50 Q45 40, 50 45 L55 60 Q58 65, 60 60 L62 50 Q64 45, 66 50 L68 60 Q70 65, 72 60 L74 50 Q76 40, 78 50 L80 70 Q82 80, 75 82 L30 85 Z" fill="white"/>
-              <path d="M40 50 L45 35 Q47 25, 50 30 L52 40 Q54 45, 52 50 Z" fill="white"/>
-              <ellipse cx="48" cy="36" rx="3" ry="3" fill="#1a1a1a"/>
-            </svg>
+            {/* Логотип */}
+            <img
+              src="/pic/cropped-logo.png.webp"
+              alt="Феррум"
+              className="w-[36px] h-[36px] sm:w-[50px] sm:h-[50px] object-contain"
+            />
 
             <div className="flex flex-col">
               <span className="block font-black text-[22px] sm:text-[32px] text-[#d32f2f] tracking-tight leading-none">ФЕРРУМ</span>
