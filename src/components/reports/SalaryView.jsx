@@ -6,6 +6,8 @@ import SalaryMatrixModal from './SalaryMatrixModal';
 export default function SalaryView({ resources, actions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedResource, setSelectedResource] = useState(null);
+    const [editingAdvance, setEditingAdvance] = useState(null);
+    const [advanceValue, setAdvanceValue] = useState('');
 
     const changeMonth = (delta) => {
         const d = new Date(currentDate);
@@ -13,9 +15,21 @@ export default function SalaryView({ resources, actions }) {
         setCurrentDate(d);
     };
 
+    const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
     const monthName = currentDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const monthDays = Array.from({length: daysInMonth}, (_, i) => i + 1);
+
+    // Подсчёт рабочих дней в месяце (пн-пт)
+    const workingDaysInMonth = useMemo(() => {
+        let count = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+        }
+        return count;
+    }, [currentDate, daysInMonth]);
 
     // --- ЛОГИКА РАСЧЕТА ---
     const payrollData = useMemo(() => {
@@ -33,6 +47,7 @@ export default function SalaryView({ resources, actions }) {
             let totalTb = 0;
             let totalKtu = 0;
             let hoursWorked = 0;
+            let shiftsWorked = 0;
 
             // Используем probationEndDate если есть, иначе рассчитываем автоматически
             let probationEnd;
@@ -85,6 +100,7 @@ export default function SalaryView({ resources, actions }) {
 
                 if (dailyHours > 0) {
                     hoursWorked += dailyHours;
+                    shiftsWorked++;
 
                     // 2. Ставка (Ищем актуальную на этот день в истории)
                     const history = res.rateHistory || [];
@@ -121,20 +137,51 @@ export default function SalaryView({ resources, actions }) {
                 }
             });
 
+            const totalSum = totalBase + totalTb + totalKtu;
+            const effectiveHourlyRate = hoursWorked > 0 ? totalSum / hoursWorked : 0;
+            const avgCoefficient = totalBase > 0 ? totalSum / totalBase : 1;
+            const advance = res.advances?.[monthKey] || 0;
+            const toPay = totalSum - advance;
+
             return {
                 ...res,
                 hoursWorked,
+                shiftsWorked,
                 totalBase,
                 totalTb,
                 totalKtu,
-                totalSum: totalBase + totalTb + totalKtu
+                totalSum,
+                effectiveHourlyRate,
+                avgCoefficient,
+                advance,
+                toPay
             };
         }).sort((a,b) => b.totalSum - a.totalSum); // Сортируем по зарплате (богатые сверху)
-    }, [resources, currentDate]);
+    }, [resources, currentDate, monthKey]);
 
     // Итоговые суммы по цеху
     const totalPayroll = payrollData.reduce((sum, r) => sum + r.totalSum, 0);
     const totalHours = payrollData.reduce((sum, r) => sum + r.hoursWorked, 0);
+    const totalAdvances = payrollData.reduce((sum, r) => sum + r.advance, 0);
+    const totalToPay = payrollData.reduce((sum, r) => sum + r.toPay, 0);
+
+    // Сохранение аванса
+    const handleSaveAdvance = (resourceId) => {
+        const value = parseFloat(advanceValue) || 0;
+        const resource = resources.find(r => r.id === resourceId);
+        if (resource && actions?.updateResource) {
+            const newAdvances = { ...(resource.advances || {}), [monthKey]: value };
+            actions.updateResource(resourceId, { advances: newAdvances });
+        }
+        setEditingAdvance(null);
+        setAdvanceValue('');
+    };
+
+    const startEditAdvance = (row, e) => {
+        e.stopPropagation();
+        setEditingAdvance(row.id);
+        setAdvanceValue(row.advance > 0 ? String(row.advance) : '');
+    };
 
     return (
         <div className="space-y-6 fade-in">
@@ -156,33 +203,36 @@ export default function SalaryView({ resources, actions }) {
                     </div>
                 </div>
 
-                {/* 2. Общий ФОТ (Фонд Оплаты Труда) */}
-                <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-2xl shadow-lg text-white flex flex-col justify-between relative overflow-hidden group">
-                    <div className="relative z-10">
+                {/* 2. Начислено (ФОТ) */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
                         <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
-                            <DollarSign size={14} className="text-emerald-400"/> Итого ФОТ
+                            <DollarSign size={14} className="text-slate-500"/> Начислено (ФОТ)
                         </div>
-                        <div className="text-3xl font-black tracking-tight">
+                        <div className="text-2xl font-black text-slate-800 tracking-tight">
                             {Math.round(totalPayroll).toLocaleString()} ₽
                         </div>
                     </div>
-                    <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-500">
-                        <DollarSign size={100} />
+                    <div className="text-xs text-slate-400 mt-2">
+                        Авансов: {Math.round(totalAdvances).toLocaleString()} ₽
                     </div>
                 </div>
 
-                {/* 3. Отработанные часы */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                     <div>
-                        <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
-                            <TrendingUp size={14} className="text-blue-500"/> Отработано часов
+                {/* 3. К выплате */}
+                <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-5 rounded-2xl shadow-lg text-white flex flex-col justify-between relative overflow-hidden group">
+                    <div className="relative z-10">
+                        <div className="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
+                            <DollarSign size={14}/> К выплате
                         </div>
-                        <div className="text-3xl font-black text-slate-800 tracking-tight">
-                            {Math.round(totalHours).toLocaleString()} ч
+                        <div className="text-3xl font-black tracking-tight">
+                            {Math.round(totalToPay).toLocaleString()} ₽
                         </div>
                     </div>
-                    <div className="text-xs text-slate-400 mt-2">
-                        В среднем {(payrollData.length > 0 ? totalHours / payrollData.length : 0).toFixed(0)} ч/чел
+                    <div className="text-xs text-emerald-200 mt-2">
+                        Часов: {Math.round(totalHours).toLocaleString()} ч
+                    </div>
+                    <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-500">
+                        <DollarSign size={100} />
                     </div>
                 </div>
             </div>
@@ -191,57 +241,97 @@ export default function SalaryView({ resources, actions }) {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-xs border-b border-slate-200">
+                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
                             <tr>
-                                <th className="p-4">Сотрудник</th>
-                                <th className="p-4 text-center">Ставка</th>
-                                <th className="p-4 text-center">Часы</th>
-                                <th className="p-4 text-right text-slate-400">Оклад</th>
-                                <th className="p-4 text-right text-emerald-600">ТБ (+22%)</th>
-                                <th className="p-4 text-right text-indigo-600">КТУ</th>
-                                <th className="p-4 text-right font-black text-slate-800">ИТОГО</th>
-                                <th className="p-4 w-10"></th>
+                                <th className="p-3">Сотрудник</th>
+                                <th className="p-3 text-center">Смены</th>
+                                <th className="p-3 text-center">Часы</th>
+                                <th className="p-3 text-right">Оклад</th>
+                                <th className="p-3 text-right text-emerald-600">Эффект. ЗП</th>
+                                <th className="p-3 text-right text-blue-600">₽/час</th>
+                                <th className="p-3 text-center text-indigo-600">Коэфф.</th>
+                                <th className="p-3 text-right text-orange-600">Аванс</th>
+                                <th className="p-3 text-right font-black text-slate-800">К выплате</th>
+                                <th className="p-3 w-8"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {payrollData.map((row) => (
-                                <tr 
-                                    key={row.id} 
+                                <tr
+                                    key={row.id}
                                     onClick={() => setSelectedResource(row)}
                                     className="hover:bg-orange-50/50 transition-colors cursor-pointer group"
                                 >
-                                    <td className="p-4 font-bold text-slate-700">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs group-hover:bg-white group-hover:shadow-md transition-all">
+                                    <td className="p-3 font-bold text-slate-700">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs group-hover:bg-white group-hover:shadow-md transition-all">
                                                 {row.name.charAt(0)}
                                             </div>
                                             <div>
-                                                <div>{row.name}</div>
-                                                <div className="text-[10px] text-slate-400 font-normal uppercase">{row.position}</div>
+                                                <div className="text-sm">{row.name}</div>
+                                                <div className="text-[9px] text-slate-400 font-normal uppercase">{row.position}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-center text-slate-500 font-mono text-xs">
-                                        {/* Показываем базовую ставку (или "разные", если менялась) - упрощение: показываем текущую */}
-                                        {row.baseRate} ₽
+                                    <td className="p-3 text-center text-slate-600 font-mono text-xs">
+                                        <span className="font-bold">{row.shiftsWorked}</span>
+                                        <span className="text-slate-400"> ({workingDaysInMonth})</span>
                                     </td>
-                                    <td className="p-4 text-center font-bold text-slate-700">
+                                    <td className="p-3 text-center font-bold text-slate-700 text-xs">
                                         {parseFloat(row.hoursWorked.toFixed(1))}
                                     </td>
-                                    <td className="p-4 text-right text-slate-500 font-mono">
+                                    <td className="p-3 text-right text-slate-500 font-mono text-xs">
                                         {Math.round(row.totalBase).toLocaleString()}
                                     </td>
-                                    <td className="p-4 text-right font-bold text-emerald-600 font-mono bg-emerald-50/30">
-                                        +{Math.round(row.totalTb).toLocaleString()}
+                                    <td className="p-3 text-right font-bold text-emerald-600 font-mono text-xs bg-emerald-50/30">
+                                        {Math.round(row.totalSum).toLocaleString()}
                                     </td>
-                                    <td className="p-4 text-right font-bold text-indigo-600 font-mono bg-indigo-50/30">
-                                        +{Math.round(row.totalKtu).toLocaleString()}
+                                    <td className="p-3 text-right text-blue-600 font-mono text-xs">
+                                        {Math.round(row.effectiveHourlyRate).toLocaleString()}
                                     </td>
-                                    <td className="p-4 text-right font-black text-lg text-slate-800">
-                                        {Math.round(row.totalSum).toLocaleString()} ₽
+                                    <td className="p-3 text-center text-indigo-600 font-mono text-xs font-bold">
+                                        ×{row.avgCoefficient.toFixed(2)}
                                     </td>
-                                    <td className="p-4 text-slate-300 group-hover:text-orange-500 transition-colors">
-                                        <FileText size={18} />
+                                    <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
+                                        {editingAdvance === row.id ? (
+                                            <div className="flex items-center gap-1 justify-end">
+                                                <input
+                                                    type="number"
+                                                    value={advanceValue}
+                                                    onChange={e => setAdvanceValue(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') handleSaveAdvance(row.id);
+                                                        if (e.key === 'Escape') { setEditingAdvance(null); setAdvanceValue(''); }
+                                                    }}
+                                                    className="w-20 px-2 py-1 text-xs border rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                                    placeholder="0"
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    onClick={() => handleSaveAdvance(row.id)}
+                                                    className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
+                                                >
+                                                    ✓
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => startEditAdvance(row, e)}
+                                                className={`font-mono text-xs px-2 py-1 rounded transition-colors ${
+                                                    row.advance > 0
+                                                        ? 'text-orange-600 bg-orange-50 hover:bg-orange-100 font-bold'
+                                                        : 'text-slate-400 hover:bg-slate-100'
+                                                }`}
+                                            >
+                                                {row.advance > 0 ? `-${Math.round(row.advance).toLocaleString()}` : '—'}
+                                            </button>
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-right font-black text-sm text-slate-800">
+                                        {Math.round(row.toPay).toLocaleString()} ₽
+                                    </td>
+                                    <td className="p-3 text-slate-300 group-hover:text-orange-500 transition-colors">
+                                        <FileText size={16} />
                                     </td>
                                 </tr>
                             ))}
