@@ -39,6 +39,14 @@ export default function SalaryView({ resources, actions }) {
     }, [currentDate, daysInMonth]);
 
     const workingDaysInMonth = workDaysOverrides[monthKey] || defaultWorkingDays;
+    const minHoursInMonth = workingDaysInMonth * 8; // Минимум часов = смены × 8
+
+    // Проверка: наступило ли 3 число следующего месяца (для обнуления ТБ/КТУ)
+    const isAfterThirdOfNextMonth = useMemo(() => {
+        const today = new Date();
+        const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 3);
+        return today >= nextMonth;
+    }, [currentDate]);
 
     // Сохранение количества рабочих дней
     const handleSaveWorkDays = () => {
@@ -156,7 +164,13 @@ export default function SalaryView({ resources, actions }) {
                 }
             });
 
-            const totalSum = totalBase + totalTb + totalKtu;
+            // Обнуление ТБ и КТУ если не отработан минимум часов (с 3 числа следующего месяца)
+            const didNotWorkMinHours = hoursWorked < minHoursInMonth;
+            const shouldResetBonuses = didNotWorkMinHours && isAfterThirdOfNextMonth;
+
+            const finalTb = shouldResetBonuses ? 0 : totalTb;
+            const finalKtu = shouldResetBonuses ? 0 : totalKtu;
+            const totalSum = totalBase + finalTb + finalKtu;
             const effectiveHourlyRate = hoursWorked > 0 ? totalSum / hoursWorked : 0;
             const avgCoefficient = totalBase > 0 ? totalSum / totalBase : 1;
             const advance = res.advances?.[monthKey] || 0;
@@ -167,16 +181,18 @@ export default function SalaryView({ resources, actions }) {
                 hoursWorked,
                 shiftsWorked,
                 totalBase,
-                totalTb,
-                totalKtu,
+                totalTb: finalTb,
+                totalKtu: finalKtu,
                 totalSum,
                 effectiveHourlyRate,
                 avgCoefficient,
                 advance,
-                toPay
+                toPay,
+                didNotWorkMinHours,
+                shouldResetBonuses
             };
         }).sort((a,b) => b.totalSum - a.totalSum); // Сортируем по зарплате (богатые сверху)
-    }, [resources, currentDate, monthKey]);
+    }, [resources, currentDate, monthKey, minHoursInMonth, isAfterThirdOfNextMonth]);
 
     // Итоговые суммы по цеху
     const totalPayroll = payrollData.reduce((sum, r) => sum + r.totalSum, 0);
@@ -301,7 +317,10 @@ export default function SalaryView({ resources, actions }) {
                                         )}
                                     </div>
                                 </th>
-                                <th className="p-3 text-center">Часы</th>
+                                <th className="p-3 text-center">
+                                    <span>Часы </span>
+                                    <span className="text-slate-400 normal-case font-normal">({minHoursInMonth})</span>
+                                </th>
                                 <th className="p-3 text-right">Оклад</th>
                                 <th className="p-3 text-right text-emerald-600">Эффект. ЗП</th>
                                 <th className="p-3 text-right text-blue-600">₽/час</th>
@@ -333,8 +352,11 @@ export default function SalaryView({ resources, actions }) {
                                         <span className="font-bold">{row.shiftsWorked}</span>
                                         <span className="text-slate-400"> ({workingDaysInMonth})</span>
                                     </td>
-                                    <td className="p-3 text-center font-bold text-slate-700 text-xs">
+                                    <td className={`p-3 text-center font-bold text-xs ${row.didNotWorkMinHours ? 'text-red-500' : 'text-slate-700'}`}>
                                         {parseFloat(row.hoursWorked.toFixed(1))}
+                                        {row.shouldResetBonuses && (
+                                            <span className="ml-1 text-[9px] text-red-400" title="ТБ и КТУ обнулены">⚠</span>
+                                        )}
                                     </td>
                                     <td className="p-3 text-right text-slate-500 font-mono text-xs">
                                         {Math.round(row.totalBase).toLocaleString()}
