@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, DollarSign, TrendingUp, AlertCircle, FileText } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Calendar, DollarSign, TrendingUp, AlertCircle, FileText, Edit3 } from 'lucide-react';
 // ИСПРАВЛЕННЫЙ ИМПОРТ (одна точка = текущая папка)
 import SalaryMatrixModal from './SalaryMatrixModal';
 
@@ -8,6 +8,13 @@ export default function SalaryView({ resources, actions }) {
     const [selectedResource, setSelectedResource] = useState(null);
     const [editingAdvance, setEditingAdvance] = useState(null);
     const [advanceValue, setAdvanceValue] = useState('');
+    const [editingWorkDays, setEditingWorkDays] = useState(false);
+    const [workDaysValue, setWorkDaysValue] = useState('');
+    const [workDaysOverrides, setWorkDaysOverrides] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('workDaysOverrides') || '{}');
+        } catch { return {}; }
+    });
 
     const changeMonth = (delta) => {
         const d = new Date(currentDate);
@@ -20,8 +27,8 @@ export default function SalaryView({ resources, actions }) {
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const monthDays = Array.from({length: daysInMonth}, (_, i) => i + 1);
 
-    // Подсчёт рабочих дней в месяце (пн-пт)
-    const workingDaysInMonth = useMemo(() => {
+    // Рабочие дни в месяце (из настроек или по умолчанию пн-пт)
+    const defaultWorkingDays = useMemo(() => {
         let count = 0;
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
@@ -30,6 +37,18 @@ export default function SalaryView({ resources, actions }) {
         }
         return count;
     }, [currentDate, daysInMonth]);
+
+    const workingDaysInMonth = workDaysOverrides[monthKey] || defaultWorkingDays;
+
+    // Сохранение количества рабочих дней
+    const handleSaveWorkDays = () => {
+        const value = parseInt(workDaysValue) || defaultWorkingDays;
+        const newOverrides = { ...workDaysOverrides, [monthKey]: value };
+        setWorkDaysOverrides(newOverrides);
+        localStorage.setItem('workDaysOverrides', JSON.stringify(newOverrides));
+        setEditingWorkDays(false);
+        setWorkDaysValue('');
+    };
 
     // --- ЛОГИКА РАСЧЕТА ---
     const payrollData = useMemo(() => {
@@ -244,7 +263,44 @@ export default function SalaryView({ resources, actions }) {
                         <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
                             <tr>
                                 <th className="p-3">Сотрудник</th>
-                                <th className="p-3 text-center">Смены</th>
+                                <th className="p-3 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                        <span>Смены</span>
+                                        {editingWorkDays ? (
+                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                <span className="text-slate-400 normal-case">(из</span>
+                                                <input
+                                                    type="number"
+                                                    value={workDaysValue}
+                                                    onChange={e => setWorkDaysValue(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') handleSaveWorkDays();
+                                                        if (e.key === 'Escape') { setEditingWorkDays(false); setWorkDaysValue(''); }
+                                                    }}
+                                                    className="w-12 px-1 py-0.5 text-[10px] border rounded text-center font-mono"
+                                                    placeholder={String(defaultWorkingDays)}
+                                                    autoFocus
+                                                />
+                                                <span className="text-slate-400 normal-case">)</span>
+                                                <button
+                                                    onClick={handleSaveWorkDays}
+                                                    className="px-1.5 py-0.5 text-[9px] bg-blue-500 text-white rounded hover:bg-blue-600"
+                                                >
+                                                    ✓
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => { setEditingWorkDays(true); setWorkDaysValue(String(workingDaysInMonth)); }}
+                                                className="flex items-center gap-0.5 text-slate-400 hover:text-blue-500 normal-case font-normal"
+                                                title="Изменить кол-во рабочих дней"
+                                            >
+                                                <span>(из {workingDaysInMonth})</span>
+                                                <Edit3 size={10} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </th>
                                 <th className="p-3 text-center">Часы</th>
                                 <th className="p-3 text-right">Оклад</th>
                                 <th className="p-3 text-right text-emerald-600">Эффект. ЗП</th>
