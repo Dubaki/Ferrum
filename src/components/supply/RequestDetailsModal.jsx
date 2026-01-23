@@ -1,0 +1,348 @@
+import { useState } from 'react';
+import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, ChevronRight, History, AlertTriangle, Trash2 } from 'lucide-react';
+import { SUPPLY_STATUSES, canPerformAction, getRoleLabel } from '../../utils/supplyRoles';
+
+export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.new;
+
+  // Форматирование даты
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const formatDateTime = (timestamp) => {
+    if (!timestamp) return '-';
+    const date = new Date(timestamp);
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Определение доступных действий
+  const canRequestInvoice = canPerformAction(userRole, 'requestInvoice') && request.status === 'new';
+  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_requested';
+  const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
+  const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_management' && !request.approvals?.shopManager;
+  const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_management' && !request.approvals?.director;
+  const canMarkPaid = canPerformAction(userRole, 'markPaid') && request.status === 'pending_payment';
+  const canSetDelivery = canPerformAction(userRole, 'setDeliveryDate') && request.status === 'paid';
+  const canMarkDelivered = canPerformAction(userRole, 'markDelivered') && request.status === 'awaiting_delivery';
+
+  // Возможность отклонения на этапах согласования
+  const canReject = (canApproveTechnologist || canApproveShopManager || canApproveDirector) &&
+    ['pending_tech_approval', 'pending_management'].includes(request.status);
+
+  // Возможность удаления (только admin или создатель в статусе new)
+  const canDelete = userRole === 'admin' || (request.status === 'new' && request.createdBy === userRole);
+
+  const handleReject = async () => {
+    await supplyActions.rejectRequest(request.id, userRole, rejectReason);
+    setShowRejectModal(false);
+    setRejectReason('');
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    await supplyActions.deleteRequest(request.id);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        {/* Заголовок */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 sticky top-0 bg-white">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Package className="text-cyan-600" size={20} />
+              {request.requestNumber}
+            </h2>
+            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color} text-white`}>
+              {statusInfo.label}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-100 rounded transition"
+          >
+            <X size={20} className="text-slate-400" />
+          </button>
+        </div>
+
+        {/* Содержимое */}
+        <div className="p-4 space-y-4">
+          {/* Основная информация */}
+          <div>
+            <h3 className="font-medium text-slate-800 text-lg">{request.title}</h3>
+            {request.description && (
+              <p className="text-slate-600 mt-1">{request.description}</p>
+            )}
+          </div>
+
+          {/* Детали */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-slate-50 p-3 rounded-lg">
+              <div className="text-slate-500 mb-1 flex items-center gap-1">
+                <Package size={14} />
+                Количество
+              </div>
+              <div className="font-medium text-slate-800">{request.quantity} {request.unit}</div>
+            </div>
+
+            {request.orderNumber && (
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <div className="text-slate-500 mb-1 flex items-center gap-1">
+                  <FileText size={14} />
+                  Заказ
+                </div>
+                <div className="font-medium text-slate-800">{request.orderNumber}</div>
+              </div>
+            )}
+
+            {request.desiredDate && (
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <div className="text-slate-500 mb-1 flex items-center gap-1">
+                  <Calendar size={14} />
+                  Желаемая дата
+                </div>
+                <div className="font-medium text-slate-800">{formatDate(request.desiredDate)}</div>
+              </div>
+            )}
+
+            {request.deliveryDate && (
+              <div className="bg-cyan-50 p-3 rounded-lg">
+                <div className="text-cyan-600 mb-1 flex items-center gap-1">
+                  <Truck size={14} />
+                  Срок доставки
+                </div>
+                <div className="font-medium text-cyan-700">{formatDate(request.deliveryDate)}</div>
+              </div>
+            )}
+
+            {request.deliveredAt && (
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="text-green-600 mb-1 flex items-center gap-1">
+                  <Check size={14} />
+                  Доставлено
+                </div>
+                <div className="font-medium text-green-700">{formatDate(request.deliveredAt)}</div>
+              </div>
+            )}
+
+            <div className="bg-slate-50 p-3 rounded-lg">
+              <div className="text-slate-500 mb-1 flex items-center gap-1">
+                <Clock size={14} />
+                Создано
+              </div>
+              <div className="font-medium text-slate-800">{formatDateTime(request.createdAt)}</div>
+            </div>
+          </div>
+
+          {/* Согласования */}
+          {(request.approvals?.technologist || request.approvals?.shopManager || request.approvals?.director || request.approvals?.accountant) && (
+            <div className="border-t border-slate-100 pt-4">
+              <h4 className="font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <Check size={16} />
+                Согласования
+              </h4>
+              <div className="space-y-2 text-sm">
+                {request.approvals?.technologist && (
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <Check size={14} />
+                    Технолог - {formatDateTime(request.approvals.technologistAt)}
+                  </div>
+                )}
+                {request.approvals?.shopManager && (
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <Check size={14} />
+                    Начальник цеха - {formatDateTime(request.approvals.shopManagerAt)}
+                  </div>
+                )}
+                {request.approvals?.director && (
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <Check size={14} />
+                    Директор - {formatDateTime(request.approvals.directorAt)}
+                  </div>
+                )}
+                {request.approvals?.accountant && (
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <Check size={14} />
+                    Бухгалтер - {formatDateTime(request.approvals.accountantAt)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* История статусов */}
+          {request.statusHistory && request.statusHistory.length > 0 && (
+            <div className="border-t border-slate-100 pt-4">
+              <h4 className="font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <History size={16} />
+                История
+              </h4>
+              <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
+                {request.statusHistory.slice().reverse().map((entry, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-slate-600">
+                    <span className="text-slate-400 whitespace-nowrap">{formatDateTime(entry.timestamp)}</span>
+                    <span className="text-slate-400">-</span>
+                    <span>{entry.note || SUPPLY_STATUSES[entry.status]?.label || entry.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Кнопки действий */}
+          <div className="border-t border-slate-100 pt-4 space-y-2">
+            {canRequestInvoice && (
+              <button
+                onClick={() => { supplyActions.requestInvoice(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition flex items-center justify-center gap-2"
+              >
+                <FileText size={18} />
+                Запросить счёт
+              </button>
+            )}
+            {canSubmitForApproval && (
+              <button
+                onClick={() => { supplyActions.submitForApproval(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition flex items-center justify-center gap-2"
+              >
+                <ChevronRight size={18} />
+                Отправить на согласование
+              </button>
+            )}
+            {canApproveTechnologist && (
+              <button
+                onClick={() => { supplyActions.approveTechnologist(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition flex items-center justify-center gap-2"
+              >
+                <Check size={18} />
+                Согласовать (Технолог)
+              </button>
+            )}
+            {canApproveShopManager && (
+              <button
+                onClick={() => { supplyActions.approveShopManager(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition flex items-center justify-center gap-2"
+              >
+                <Check size={18} />
+                Согласовать (Начальник цеха)
+              </button>
+            )}
+            {canApproveDirector && (
+              <button
+                onClick={() => { supplyActions.approveDirector(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition flex items-center justify-center gap-2"
+              >
+                <Check size={18} />
+                Согласовать (Директор)
+              </button>
+            )}
+            {canMarkPaid && (
+              <button
+                onClick={() => { supplyActions.markPaid(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition flex items-center justify-center gap-2"
+              >
+                <CreditCard size={18} />
+                Подтвердить оплату
+              </button>
+            )}
+            {canMarkDelivered && (
+              <button
+                onClick={() => { supplyActions.markDelivered(request.id); onClose(); }}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2"
+              >
+                <Truck size={18} />
+                Подтвердить доставку
+              </button>
+            )}
+            {canReject && (
+              <button
+                onClick={() => setShowRejectModal(true)}
+                className="w-full px-4 py-2 bg-red-100 text-red-600 rounded-lg font-medium hover:bg-red-200 transition flex items-center justify-center gap-2"
+              >
+                <AlertTriangle size={18} />
+                Отклонить
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition flex items-center justify-center gap-2"
+              >
+                <Trash2 size={18} />
+                Удалить заявку
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Модальное окно отклонения */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4">
+            <h3 className="font-bold text-lg text-slate-800 mb-4">Причина отклонения</h3>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Укажите причину..."
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleReject}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
+              >
+                Отклонить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Подтверждение удаления */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4">
+            <h3 className="font-bold text-lg text-slate-800 mb-2">Удалить заявку?</h3>
+            <p className="text-slate-600 mb-4">Это действие нельзя отменить.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

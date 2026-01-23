@@ -1,22 +1,25 @@
 import { memo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock, ShoppingBag } from 'lucide-react';
+import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock, ShoppingBag, Package } from 'lucide-react';
+import { getRoleLabel } from '../utils/supplyRoles';
 
 const tabs = [
   { path: '/', label: 'Заказы', icon: Layers },
   { path: '/products', label: 'Товары', icon: ShoppingBag },
   { path: '/shipping', label: 'Отгрузки', icon: Truck },
+  { path: '/supply', label: 'Снабжение', icon: Package },
   { path: '/workload', label: 'Загрузка', icon: Calendar },
   { path: '/resources', label: 'Цех', icon: Users },
   { path: '/gantt', label: 'Гант', icon: BarChart3 },
   { path: '/reports', label: 'Финансы', icon: FileText },
 ];
 
-export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAlert = false, isAdmin, onToggleAuth }) {
+export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAlert = false, hasSupplyAlert = false, isAdmin, userRole, onToggleAuth }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
   const currentTab = tabs.find(t => t.path === location.pathname) || tabs[0];
+  const roleLabel = userRole ? getRoleLabel(userRole) : null;
 
   return (
     <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2c2c2c] border-b-[3px] border-[#d32f2f] sticky top-0 z-40 shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
@@ -38,14 +41,21 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
             </div>
           </NavLink>
 
-          {/* Кнопка авторизации (Замок) */}
-          <button
-            onClick={onToggleAuth}
-            className={`ml-4 p-2 rounded-lg transition-colors ${isAdmin ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
-            title={isAdmin ? "Выйти из режима администратора" : "Войти как администратор"}
-          >
-            {isAdmin ? <Unlock size={20} /> : <Lock size={20} />}
-          </button>
+          {/* Кнопка авторизации (Замок) + роль */}
+          <div className="flex items-center gap-2 ml-4">
+            {roleLabel && (
+              <span className="hidden sm:block text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                {roleLabel}
+              </span>
+            )}
+            <button
+              onClick={onToggleAuth}
+              className={`p-2 rounded-lg transition-colors ${userRole ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+              title={userRole ? `Выйти (${roleLabel})` : "Войти"}
+            >
+              {userRole ? <Unlock size={20} /> : <Lock size={20} />}
+            </button>
+          </div>
 
           {/* Mobile: Current tab + Hamburger */}
           <div className="flex md:hidden items-center gap-2">
@@ -65,6 +75,7 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
           {tabs.map(tab => {
             const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
             const isWorkshopAlert = tab.path === '/resources' && hasWorkshopAlert;
+            const isSupplyAlert = tab.path === '/supply' && hasSupplyAlert;
             return (
               <NavLink
                 key={tab.path}
@@ -76,21 +87,26 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
                     ? 'border-orange-500 text-orange-400 bg-orange-500/20 animate-pulse-shipping'
                     : isWorkshopAlert
                       ? 'border-blue-500 text-blue-400 bg-blue-500/20 animate-pulse-workshop'
-                      : isActive
-                        ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
-                        : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
+                      : isSupplyAlert
+                        ? 'border-cyan-500 text-cyan-400 bg-cyan-500/20 animate-pulse-supply'
+                        : isActive
+                          ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
+                          : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
                   }
                 `}
               >
                 {({ isActive }) => (
                   <>
-                    <tab.icon size={18} className={isShippingUrgent ? "text-orange-400" : isWorkshopAlert ? "text-blue-400" : isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
+                    <tab.icon size={18} className={isShippingUrgent ? "text-orange-400" : isWorkshopAlert ? "text-blue-400" : isSupplyAlert ? "text-cyan-400" : isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
                     {tab.label}
                     {isShippingUrgent && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-ping" />
                     )}
                     {isWorkshopAlert && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" />
+                    )}
+                    {isSupplyAlert && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-500 rounded-full animate-ping" />
                     )}
                   </>
                 )}
@@ -107,6 +123,7 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
             {tabs.map(tab => {
               const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
               const isWorkshopAlert = tab.path === '/resources' && hasWorkshopAlert;
+              const isSupplyAlert = tab.path === '/supply' && hasSupplyAlert;
               return (
                 <NavLink
                   key={tab.path}
@@ -119,9 +136,11 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
                       ? 'bg-orange-500 text-white animate-pulse'
                       : isWorkshopAlert
                         ? 'bg-blue-500 text-white animate-pulse'
-                        : isActive
-                          ? 'bg-[#d32f2f] text-white'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        : isSupplyAlert
+                          ? 'bg-cyan-500 text-white animate-pulse'
+                          : isActive
+                            ? 'bg-[#d32f2f] text-white'
+                            : 'text-white/70 hover:bg-white/10 hover:text-white'
                     }
                   `}
                 >
@@ -132,6 +151,9 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
                   )}
                   {isWorkshopAlert && (
                     <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">КТУ!</span>
+                  )}
+                  {isSupplyAlert && (
+                    <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">Доставка!</span>
                   )}
                 </NavLink>
               );
@@ -155,6 +177,13 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
         }
         .animate-pulse-workshop {
           animation: pulse-workshop 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-supply {
+          0%, 100% { opacity: 1; background-color: rgba(6, 182, 212, 0.2); }
+          50% { opacity: 0.7; background-color: rgba(6, 182, 212, 0.4); }
+        }
+        .animate-pulse-supply {
+          animation: pulse-supply 1.5s ease-in-out infinite;
         }
       `}</style>
     </div>

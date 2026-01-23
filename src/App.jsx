@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
 import { useSimulation } from './hooks/useSimulation';
+import { useSupplyRequests } from './hooks/useSupplyRequests';
+import { checkSupplyRolePassword, getRoleLabel } from './utils/supplyRoles';
 
 // --- Компоненты ---
 import Header from './components/Header';
@@ -13,6 +15,7 @@ import ShippingTab from './components/ShippingTab';
 import PlanningTab from './components/planning/PlanningTab';
 import ProductsTab from './components/ProductsTab';
 import WorkshopMode from './components/WorkshopMode';
+import SupplyTab from './components/supply/SupplyTab';
 
 // Компонент загрузки
 function LoadingScreen() {
@@ -46,8 +49,10 @@ function AccessDenied({ navigate }) {
 export default function App() {
   const { resources, products, orders, reports, loading, actions } = useProductionData();
   const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
+  const { requests: supplyRequests, hasSupplyAlert, actions: supplyActions } = useSupplyRequests();
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false); // Состояние прав администратора
+  const [userRole, setUserRole] = useState(null); // null | 'admin' | 'technologist' | 'supplier' | ...
+  const isAdmin = userRole === 'admin';
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
 
@@ -109,13 +114,16 @@ export default function App() {
   }, [resources, currentTime]);
 
   const handleToggleAuth = () => {
-    if (isAdmin) {
-      setIsAdmin(false);
+    if (userRole) {
+      setUserRole(null);
     } else {
-      const password = window.prompt("Введите пароль администратора:");
-      if (password === "fer25") {
-        setIsAdmin(true);
-      } else if (password !== null) {
+      const password = window.prompt("Введите пароль:");
+      if (password === null) return;
+
+      const role = checkSupplyRolePassword(password);
+      if (role) {
+        setUserRole(role);
+      } else {
         alert("Неверный пароль!");
       }
     }
@@ -142,7 +150,9 @@ export default function App() {
       <Header
         hasUrgentShipping={hasUrgentShipping}
         hasWorkshopAlert={hasWorkshopAlert}
+        hasSupplyAlert={hasSupplyAlert}
         isAdmin={isAdmin}
+        userRole={userRole}
         onToggleAuth={handleToggleAuth}
       />
 
@@ -205,6 +215,18 @@ export default function App() {
               ) : (
                 <AccessDenied navigate={navigate} />
               )
+            }
+          />
+          <Route
+            path="/supply"
+            element={
+              <SupplyTab
+                orders={orders}
+                supplyRequests={supplyRequests}
+                supplyActions={supplyActions}
+                userRole={userRole}
+                hasSupplyAlert={hasSupplyAlert}
+              />
             }
           />
           <Route
