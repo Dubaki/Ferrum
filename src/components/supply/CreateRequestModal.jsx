@@ -1,45 +1,73 @@
 import { useState } from 'react';
-import { X, Package, Plus } from 'lucide-react';
+import { X, Package, Plus, Trash2, FileText } from 'lucide-react';
 import { SUPPLY_UNITS } from '../../utils/supplyRoles';
 
 export default function CreateRequestModal({ orders, userRole, onClose, onCreate }) {
-  const [formData, setFormData] = useState({
-    orderId: '',
-    orderNumber: '',
-    title: '',
-    description: '',
-    quantity: '',
-    unit: 'шт',
-    desiredDate: ''
-  });
+  const [items, setItems] = useState([
+    { title: '', description: '', quantity: '', unit: 'шт' }
+  ]);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [desiredDate, setDesiredDate] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleOrderChange = (orderId) => {
-    const order = orders.find(o => o.id === orderId);
-    setFormData(prev => ({
-      ...prev,
-      orderId: orderId,
-      orderNumber: order?.orderNumber || ''
-    }));
+  // Добавить позицию
+  const addItem = () => {
+    setItems(prev => [...prev, { title: '', description: '', quantity: '', unit: 'шт' }]);
+  };
+
+  // Удалить позицию
+  const removeItem = (index) => {
+    if (items.length > 1) {
+      setItems(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // Обновить позицию
+  const updateItem = (index, field, value) => {
+    setItems(prev => prev.map((item, i) =>
+      i === index ? { ...item, [field]: value } : item
+    ));
+  };
+
+  // Переключить выбор заказа
+  const toggleOrder = (order) => {
+    setSelectedOrders(prev => {
+      const exists = prev.find(o => o.orderId === order.id);
+      if (exists) {
+        return prev.filter(o => o.orderId !== order.id);
+      } else {
+        return [...prev, { orderId: order.id, orderNumber: order.orderNumber }];
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.title.trim()) {
-      alert('Введите название');
+    // Валидация позиций
+    const validItems = items.filter(item => item.title.trim() && item.quantity);
+    if (validItems.length === 0) {
+      alert('Добавьте хотя бы одну позицию с названием и количеством');
       return;
     }
-    if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
-      alert('Введите количество');
-      return;
+
+    // Проверка каждой позиции
+    for (const item of validItems) {
+      if (parseFloat(item.quantity) <= 0) {
+        alert('Количество должно быть больше 0');
+        return;
+      }
     }
 
     setLoading(true);
     try {
       await onCreate({
-        ...formData,
-        quantity: parseFloat(formData.quantity),
+        items: validItems.map(item => ({
+          ...item,
+          quantity: parseFloat(item.quantity)
+        })),
+        orders: selectedOrders,
+        desiredDate,
         createdBy: userRole
       });
     } catch (error) {
@@ -51,12 +79,12 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Заголовок */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Package className="text-cyan-600" size={20} />
-            Новая заявка
+            Новая заявка на снабжение
           </h2>
           <button
             onClick={onClose}
@@ -67,85 +95,121 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         </div>
 
         {/* Форма */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Привязка к заказу */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-6">
+          {/* Привязка к заказам */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Заказ (необязательно)
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <FileText size={14} className="inline mr-1" />
+              Заказы (можно выбрать несколько)
             </label>
-            <select
-              value={formData.orderId}
-              onChange={(e) => handleOrderChange(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-            >
-              <option value="">Не привязано</option>
-              {orders.map(order => (
-                <option key={order.id} value={order.id}>
-                  {order.orderNumber} {order.clientName ? `- ${order.clientName}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Название */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Название <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Например: Профильная труба 40x20"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-          {/* Описание */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Описание
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Дополнительная информация..."
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-            />
-          </div>
-
-          {/* Количество и единица измерения */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Количество <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                placeholder="0"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                required
-              />
+            <div className="border border-slate-200 rounded-lg max-h-32 overflow-y-auto">
+              {orders.length === 0 ? (
+                <div className="p-3 text-sm text-slate-400 text-center">Нет активных заказов</div>
+              ) : (
+                orders.map(order => (
+                  <label
+                    key={order.id}
+                    className={`flex items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-0 ${
+                      selectedOrders.find(o => o.orderId === order.id) ? 'bg-cyan-50' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!selectedOrders.find(o => o.orderId === order.id)}
+                      onChange={() => toggleOrder(order)}
+                      className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                    />
+                    <span className="font-medium">{order.orderNumber}</span>
+                    {order.clientName && (
+                      <span className="text-slate-500 text-sm">- {order.clientName}</span>
+                    )}
+                  </label>
+                ))
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Ед. изм.
+            {selectedOrders.length > 0 && (
+              <div className="mt-2 text-sm text-cyan-600">
+                Выбрано заказов: {selectedOrders.length}
+              </div>
+            )}
+          </div>
+
+          {/* Позиции */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-slate-700">
+                <Package size={14} className="inline mr-1" />
+                Позиции <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formData.unit}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              <button
+                type="button"
+                onClick={addItem}
+                className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
               >
-                {SUPPLY_UNITS.map(unit => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
+                <Plus size={14} />
+                Добавить позицию
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {items.map((item, index) => (
+                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="text-xs font-medium text-slate-400">Позиция {index + 1}</span>
+                    {items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Название */}
+                  <input
+                    type="text"
+                    value={item.title}
+                    onChange={(e) => updateItem(index, 'title', e.target.value)}
+                    placeholder="Название (например: Профильная труба 40x20)"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-2"
+                  />
+
+                  {/* Количество и единица */}
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="col-span-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                        placeholder="Количество"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      />
+                    </div>
+                    <select
+                      value={item.unit}
+                      onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    >
+                      {SUPPLY_UNITS.map(unit => (
+                        <option key={unit} value={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Описание */}
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => updateItem(index, 'description', e.target.value)}
+                    placeholder="Описание (необязательно)"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
@@ -156,8 +220,8 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
             </label>
             <input
               type="date"
-              value={formData.desiredDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, desiredDate: e.target.value }))}
+              value={desiredDate}
+              onChange={(e) => setDesiredDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
@@ -182,7 +246,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
               ) : (
                 <>
                   <Plus size={18} />
-                  Создать
+                  Создать заявку
                 </>
               )}
             </button>

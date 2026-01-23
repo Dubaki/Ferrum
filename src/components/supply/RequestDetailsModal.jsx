@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, ChevronRight, History, AlertTriangle, Trash2 } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction, getRoleLabel } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
 
 export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -8,6 +8,17 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.new;
+
+  // Получаем данные с учетом старого и нового формата
+  const items = request.items || [];
+  const orders = request.orders || [];
+
+  // Для обратной совместимости со старым форматом
+  const legacyTitle = request.title;
+  const legacyQuantity = request.quantity;
+  const legacyUnit = request.unit;
+  const legacyDescription = request.description;
+  const legacyOrderNumber = request.orderNumber;
 
   // Форматирование даты
   const formatDate = (dateStr) => {
@@ -81,34 +92,57 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
         {/* Содержимое */}
         <div className="p-4 space-y-4">
-          {/* Основная информация */}
-          <div>
-            <h3 className="font-medium text-slate-800 text-lg">{request.title}</h3>
-            {request.description && (
-              <p className="text-slate-600 mt-1">{request.description}</p>
-            )}
-          </div>
+          {/* Позиции */}
+          {items.length > 0 ? (
+            <div>
+              <h4 className="font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <Package size={16} />
+                Позиции ({items.length})
+              </h4>
+              <div className="space-y-2">
+                {items.map((item, idx) => (
+                  <div key={idx} className="bg-slate-50 p-3 rounded-lg">
+                    <div className="font-medium text-slate-800">{item.title}</div>
+                    <div className="text-sm text-slate-600 mt-1">
+                      {item.quantity} {item.unit}
+                      {item.description && (
+                        <span className="text-slate-400 ml-2">- {item.description}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : legacyTitle && (
+            <div>
+              <h3 className="font-medium text-slate-800 text-lg">{legacyTitle}</h3>
+              {legacyDescription && (
+                <p className="text-slate-600 mt-1">{legacyDescription}</p>
+              )}
+              <div className="text-sm text-slate-600 mt-2">
+                Количество: {legacyQuantity} {legacyUnit}
+              </div>
+            </div>
+          )}
+
+          {/* Заказы */}
+          {(orders.length > 0 || legacyOrderNumber) && (
+            <div className="bg-slate-50 p-3 rounded-lg">
+              <div className="text-slate-500 mb-1 flex items-center gap-1 text-sm">
+                <FileText size={14} />
+                {orders.length > 1 ? 'Заказы' : 'Заказ'}
+              </div>
+              <div className="font-medium text-slate-800">
+                {orders.length > 0
+                  ? orders.map(o => o.orderNumber).join(', ')
+                  : legacyOrderNumber
+                }
+              </div>
+            </div>
+          )}
 
           {/* Детали */}
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="bg-slate-50 p-3 rounded-lg">
-              <div className="text-slate-500 mb-1 flex items-center gap-1">
-                <Package size={14} />
-                Количество
-              </div>
-              <div className="font-medium text-slate-800">{request.quantity} {request.unit}</div>
-            </div>
-
-            {request.orderNumber && (
-              <div className="bg-slate-50 p-3 rounded-lg">
-                <div className="text-slate-500 mb-1 flex items-center gap-1">
-                  <FileText size={14} />
-                  Заказ
-                </div>
-                <div className="font-medium text-slate-800">{request.orderNumber}</div>
-              </div>
-            )}
-
             {request.desiredDate && (
               <div className="bg-slate-50 p-3 rounded-lg">
                 <div className="text-slate-500 mb-1 flex items-center gap-1">

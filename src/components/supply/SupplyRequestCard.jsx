@@ -1,9 +1,19 @@
 import { useMemo } from 'react';
-import { FileText, Calendar, Package, Check, X, Truck, CreditCard, Clock, AlertTriangle, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { FileText, Calendar, Package, Check, Truck, CreditCard, Clock, AlertTriangle, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, supplyActions, onOpenDetails, onOpenDeliveryModal }) {
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.new;
+
+  // Получаем данные с учетом старого и нового формата
+  const items = request.items || [];
+  const orders = request.orders || [];
+
+  // Для обратной совместимости со старым форматом
+  const legacyTitle = request.title;
+  const legacyQuantity = request.quantity;
+  const legacyUnit = request.unit;
+  const legacyOrderNumber = request.orderNumber;
 
   // Проверка, требует ли заявка внимания (срок доставки близок)
   const deliveryAlert = useMemo(() => {
@@ -42,6 +52,20 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
   const hasAction = canRequestInvoice || canSubmitForApproval || canApproveTechnologist ||
     canApproveShopManager || canApproveDirector || canMarkPaid || canSetDelivery || canMarkDelivered;
 
+  // Отображение позиций (краткое)
+  const itemsSummary = items.length > 0
+    ? items.length === 1
+      ? `${items[0].title} - ${items[0].quantity} ${items[0].unit}`
+      : `${items.length} позиций`
+    : legacyTitle
+      ? `${legacyTitle} - ${legacyQuantity} ${legacyUnit}`
+      : 'Нет позиций';
+
+  // Отображение заказов
+  const ordersSummary = orders.length > 0
+    ? orders.map(o => o.orderNumber).join(', ')
+    : legacyOrderNumber || null;
+
   return (
     <div
       className={`bg-white rounded-lg border transition hover:shadow-md cursor-pointer ${
@@ -52,7 +76,7 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
       <div className="p-4">
         {/* Верхняя строка: номер, статус, дата */}
         <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="font-mono font-bold text-slate-800">{request.requestNumber}</span>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color} text-white`}>
               {statusInfo.label}
@@ -64,31 +88,68 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
               </span>
             )}
           </div>
-          <div className="text-xs text-slate-400 flex items-center gap-1">
+          <div className="text-xs text-slate-400 flex items-center gap-1 whitespace-nowrap">
             <Clock size={12} />
             {formatDate(request.createdAt)}
           </div>
         </div>
 
-        {/* Название и описание */}
-        <h3 className="font-medium text-slate-800 mb-1">{request.title}</h3>
-        {request.description && (
-          <p className="text-sm text-slate-500 line-clamp-1 mb-2">{request.description}</p>
+        {/* Позиции */}
+        {items.length > 0 ? (
+          <div className="mb-3">
+            {items.length <= 3 ? (
+              <div className="space-y-1">
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm">
+                    <Package size={14} className="text-slate-400 flex-shrink-0" />
+                    <span className="text-slate-800 font-medium truncate">{item.title}</span>
+                    <span className="text-slate-500">-</span>
+                    <span className="text-slate-600 whitespace-nowrap">{item.quantity} {item.unit}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {items.slice(0, 2).map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm">
+                    <Package size={14} className="text-slate-400 flex-shrink-0" />
+                    <span className="text-slate-800 font-medium truncate">{item.title}</span>
+                    <span className="text-slate-500">-</span>
+                    <span className="text-slate-600 whitespace-nowrap">{item.quantity} {item.unit}</span>
+                  </div>
+                ))}
+                <div className="text-sm text-slate-400 pl-6">
+                  +{items.length - 2} ещё...
+                </div>
+              </div>
+            )}
+          </div>
+        ) : legacyTitle && (
+          <div className="mb-3">
+            <h3 className="font-medium text-slate-800">{legacyTitle}</h3>
+            {request.description && (
+              <p className="text-sm text-slate-500 line-clamp-1">{request.description}</p>
+            )}
+          </div>
         )}
 
         {/* Информация */}
         <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-          {/* Количество */}
-          <div className="flex items-center gap-1">
-            <Package size={14} className="text-slate-400" />
-            <span>{request.quantity} {request.unit}</span>
-          </div>
+          {/* Общее количество позиций */}
+          {items.length > 1 && (
+            <div className="flex items-center gap-1">
+              <Package size={14} className="text-slate-400" />
+              <span>{items.length} позиций</span>
+            </div>
+          )}
 
-          {/* Привязка к заказу */}
-          {request.orderNumber && (
+          {/* Заказы */}
+          {ordersSummary && (
             <div className="flex items-center gap-1">
               <FileText size={14} className="text-slate-400" />
-              <span>Заказ: {request.orderNumber}</span>
+              <span className="truncate max-w-[200px]">
+                {orders.length > 1 ? `Заказы: ${ordersSummary}` : `Заказ: ${ordersSummary}`}
+              </span>
             </div>
           )}
 

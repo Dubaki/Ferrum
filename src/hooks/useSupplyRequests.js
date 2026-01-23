@@ -43,13 +43,14 @@ export const useSupplyRequests = () => {
 
       await addDoc(collection(db, 'supplyRequests'), {
         requestNumber,
-        orderId: data.orderId || null,
-        orderNumber: data.orderNumber || '',
 
-        title: data.title,
-        description: data.description || '',
-        quantity: data.quantity,
-        unit: data.unit,
+        // Множественные позиции
+        items: data.items || [],
+
+        // Множественные заказы
+        orders: data.orders || [],
+
+        // Желаемая дата (общая для заявки)
         desiredDate: data.desiredDate || null,
 
         status: 'new',
