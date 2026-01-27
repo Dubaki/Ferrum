@@ -41,32 +41,35 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
             </div>
           </NavLink>
 
-          {/* Кнопка авторизации (Замок) + роль */}
-          <div className="flex items-center gap-2 ml-4">
-            {roleLabel && (
-              <span className="hidden sm:block text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
-                {roleLabel}
-              </span>
-            )}
-            <button
-              onClick={onToggleAuth}
-              className={`p-2 rounded-lg transition-colors ${userRole ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
-              title={userRole ? `Выйти (${roleLabel})` : "Войти"}
-            >
-              {userRole ? <Unlock size={20} /> : <Lock size={20} />}
-            </button>
-          </div>
+          {/* Правая группа: Авторизация + Мобильное меню */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Кнопка авторизации (Замок) + роль */}
+            <div className="flex items-center gap-2">
+              {roleLabel && (
+                <span className="hidden sm:block text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                  {roleLabel}
+                </span>
+              )}
+              <button
+                onClick={onToggleAuth}
+                className={`p-2 rounded-lg transition-colors ${userRole ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+                title={userRole ? `Выйти (${roleLabel})` : "Войти"}
+              >
+                {userRole ? <Unlock size={20} /> : <Lock size={20} />}
+              </button>
+            </div>
 
-          {/* Mobile: Current tab + Hamburger */}
-          <div className="flex md:hidden items-center gap-2">
-            <span className="text-white/80 text-sm font-medium">{currentTab.label}</span>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-white hover:bg-white/10 rounded-lg transition"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            {/* Mobile: Current tab + Hamburger */}
+            <div className="flex md:hidden items-center gap-2">
+              <span className="text-white/80 text-sm font-medium">{currentTab.label}</span>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 text-white hover:bg-white/10 rounded-lg transition"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
         </div>
 
