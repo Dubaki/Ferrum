@@ -1,9 +1,20 @@
 import { useMemo } from 'react';
-import { FileText, Calendar, Package, Check, Truck, CreditCard, Clock, AlertTriangle, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
+import { FileText, Calendar, Package, Check, Truck, CreditCard, Clock, AlertTriangle, ChevronRight, CheckCircle2, X } from 'lucide-react';
+import { SUPPLY_STATUSES, canPerformAction, getDaysUntilDeadline } from '../../utils/supplyRoles';
 
-export default function SupplyRequestCard({ request, userRole, supplyActions, onOpenDetails, onOpenDeliveryModal }) {
+export default function SupplyRequestCard({ request, userRole, supplyActions, onOpenDetails, onOpenDeliveryModal, showOverdueIndicator }) {
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.new;
+
+  // Дедлайн заявки
+  const daysUntilDeadline = getDaysUntilDeadline(request);
+  const deadlineAlert = useMemo(() => {
+    if (daysUntilDeadline === null || request.status === 'delivered') return null;
+
+    if (daysUntilDeadline < 0) return { type: 'overdue', label: `Просрочено на ${Math.abs(daysUntilDeadline)} дн`, color: 'text-red-600 bg-red-50 border-red-200' };
+    if (daysUntilDeadline === 0) return { type: 'today', label: 'Дедлайн сегодня', color: 'text-orange-600 bg-orange-50 border-orange-200' };
+    if (daysUntilDeadline === 1) return { type: 'tomorrow', label: 'Осталось 1 день', color: 'text-yellow-600 bg-yellow-50 border-yellow-200' };
+    return null;
+  }, [daysUntilDeadline, request.status]);
 
   // Получаем данные с учетом старого и нового формата
   const items = request.items || [];
@@ -39,18 +50,20 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
-  // Определение доступных действий
-  const canRequestInvoice = canPerformAction(userRole, 'requestInvoice') && request.status === 'new';
-  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_requested';
-  const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
-  const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_management' && !request.approvals?.shopManager;
-  const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_management' && !request.approvals?.director;
-  const canMarkPaid = canPerformAction(userRole, 'markPaid') && request.status === 'pending_payment';
+  // Определение доступных действий (новый workflow)
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && request.status === 'with_supplier';
+  const canApproveTech = canPerformAction(userRole, 'approveTech') && request.status === 'invoice_attached';
+  const canRejectTech = canPerformAction(userRole, 'rejectRequest') && request.status === 'invoice_attached';
+  const canApproveShop = canPerformAction(userRole, 'approveShopManager') && request.status === 'tech_approved';
+  const canRejectShop = canPerformAction(userRole, 'rejectRequest') && request.status === 'tech_approved';
+  const canApproveDir = canPerformAction(userRole, 'approveDirector') && request.status === 'shop_approved';
+  const canRejectDir = canPerformAction(userRole, 'rejectRequest') && request.status === 'shop_approved';
+  const canMarkPaid = canPerformAction(userRole, 'markPaid') && request.status === 'director_approved';
   const canSetDelivery = canPerformAction(userRole, 'setDeliveryDate') && request.status === 'paid';
   const canMarkDelivered = canPerformAction(userRole, 'markDelivered') && request.status === 'awaiting_delivery';
 
-  const hasAction = canRequestInvoice || canSubmitForApproval || canApproveTechnologist ||
-    canApproveShopManager || canApproveDirector || canMarkPaid || canSetDelivery || canMarkDelivered;
+  const hasAction = canAttachInvoice || canApproveTech || canRejectTech || canApproveShop || canRejectShop ||
+    canApproveDir || canRejectDir || canMarkPaid || canSetDelivery || canMarkDelivered;
 
   // Отображение позиций (краткое)
   const itemsSummary = items.length > 0
@@ -68,28 +81,46 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
 
   return (
     <div
-      className={`bg-white rounded-lg border transition hover:shadow-md cursor-pointer ${
-        deliveryAlert ? 'border-orange-300' : 'border-slate-200'
+      className={`bg-white rounded-lg border-2 transition hover:shadow-md cursor-pointer ${
+        deadlineAlert
+          ? deadlineAlert.color.includes('red')
+            ? 'border-red-300 bg-red-50/20'
+            : 'border-orange-300 bg-orange-50/20'
+          : deliveryAlert
+            ? 'border-orange-300'
+            : 'border-slate-200'
       }`}
       onClick={onOpenDetails}
     >
       <div className="p-4">
-        {/* Верхняя строка: номер, статус, дата */}
+        {/* Верхняя строка: номер, статус, дедлайн */}
         <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono font-bold text-slate-800">{request.requestNumber}</span>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color} text-white`}>
               {statusInfo.label}
             </span>
-            {deliveryAlert && (
-              <span className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 ${deliveryAlert.color}`}>
+            {deadlineAlert && (
+              <span className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 ${deadlineAlert.color}`}>
                 <AlertTriangle size={12} />
+                {deadlineAlert.label}
+              </span>
+            )}
+            {!deadlineAlert && daysUntilDeadline !== null && daysUntilDeadline >= 0 && (
+              <span className="px-2 py-0.5 rounded border border-slate-200 text-xs font-medium text-slate-500 flex items-center gap-1">
+                <Clock size={12} />
+                Осталось {daysUntilDeadline} дн
+              </span>
+            )}
+            {deliveryAlert && (
+              <span className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 ${deliveryAlert.color}`}>
+                <Truck size={12} />
                 {deliveryAlert.label}
               </span>
             )}
           </div>
           <div className="text-xs text-slate-400 flex items-center gap-1 whitespace-nowrap">
-            <Clock size={12} />
+            <Calendar size={12} />
             {formatDate(request.createdAt)}
           </div>
         </div>
@@ -170,71 +201,81 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
           )}
         </div>
 
-        {/* Прогресс согласования для статуса pending_management */}
-        {request.status === 'pending_management' && (
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-            <span className="text-xs text-slate-500">Согласование:</span>
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1 text-xs ${request.approvals?.shopManager ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {request.approvals?.shopManager ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                Нач. цеха
-              </span>
-              <span className={`flex items-center gap-1 text-xs ${request.approvals?.director ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {request.approvals?.director ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                Директор
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Кнопки действий */}
         {hasAction && (
           <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-            {canRequestInvoice && (
+            {/* Снабженец: прикрепить счет */}
+            {canAttachInvoice && (
               <button
-                onClick={() => supplyActions.requestInvoice(request.id)}
+                onClick={onOpenDetails}
                 className="px-3 py-1.5 bg-yellow-500 text-white rounded text-sm font-medium hover:bg-yellow-600 transition flex items-center gap-1"
               >
                 <FileText size={14} />
-                Запросить счёт
+                Прикрепить счёт
               </button>
             )}
-            {canSubmitForApproval && (
-              <button
-                onClick={() => supplyActions.submitForApproval(request.id)}
-                className="px-3 py-1.5 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600 transition flex items-center gap-1"
-              >
-                <ChevronRight size={14} />
-                На согласование
-              </button>
+
+            {/* Технолог: согласовать */}
+            {canApproveTech && (
+              <>
+                <button
+                  onClick={onOpenDetails}
+                  className="px-3 py-1.5 bg-emerald-500 text-white rounded text-sm font-medium hover:bg-emerald-600 transition flex items-center gap-1"
+                >
+                  <Check size={14} />
+                  Согласовать
+                </button>
+                <button
+                  onClick={onOpenDetails}
+                  className="px-3 py-1.5 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 transition flex items-center gap-1"
+                >
+                  <X size={14} />
+                  Отказать
+                </button>
+              </>
             )}
-            {canApproveTechnologist && (
-              <button
-                onClick={() => supplyActions.approveTechnologist(request.id)}
-                className="px-3 py-1.5 bg-emerald-500 text-white rounded text-sm font-medium hover:bg-emerald-600 transition flex items-center gap-1"
-              >
-                <Check size={14} />
-                Согласовать
-              </button>
+
+            {/* Начальник цеха: согласовать */}
+            {canApproveShop && (
+              <>
+                <button
+                  onClick={onOpenDetails}
+                  className="px-3 py-1.5 bg-purple-500 text-white rounded text-sm font-medium hover:bg-purple-600 transition flex items-center gap-1"
+                >
+                  <Check size={14} />
+                  Согласовать
+                </button>
+                <button
+                  onClick={onOpenDetails}
+                  className="px-3 py-1.5 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 transition flex items-center gap-1"
+                >
+                  <X size={14} />
+                  Отказать
+                </button>
+              </>
             )}
-            {canApproveShopManager && (
-              <button
-                onClick={() => supplyActions.approveShopManager(request.id)}
-                className="px-3 py-1.5 bg-purple-500 text-white rounded text-sm font-medium hover:bg-purple-600 transition flex items-center gap-1"
-              >
-                <Check size={14} />
-                Согласовать (Нач. цеха)
-              </button>
+
+            {/* Директор: согласовать */}
+            {canApproveDir && (
+              <>
+                <button
+                  onClick={onOpenDetails}
+                  className="px-3 py-1.5 bg-indigo-500 text-white rounded text-sm font-medium hover:bg-indigo-600 transition flex items-center gap-1"
+                >
+                  <Check size={14} />
+                  Согласовать
+                </button>
+                <button
+                  onClick={onOpenDetails}
+                  className="px-3 py-1.5 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 transition flex items-center gap-1"
+                >
+                  <X size={14} />
+                  Отказать
+                </button>
+              </>
             )}
-            {canApproveDirector && (
-              <button
-                onClick={() => supplyActions.approveDirector(request.id)}
-                className="px-3 py-1.5 bg-purple-500 text-white rounded text-sm font-medium hover:bg-purple-600 transition flex items-center gap-1"
-              >
-                <Check size={14} />
-                Согласовать (Директор)
-              </button>
-            )}
+
+            {/* Бухгалтер: оплачено */}
             {canMarkPaid && (
               <button
                 onClick={() => supplyActions.markPaid(request.id)}
@@ -244,6 +285,8 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
                 Оплачено
               </button>
             )}
+
+            {/* Снабженец: указать срок доставки */}
             {canSetDelivery && (
               <button
                 onClick={onOpenDeliveryModal}
@@ -253,13 +296,15 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
                 Указать срок доставки
               </button>
             )}
+
+            {/* Начальник цеха/Мастер: принять груз */}
             {canMarkDelivered && (
               <button
                 onClick={() => supplyActions.markDelivered(request.id)}
                 className="px-3 py-1.5 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition flex items-center gap-1"
               >
-                <Truck size={14} />
-                Доставлено
+                <Check size={14} />
+                Принято
               </button>
             )}
           </div>
