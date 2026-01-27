@@ -7,7 +7,7 @@ import RequestDetailsModal from './RequestDetailsModal';
 import DeliveryDateModal from './DeliveryDateModal';
 
 export default function SupplyTab({ orders, supplyRequests, supplyActions, userRole, hasSupplyAlert }) {
-  const [activeTab, setActiveTab] = useState('my'); // 'my' | 'all' | 'overdue' | 'archive'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'my' | 'overdue' | 'archive'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -142,41 +142,52 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
         )}
       </div>
 
-      {/* Статистика */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-lg p-4 border border-slate-200">
-          <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
-            <Clock size={16} />
-            В работе
+      {/* Статистика - компактная */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="bg-white rounded border border-slate-200 px-3 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Clock size={14} className="text-slate-500" />
+            <span className="text-xs font-medium text-slate-600">В работе</span>
           </div>
-          <div className="text-2xl font-bold text-slate-800">{stats.inProgress}</div>
+          <div className="text-lg font-bold text-slate-800">{stats.inProgress}</div>
         </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200">
-          <div className="flex items-center gap-2 text-emerald-600 text-sm mb-1">
-            <CheckCircle2 size={16} />
-            Оплачено
+        <div className="bg-white rounded border border-slate-200 px-3 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 size={14} className="text-emerald-600" />
+            <span className="text-xs font-medium text-emerald-600">Оплачено</span>
           </div>
-          <div className="text-2xl font-bold text-emerald-600">{stats.paid}</div>
+          <div className="text-lg font-bold text-emerald-600">{stats.paid}</div>
         </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200">
-          <div className="flex items-center gap-2 text-cyan-600 text-sm mb-1">
-            <Package size={16} />
-            Ожидает доставки
+        <div className="bg-white rounded border border-slate-200 px-3 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Package size={14} className="text-cyan-600" />
+            <span className="text-xs font-medium text-cyan-600">Ожидает</span>
           </div>
-          <div className="text-2xl font-bold text-cyan-600">{stats.awaitingDelivery}</div>
+          <div className="text-lg font-bold text-cyan-600">{stats.awaitingDelivery}</div>
         </div>
-        <div className={`rounded-lg p-4 border ${stats.overdue > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
-          <div className={`flex items-center gap-2 text-sm mb-1 ${stats.overdue > 0 ? 'text-orange-600' : 'text-slate-500'}`}>
-            <AlertTriangle size={16} />
-            Просрочено
+        <div className={`rounded border px-3 py-1.5 flex items-center justify-between ${stats.overdue > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle size={14} className={stats.overdue > 0 ? 'text-orange-600' : 'text-slate-500'} />
+            <span className={`text-xs font-medium ${stats.overdue > 0 ? 'text-orange-600' : 'text-slate-500'}`}>Просрочено</span>
           </div>
-          <div className={`text-2xl font-bold ${stats.overdue > 0 ? 'text-orange-600 animate-pulse' : 'text-slate-400'}`}>{stats.overdue}</div>
+          <div className={`text-lg font-bold ${stats.overdue > 0 ? 'text-orange-600 animate-pulse' : 'text-slate-400'}`}>{stats.overdue}</div>
         </div>
       </div>
 
       {/* Вкладки */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'all'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Package size={16} />
+            Все заявки ({stats.all})
+          </button>
           {userRole && (
             <button
               onClick={() => setActiveTab('my')}
@@ -190,17 +201,6 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
               Моя папка ({stats.my})
             </button>
           )}
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'bg-cyan-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Package size={16} />
-            Все заявки ({stats.all})
-          </button>
           <button
             onClick={() => setActiveTab('overdue')}
             className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
