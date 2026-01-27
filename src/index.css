@@ -1,9 +1,9 @@
+/* === ИМПОРТ ТЕМЫ FERRUM === */
+@import './themes/theme-ferrum-industrial.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* === ИМПОРТ ТЕМЫ FERRUM === */
-@import './themes/theme-ferrum-industrial.css';
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
