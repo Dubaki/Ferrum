@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock, ShoppingBag, Package } from 'lucide-react';
 import { getRoleLabel } from '../utils/supplyRoles';
 
@@ -16,107 +16,97 @@ const tabs = [
 
 export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAlert = false, hasSupplyAlert = false, isAdmin, userRole, onToggleAuth }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
-
-  const currentTab = tabs.find(t => t.path === location.pathname) || tabs[0];
   const roleLabel = userRole ? getRoleLabel(userRole) : null;
 
   return (
     <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2c2c2c] border-b-[3px] border-[#d32f2f] sticky top-0 z-40 shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
 
-        {/* Верхняя строка с логотипом */}
-        <div className="flex justify-between items-center h-[56px] sm:h-[70px]">
-          <NavLink to="/" className="flex items-center gap-2 sm:gap-3">
-            {/* Логотип */}
+        {/* Единая строка: Логотип + Навигация + Авторизация */}
+        <div className="flex justify-between items-center h-[52px]">
+          {/* Логотип */}
+          <NavLink to="/" className="flex items-center gap-2 shrink-0">
             <img
               src="/pic/cropped-logo.png.webp"
               alt="Феррум"
-              className="w-[36px] h-[36px] sm:w-[50px] sm:h-[50px] object-contain"
+              className="w-[32px] h-[32px] object-contain"
             />
-
-            <div className="flex flex-col">
-              <span className="block font-black text-[22px] sm:text-[32px] text-[#d32f2f] tracking-tight leading-none">ФЕРРУМ</span>
-              <span className="hidden sm:block text-[9px] font-bold text-[#666] uppercase tracking-[0.05em] mt-[2px]">ЗАВОД МЕТАЛЛОКОНСТРУКЦИЙ</span>
-            </div>
+            <span className="font-black text-[18px] text-[#d32f2f] tracking-tight leading-none">ФЕРРУМ</span>
           </NavLink>
 
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1 flex-1 justify-center mx-4">
+            {tabs.map(tab => {
+              const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
+              const isWorkshopAlert = tab.path === '/resources' && hasWorkshopAlert;
+              const isSupplyAlert = tab.path === '/supply' && hasSupplyAlert;
+              return (
+                <NavLink
+                  key={tab.path}
+                  to={tab.path}
+                  end={tab.path === '/'}
+                  className={({ isActive }) => `
+                    relative flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-all duration-200 rounded-lg whitespace-nowrap
+                    ${isShippingUrgent
+                      ? 'text-orange-400 bg-orange-500/20 animate-pulse-shipping'
+                      : isWorkshopAlert
+                        ? 'text-blue-400 bg-blue-500/20 animate-pulse-workshop'
+                        : isSupplyAlert
+                          ? 'text-cyan-400 bg-cyan-500/20 animate-pulse-supply'
+                          : isActive
+                            ? 'text-white bg-[#d32f2f]'
+                            : 'text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
+                    }
+                  `}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <tab.icon size={16} className={isShippingUrgent ? "text-orange-400" : isWorkshopAlert ? "text-blue-400" : isSupplyAlert ? "text-cyan-400" : isActive ? "text-white" : "text-[rgba(255,255,255,0.6)]"} />
+                      {tab.label}
+                      {isShippingUrgent && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full animate-ping" />
+                      )}
+                      {isWorkshopAlert && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                      )}
+                      {isSupplyAlert && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-cyan-500 rounded-full animate-ping" />
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </nav>
+
           {/* Правая группа: Авторизация + Мобильное меню */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Кнопка авторизации (Замок) + роль */}
             <div className="flex items-center gap-2">
               {roleLabel && (
-                <span className="hidden sm:block text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                <span className="hidden lg:block text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
                   {roleLabel}
                 </span>
               )}
               <button
                 onClick={onToggleAuth}
-                className={`p-2 rounded-lg transition-colors ${userRole ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`p-1.5 rounded-lg transition-colors ${userRole ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
                 title={userRole ? `Выйти (${roleLabel})` : "Войти"}
               >
-                {userRole ? <Unlock size={20} /> : <Lock size={20} />}
+                {userRole ? <Unlock size={18} /> : <Lock size={18} />}
               </button>
             </div>
 
-            {/* Mobile: Current tab + Hamburger */}
-            <div className="flex md:hidden items-center gap-2">
-              <span className="text-white/80 text-sm font-medium">{currentTab.label}</span>
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-white hover:bg-white/10 rounded-lg transition"
-                aria-label="Toggle menu"
-              >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
+            {/* Mobile: Hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-1.5 text-white hover:bg-white/10 rounded-lg transition"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex overflow-x-auto pb-0 gap-1 no-scrollbar -mb-px">
-          {tabs.map(tab => {
-            const isShippingUrgent = tab.path === '/shipping' && hasUrgentShipping;
-            const isWorkshopAlert = tab.path === '/resources' && hasWorkshopAlert;
-            const isSupplyAlert = tab.path === '/supply' && hasSupplyAlert;
-            return (
-              <NavLink
-                key={tab.path}
-                to={tab.path}
-                end={tab.path === '/'}
-                className={({ isActive }) => `
-                  relative flex items-center gap-2 px-4 lg:px-6 py-3 text-sm font-bold transition-all duration-200 border-b-2 whitespace-nowrap
-                  ${isShippingUrgent
-                    ? 'border-orange-500 text-orange-400 bg-orange-500/20 animate-pulse-shipping'
-                    : isWorkshopAlert
-                      ? 'border-blue-500 text-blue-400 bg-blue-500/20 animate-pulse-workshop'
-                      : isSupplyAlert
-                        ? 'border-cyan-500 text-cyan-400 bg-cyan-500/20 animate-pulse-supply'
-                        : isActive
-                          ? 'border-[#d32f2f] text-white bg-[rgba(211,47,47,0.15)]'
-                          : 'border-transparent text-[rgba(255,255,255,0.6)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.1)]'
-                  }
-                `}
-              >
-                {({ isActive }) => (
-                  <>
-                    <tab.icon size={18} className={isShippingUrgent ? "text-orange-400" : isWorkshopAlert ? "text-blue-400" : isSupplyAlert ? "text-cyan-400" : isActive ? "text-[#d32f2f]" : "text-[rgba(255,255,255,0.6)]"} />
-                    {tab.label}
-                    {isShippingUrgent && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-ping" />
-                    )}
-                    {isWorkshopAlert && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" />
-                    )}
-                    {isSupplyAlert && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-500 rounded-full animate-ping" />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
       </div>
 
       {/* Mobile Navigation Menu */}
@@ -134,7 +124,7 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
                   end={tab.path === '/'}
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) => `
-                    relative flex items-center gap-3 px-4 py-3 rounded-lg text-base font-bold transition-all
+                    relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-bold transition-all
                     ${isShippingUrgent
                       ? 'bg-orange-500 text-white animate-pulse'
                       : isWorkshopAlert
@@ -147,16 +137,16 @@ export default memo(function Header({ hasUrgentShipping = false, hasWorkshopAler
                     }
                   `}
                 >
-                  <tab.icon size={20} />
+                  <tab.icon size={18} />
                   {tab.label}
                   {isShippingUrgent && (
-                    <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">Сегодня!</span>
+                    <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full">Сегодня!</span>
                   )}
                   {isWorkshopAlert && (
-                    <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">КТУ!</span>
+                    <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full">КТУ!</span>
                   )}
                   {isSupplyAlert && (
-                    <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">Доставка!</span>
+                    <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full">Доставка!</span>
                   )}
                 </NavLink>
               );
