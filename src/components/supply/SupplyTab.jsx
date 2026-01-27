@@ -1,25 +1,61 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction, getRoleLabel } from '../../utils/supplyRoles';
+import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock, Inbox, Archive, AlertCircle } from 'lucide-react';
+import { getRequestsForRole, isRequestOverdue, getRoleLabel } from '../../utils/supplyRoles';
 import SupplyRequestCard from './SupplyRequestCard';
 import CreateRequestModal from './CreateRequestModal';
 import RequestDetailsModal from './RequestDetailsModal';
 import DeliveryDateModal from './DeliveryDateModal';
 
 export default function SupplyTab({ orders, supplyRequests, supplyActions, userRole, hasSupplyAlert }) {
-  const [activeTab, setActiveTab] = useState('in_progress'); // 'in_progress' | 'paid'
+  const [activeTab, setActiveTab] = useState('my'); // 'my' | 'all' | 'overdue' | 'archive'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
-  // Фильтрация заявок
-  const filteredRequests = useMemo(() => {
-    let list = activeTab === 'in_progress'
-      ? supplyRequests.filter(r => !['paid', 'awaiting_delivery', 'delivered'].includes(r.status))
-      : supplyRequests.filter(r => ['paid', 'awaiting_delivery', 'delivered'].includes(r.status));
+  // Личные заявки (для текущей роли)
+  const myRequests = useMemo(() => {
+    if (!userRole) return [];
+    return getRequestsForRole(supplyRequests, userRole);
+  }, [supplyRequests, userRole]);
 
+  // Все активные заявки (не в архиве)
+  const allRequests = useMemo(() => {
+    return supplyRequests.filter(r => r.status !== 'delivered');
+  }, [supplyRequests]);
+
+  // Просроченные заявки
+  const overdueRequests = useMemo(() => {
+    return supplyRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r));
+  }, [supplyRequests]);
+
+  // Архивные заявки
+  const archivedRequests = useMemo(() => {
+    return supplyRequests.filter(r => r.status === 'delivered');
+  }, [supplyRequests]);
+
+  // Выбор списка заявок в зависимости от активной вкладки
+  const currentRequests = useMemo(() => {
+    let list;
+    switch (activeTab) {
+      case 'my':
+        list = myRequests;
+        break;
+      case 'all':
+        list = allRequests;
+        break;
+      case 'overdue':
+        list = overdueRequests;
+        break;
+      case 'archive':
+        list = archivedRequests;
+        break;
+      default:
+        list = [];
+    }
+
+    // Поиск
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       list = list.filter(r =>
@@ -30,40 +66,25 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     }
 
     return list;
-  }, [supplyRequests, activeTab, searchQuery]);
-
-  // Подсчёт заявок по статусам
-  const statusCounts = useMemo(() => {
-    const counts = {};
-    supplyRequests.forEach(r => {
-      counts[r.status] = (counts[r.status] || 0) + 1;
-    });
-    return counts;
-  }, [supplyRequests]);
+  }, [activeTab, myRequests, allRequests, overdueRequests, archivedRequests, searchQuery]);
 
   // Активные заказы для создания заявки
   const activeOrders = useMemo(() => {
     return orders.filter(o => o.status === 'active');
   }, [orders]);
 
-  // Количество заявок в каждой вкладке
-  const inProgressCount = supplyRequests.filter(r => !['paid', 'awaiting_delivery', 'delivered'].includes(r.status)).length;
-  const paidCount = supplyRequests.filter(r => ['paid', 'awaiting_delivery', 'delivered'].includes(r.status)).length;
-
-  // Количество заявок, требующих внимания
-  const alertCount = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return supplyRequests.filter(r => {
-      if (r.status !== 'awaiting_delivery' || !r.deliveryDate) return false;
-      const deliveryDate = new Date(r.deliveryDate);
-      deliveryDate.setHours(0, 0, 0, 0);
-      return deliveryDate <= tomorrow;
-    }).length;
-  }, [supplyRequests]);
+  // Статистика
+  const stats = useMemo(() => {
+    return {
+      my: myRequests.length,
+      all: allRequests.length,
+      overdue: overdueRequests.length,
+      archive: archivedRequests.length,
+      inProgress: supplyRequests.filter(r => !['delivered'].includes(r.status)).length,
+      paid: supplyRequests.filter(r => r.status === 'paid').length,
+      awaitingDelivery: supplyRequests.filter(r => r.status === 'awaiting_delivery').length
+    };
+  }, [myRequests, allRequests, overdueRequests, archivedRequests, supplyRequests]);
 
   const handleOpenDetails = (request) => {
     setSelectedRequest(request);
@@ -78,7 +99,9 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const handleCreateRequest = async (data) => {
     await supplyActions.createRequest({
       ...data,
-      createdBy: userRole || 'technologist'
+      createdBy: userRole || 'technologist',
+      status: 'with_supplier', // Сразу попадает к снабженцу
+      updatedAt: new Date().toISOString()
     });
     setShowCreateModal(false);
   };
@@ -91,7 +114,8 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     }
   };
 
-  const canCreate = canPerformAction(userRole, 'createRequest');
+  const canCreate = userRole === 'technologist' || userRole === 'director' || userRole === 'shopManager';
+  const roleLabel = getRoleLabel(userRole);
 
   return (
     <div className="space-y-6">
@@ -103,7 +127,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
             Снабжение
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Заявки на материалы и комплектующие
+            {userRole ? `Вы вошли как: ${roleLabel}` : 'Войдите в систему для работы'}
           </p>
         </div>
 
@@ -125,64 +149,90 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
             <Clock size={16} />
             В работе
           </div>
-          <div className="text-2xl font-bold text-slate-800">{inProgressCount}</div>
+          <div className="text-2xl font-bold text-slate-800">{stats.inProgress}</div>
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200">
           <div className="flex items-center gap-2 text-emerald-600 text-sm mb-1">
             <CheckCircle2 size={16} />
             Оплачено
           </div>
-          <div className="text-2xl font-bold text-emerald-600">{statusCounts['paid'] || 0}</div>
+          <div className="text-2xl font-bold text-emerald-600">{stats.paid}</div>
         </div>
         <div className="bg-white rounded-lg p-4 border border-slate-200">
           <div className="flex items-center gap-2 text-cyan-600 text-sm mb-1">
             <Package size={16} />
             Ожидает доставки
           </div>
-          <div className="text-2xl font-bold text-cyan-600">{statusCounts['awaiting_delivery'] || 0}</div>
+          <div className="text-2xl font-bold text-cyan-600">{stats.awaitingDelivery}</div>
         </div>
-        <div className={`rounded-lg p-4 border ${alertCount > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
-          <div className={`flex items-center gap-2 text-sm mb-1 ${alertCount > 0 ? 'text-orange-600' : 'text-slate-500'}`}>
+        <div className={`rounded-lg p-4 border ${stats.overdue > 0 ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
+          <div className={`flex items-center gap-2 text-sm mb-1 ${stats.overdue > 0 ? 'text-orange-600' : 'text-slate-500'}`}>
             <AlertTriangle size={16} />
-            Требует внимания
+            Просрочено
           </div>
-          <div className={`text-2xl font-bold ${alertCount > 0 ? 'text-orange-600' : 'text-slate-400'}`}>{alertCount}</div>
+          <div className={`text-2xl font-bold ${stats.overdue > 0 ? 'text-orange-600 animate-pulse' : 'text-slate-400'}`}>{stats.overdue}</div>
         </div>
       </div>
 
-      {/* Вкладки и поиск */}
+      {/* Вкладки */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+          {userRole && (
+            <button
+              onClick={() => setActiveTab('my')}
+              className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'my'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Inbox size={16} />
+              Моя папка ({stats.my})
+            </button>
+          )}
           <button
-            onClick={() => setActiveTab('in_progress')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              activeTab === 'in_progress'
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'all'
                 ? 'bg-cyan-600 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            В работе ({inProgressCount})
+            <Package size={16} />
+            Все заявки ({stats.all})
           </button>
           <button
-            onClick={() => setActiveTab('paid')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              activeTab === 'paid'
-                ? 'bg-emerald-600 text-white'
+            onClick={() => setActiveTab('overdue')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'overdue'
+                ? 'bg-orange-600 text-white'
+                : stats.overdue > 0
+                  ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <AlertCircle size={16} />
+            Требует внимания ({stats.overdue})
+          </button>
+          <button
+            onClick={() => setActiveTab('archive')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'archive'
+                ? 'bg-cyan-600 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Оплачено ({paidCount})
-            {alertCount > 0 && (
-              <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-            )}
+            <Archive size={16} />
+            Архив ({stats.archive})
           </button>
         </div>
 
+        {/* Поиск */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Поиск по номеру, названию..."
+            placeholder="Поиск..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
@@ -192,7 +242,12 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
 
       {/* Список заявок */}
       <div className="space-y-3">
-        {filteredRequests.length === 0 ? (
+        {!userRole && activeTab === 'my' ? (
+          <div className="bg-white rounded-lg p-8 text-center border border-slate-200">
+            <AlertCircle className="mx-auto text-slate-300 mb-3" size={48} />
+            <p className="text-slate-500">Войдите в систему, чтобы увидеть свои заявки</p>
+          </div>
+        ) : currentRequests.length === 0 ? (
           <div className="bg-white rounded-lg p-8 text-center border border-slate-200">
             <Package className="mx-auto text-slate-300 mb-3" size={48} />
             <p className="text-slate-500">
@@ -200,7 +255,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
             </p>
           </div>
         ) : (
-          filteredRequests.map(request => (
+          currentRequests.map(request => (
             <SupplyRequestCard
               key={request.id}
               request={request}
@@ -208,6 +263,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
               supplyActions={supplyActions}
               onOpenDetails={() => handleOpenDetails(request)}
               onOpenDeliveryModal={() => handleOpenDeliveryModal(request)}
+              showOverdueIndicator={isRequestOverdue(request)}
             />
           ))
         )}

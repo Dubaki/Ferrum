@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
 import { useSimulation } from './hooks/useSimulation';
 import { useSupplyRequests } from './hooks/useSupplyRequests';
-import { checkSupplyRolePassword, getRoleLabel } from './utils/supplyRoles';
+import { getRoleLabel } from './utils/supplyRoles';
 
 // --- Компоненты ---
 import Header from './components/Header';
@@ -16,6 +16,7 @@ import PlanningTab from './components/planning/PlanningTab';
 import ProductsTab from './components/ProductsTab';
 import WorkshopMode from './components/WorkshopMode';
 import SupplyTab from './components/supply/SupplyTab';
+import RoleSelectionModal from './components/RoleSelectionModal';
 
 // Компонент загрузки
 function LoadingScreen() {
@@ -51,8 +52,12 @@ export default function App() {
   const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
   const { requests: supplyRequests, hasSupplyAlert, actions: supplyActions } = useSupplyRequests();
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
-  const [userRole, setUserRole] = useState(null); // null | 'admin' | 'technologist' | 'supplier' | ...
-  const isAdmin = userRole === 'admin';
+  const [userRole, setUserRole] = useState(() => {
+    // Восстанавливаем роль из localStorage при загрузке
+    return localStorage.getItem('userRole') || null;
+  });
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const isAdmin = userRole === 'director' || userRole === 'shopManager';
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
 
@@ -115,18 +120,19 @@ export default function App() {
 
   const handleToggleAuth = () => {
     if (userRole) {
+      // Выход
       setUserRole(null);
+      localStorage.removeItem('userRole');
     } else {
-      const password = window.prompt("Введите пароль:");
-      if (password === null) return;
-
-      const role = checkSupplyRolePassword(password);
-      if (role) {
-        setUserRole(role);
-      } else {
-        alert("Неверный пароль!");
-      }
+      // Показываем модальное окно выбора роли
+      setShowRoleModal(true);
     }
+  };
+
+  const handleSelectRole = (role) => {
+    setUserRole(role);
+    localStorage.setItem('userRole', role);
+    setShowRoleModal(false);
   };
 
   if (loading) {
@@ -155,6 +161,14 @@ export default function App() {
         userRole={userRole}
         onToggleAuth={handleToggleAuth}
       />
+
+      {/* Модальное окно выбора роли */}
+      {showRoleModal && (
+        <RoleSelectionModal
+          onClose={() => setShowRoleModal(false)}
+          onSelectRole={handleSelectRole}
+        />
+      )}
 
       {/* Кнопка входа в режим цеха */}
       <div className="fixed bottom-6 right-6 z-50">

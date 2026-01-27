@@ -9,7 +9,23 @@
       "Bash(lsof:*)",
       "Bash(firebase --version:*)",
       "Bash(firebase login:*)",
-      "Bash(firebase projects:list:*)"
+      "Bash(firebase projects:list:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase init:*)",
+      "Bash(vercel --version:*)",
+      "Bash(vercel --prod)",
+      "Bash(vercel:*)",
+      "Bash(findstr:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(dir \"c:\\\\PlanFer\\\\pic\")",
+      "Bash(xargs ls:*)",
+      "Bash(ls -la \"c:\\\\PlanFer\\\\src\\\\components\"\" | grep -E \"Tab.jsx)",
+      "Bash(.jsx$ \")",
+      "Bash(ls:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }
