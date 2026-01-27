@@ -1,97 +1,104 @@
 import { memo, useMemo, useState } from 'react';
 import { Package, Truck, CheckCircle2, Clock, ArrowLeft, Calendar, BarChart3, ChevronDown, ChevronRight, ShoppingBag } from 'lucide-react';
 
-// Карточка заказа в разделе отгрузок
+// =================================================================================
+// ЭЛИТНАЯ КАРТОЧКА ЗАКАЗА (ВЕРСИЯ 5 - КЛИК НА ВСЮ КАРТОЧКУ)
+// =================================================================================
 const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onToggleToday, onCompleteShipping, onReturn, isAdmin }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const orderProducts = products.filter(p => p.orderId === order.id);
   const totalProducts = orderProducts.length;
 
+  // Функции с подтверждением
+  const handleToggleToday = (e) => {
+    e.stopPropagation();
+    if (window.confirm(`Вы уверены, что хотите ${order.shippingToday ? 'снять отметку' : 'отметить'} "Отгрузка сегодня" для заказа ${order.orderNumber}?`)) {
+      onToggleToday(order.id);
+    }
+  };
+
+  const handleCompleteShipping = (e) => {
+    e.stopPropagation();
+    if (window.confirm(`Вы уверены, что хотите отметить заказ ${order.orderNumber} как отгруженный? Это действие переместит заказ в архив.`)) {
+      onCompleteShipping(order.id);
+    }
+  };
+
+  const handleReturn = (e) => {
+    e.stopPropagation();
+    if (window.confirm(`Вы уверены, что хотите вернуть заказ ${order.orderNumber} обратно в работу?`)) {
+      onReturn(order.id);
+    }
+  };
+
+  const todayClass = order.shippingToday ? 'border-l-4 border-orange-500' : 'border-l-4 border-transparent';
+
   return (
-    <div className={`
-      bg-white rounded-xl border-2 transition-all duration-300
-      ${order.shippingToday
-        ? 'border-orange-400 shadow-lg shadow-orange-100'
-        : 'border-slate-200 hover:border-slate-300'
-      }
-      ${isExpanded ? 'shadow-xl' : ''}
-    `}>
-      <div className="p-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Иконка раскрытия */}
-            <button className="p-1 rounded-full transition-colors shrink-0 text-slate-400">
-              {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
-            </button>
+    <div className={`bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 border border-slate-200 ${todayClass}`}>
+      {/* --- СВЕРНУТАЯ ЧАСТЬ - КЛИКАБЕЛЬНАЯ --- */}
+      <div className="flex items-center justify-between gap-4 p-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <Package className="w-5 h-5 text-slate-400" />
-                <h3 className="font-bold text-slate-800">{order.orderNumber}</h3>
-              </div>
-              <p className="text-sm text-slate-500">{order.clientName}</p>
-              <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
-                <span>{totalProducts} изд.</span>
-                {order.deadline && (
-                  <>
-                    <span>•</span>
-                    <span>Срок: {new Date(order.deadline).toLocaleDateString('ru-RU')}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-            {/* Галочка 1: Отгрузка сегодня */}
-            {isAdmin && <button
-              onClick={() => onToggleToday(order.id)}
-              className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all
-                ${order.shippingToday
-                  ? 'bg-orange-500 text-white hover:bg-orange-600'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }
-              `}
-              title="Отметить отгрузку на сегодня"
-            >
-              <Clock className="w-4 h-4" />
-              Сегодня
-            </button>}
-
-            {/* Галочка 2: Отгружено */}
-            {isAdmin && <button
-              onClick={() => onCompleteShipping(order.id)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
-              title="Отметить как отгружено"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Отгружено
-            </button>}
-          </div>
+        {/* 1. Основная инфа */}
+        <div className="flex items-baseline gap-3 flex-grow min-w-0">
+          <h3 className="font-bold text-gray-800 text-base whitespace-nowrap">{order.orderNumber}</h3>
+          <p className="text-sm text-gray-500 truncate">{order.clientName}</p>
         </div>
 
-        {/* Кнопка вернуть в заказы */}
-        {isAdmin && <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onReturn(order.id);
-          }}
-          className="mt-3 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-        >
-          <ArrowLeft className="w-3 h-3" />
-          Вернуть в заказы
-        </button>}
+        {/* 2. Второстепенная инфа (скрывается на мобилке) */}
+        <div className="hidden md:flex items-center gap-4 text-sm text-gray-500 shrink-0">
+          <span className="flex items-center gap-1.5"><ShoppingBag size={14}/> {totalProducts}</span>
+          {order.deadline && (
+            <span className="flex items-center gap-1.5"><Calendar size={14}/> {new Date(order.deadline).toLocaleDateString('ru-RU')}</span>
+          )}
+        </div>
+
+        {/* 3. Кнопки действий */}
+        {isAdmin && (
+          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={handleReturn}
+              className="p-2 rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+              title="Вернуть в заказы"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleToggleToday}
+              className={`flex items-center justify-center gap-1.5 w-28 text-xs font-semibold px-2 py-1.5 rounded-md transition-all ${ 
+                order.shippingToday
+                  ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-600'
+                  : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Clock className="w-3 h-3" />
+              <span>Сегодня</span>
+            </button>
+            <button
+              onClick={handleCompleteShipping}
+              className="flex items-center justify-center gap-1.5 w-28 text-xs font-semibold px-2 py-1.5 rounded-md bg-white text-emerald-600 border border-emerald-300 hover:bg-emerald-50 transition-all"
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Отгружено</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ - Список изделий */}
+      {/* --- РАСКРЫВАЮЩАЯСЯ ЧАСТЬ --- */}
       {isExpanded && (
-        <div className="bg-slate-50 border-t border-slate-200 p-4 animate-in slide-in-from-top-2">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <ShoppingBag size={14} />
+        <div className="border-t border-slate-200 bg-slate-50/70 p-4 animate-in slide-in-from-top-1">
+          {/* Информация, которая была скрыта на мобилке */}
+          <div className="md:hidden flex items-center gap-4 text-sm text-gray-600 mb-3">
+            <span className="flex items-center gap-1.5"><ShoppingBag size={14}/> {totalProducts} изд.</span>
+            {order.deadline && (
+              <span className="flex items-center gap-1.5"><Calendar size={14}/> Срок: {new Date(order.deadline).toLocaleDateString('ru-RU')}</span>
+            )}
+          </div>
+
+          <h4 className="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+            <ShoppingBag size={16} />
             Состав заказа:
           </h4>
-
           {orderProducts.length > 0 ? (
             <div className="space-y-2">
               {orderProducts.map(product => (
@@ -99,26 +106,24 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
                   key={product.id}
                   className="bg-white rounded-lg border border-slate-200 p-3 flex items-center justify-between gap-3"
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <ShoppingBag size={14} className="text-blue-500 shrink-0" />
-                    <span className="text-sm font-semibold text-slate-800">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-semibold text-slate-800 truncate">
                       {product.name}
                     </span>
                     {product.isResale && (
-                      <span className="flex items-center gap-1 text-[10px] font-black text-cyan-600 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0">
+                      <span className="text-xs font-bold text-cyan-700 bg-cyan-100 px-2 py-0.5 rounded-full shrink-0">
                         Товар
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 bg-slate-100 px-3 py-1.5 rounded-md shrink-0">
-                    <span className="text-xs font-bold text-slate-500">x</span>
-                    <span className="text-sm font-black text-slate-700">{product.quantity}</span>
+                  <div className="text-lg font-bold text-slate-800 shrink-0">
+                    {product.quantity} <span className="text-sm font-medium text-slate-500">шт.</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-4 text-slate-400 text-sm">
+            <div className="text-center py-3 text-slate-500">
               Нет изделий в заказе
             </div>
           )}
@@ -127,6 +132,7 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
     </div>
   );
 });
+
 
 // Статистика за месяц
 const MonthlyStats = memo(function MonthlyStats({ orders, selectedMonth, onMonthChange }) {
@@ -259,7 +265,7 @@ export default memo(function ShippingTab({ orders, products, actions, isAdmin })
         {/* Список заказов на складе */}
         <div className="lg:col-span-2 space-y-4">
           {shippingOrders.length > 0 ? (
-            <div className="space-y-3 p-4 rounded-xl bg-slate-50">
+            <div className="space-y-3 p-4 rounded-xl bg-slate-100">
               {shippingOrders.map(order => (
                 <ShippingOrderCard
                   key={order.id}
