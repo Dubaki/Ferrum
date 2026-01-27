@@ -136,8 +136,6 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
           )}
         </div>
       </div>
-
-      </div>
     </div>
   );
 }
