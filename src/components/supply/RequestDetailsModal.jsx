@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, AlertTriangle, Trash2, Upload, Eye, ChevronDown } from 'lucide-react';
+import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown } from 'lucide-react';
 import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
 
 export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
@@ -164,15 +164,28 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             </button>
           </div>
 
-          {/* Главная кнопка действия */}
-          {hasMainAction && (
-            <button
-              onClick={handleMainAction}
-              className="w-full px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 transition flex items-center justify-center gap-2 shadow-md"
-            >
-              <Check size={18} />
-              {getMainActionLabel()}
-            </button>
+          {/* Кнопки действий: Согласовать + Отклонить */}
+          {(hasMainAction || canReject) && (
+            <div className="flex gap-2">
+              {hasMainAction && (
+                <button
+                  onClick={handleMainAction}
+                  className="flex-1 px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 transition flex items-center justify-center gap-2 shadow-md"
+                >
+                  <Check size={18} />
+                  {getMainActionLabel()}
+                </button>
+              )}
+              {canReject && (
+                <button
+                  onClick={() => setShowRejectModal(true)}
+                  className={`${hasMainAction ? 'px-4' : 'flex-1 px-4'} py-2.5 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 transition flex items-center justify-center gap-2 shadow-md`}
+                >
+                  <X size={18} />
+                  Отклонить
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -346,18 +359,9 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             </div>
           )}
 
-          {/* Дополнительные действия */}
-          <div className="pt-2 space-y-2">
-            {canReject && (
-              <button
-                onClick={() => setShowRejectModal(true)}
-                className="w-full px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition flex items-center justify-center gap-2"
-              >
-                <AlertTriangle size={16} />
-                Отклонить
-              </button>
-            )}
-            {canDelete && (
+          {/* Удаление заявки */}
+          {canDelete && (
+            <div className="pt-2">
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full px-3 py-1.5 border border-slate-200 text-slate-500 rounded-lg text-xs font-medium hover:bg-slate-50 transition flex items-center justify-center gap-1.5"
@@ -365,8 +369,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                 <Trash2 size={14} />
                 Удалить заявку
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

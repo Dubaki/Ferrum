@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { uploadInvoice } from '../utils/supabaseStorage';
+import { uploadInvoice, deleteInvoice } from '../utils/supabaseStorage';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
 
 export const useSupplyRequests = () => {
@@ -105,6 +105,18 @@ export const useSupplyRequests = () => {
   // Удаление заявки
   const deleteRequest = async (id) => {
     try {
+      // Находим заявку для получения пути к файлу счёта
+      const request = requests.find(r => r.id === id);
+
+      // Удаляем файл счёта из Supabase, если он есть
+      if (request?.invoicePath) {
+        try {
+          await deleteInvoice(request.invoicePath);
+        } catch (e) {
+          console.warn('Не удалось удалить файл счёта:', e);
+        }
+      }
+
       await deleteDoc(doc(db, 'supplyRequests', id));
       showSuccess('Заявка удалена');
     } catch (error) {
@@ -238,9 +250,22 @@ export const useSupplyRequests = () => {
     if (!request) return;
 
     const now = new Date().toISOString().split('T')[0];
+
+    // Удаляем файл счёта из Supabase (очистка хранилища)
+    if (request.invoicePath) {
+      try {
+        await deleteInvoice(request.invoicePath);
+      } catch (e) {
+        console.warn('Не удалось удалить файл счёта:', e);
+      }
+    }
+
     await updateRequest(id, {
       status: 'delivered',
       deliveredAt: now,
+      invoiceFile: null,      // Очищаем ссылку на файл
+      invoiceFileName: null,
+      invoicePath: null,
       statusHistory: addStatusHistory(request, 'delivered', 'supplier', 'Доставлено')
     });
     showSuccess('Доставка подтверждена');
