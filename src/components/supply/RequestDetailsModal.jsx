@@ -118,28 +118,28 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* Заголовок */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 sticky top-0 bg-white">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        {/* Заголовок - фиксированный сверху */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Package className="text-cyan-600" size={20} />
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Package className="text-cyan-600" size={22} />
               {request.requestNumber}
             </h2>
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${statusInfo.color} text-white`}>
+            <span className={`inline-block mt-1.5 px-2.5 py-1 rounded text-xs font-medium ${statusInfo.color} text-white`}>
               {statusInfo.label}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded transition"
+            className="p-2 hover:bg-slate-200 rounded-lg transition"
           >
-            <X size={20} className="text-slate-400" />
+            <X size={22} className="text-slate-500" />
           </button>
         </div>
 
-        {/* Содержимое */}
-        <div className="p-4 space-y-4">
+        {/* Содержимое - скроллируемое */}
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Позиции */}
           {items.length > 0 ? (
             <div>
