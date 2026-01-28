@@ -1,20 +1,20 @@
 import { useMemo } from 'react';
 import { FileText, Calendar, Package, Truck, Clock, AlertTriangle } from 'lucide-react';
-import { SUPPLY_STATUSES, getDaysUntilDeadline } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, getHoursUntilDeadline } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, supplyActions, onOpenDetails, onOpenDeliveryModal, showOverdueIndicator }) {
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
-  // Дедлайн заявки
-  const daysUntilDeadline = getDaysUntilDeadline(request);
+  // Дедлайн заявки (в часах)
+  const hoursUntilDeadline = getHoursUntilDeadline(request);
   const deadlineAlert = useMemo(() => {
-    if (daysUntilDeadline === null || request.status === 'delivered') return null;
+    if (hoursUntilDeadline === null || request.status === 'delivered') return null;
 
-    if (daysUntilDeadline < 0) return { type: 'overdue', label: `Просрочено на ${Math.abs(daysUntilDeadline)} дн`, color: 'text-red-600 bg-red-50 border-red-200' };
-    if (daysUntilDeadline === 0) return { type: 'today', label: 'Дедлайн сегодня', color: 'text-orange-600 bg-orange-50 border-orange-200' };
-    if (daysUntilDeadline === 1) return { type: 'tomorrow', label: 'Осталось 1 день', color: 'text-yellow-600 bg-yellow-50 border-yellow-200' };
+    if (hoursUntilDeadline < 0) return { type: 'overdue', label: `Просрочено на ${Math.abs(hoursUntilDeadline)} ч`, color: 'text-red-600 bg-red-50 border-red-200' };
+    if (hoursUntilDeadline <= 1) return { type: 'urgent', label: 'Менее 1 часа', color: 'text-red-600 bg-red-50 border-red-200' };
+    if (hoursUntilDeadline <= 2) return { type: 'soon', label: `${hoursUntilDeadline} ч`, color: 'text-orange-600 bg-orange-50 border-orange-200' };
     return null;
-  }, [daysUntilDeadline, request.status]);
+  }, [hoursUntilDeadline, request.status]);
 
   // Получаем данные с учетом старого и нового формата
   const items = request.items || [];
@@ -122,10 +122,10 @@ export default function SupplyRequestCard({ request, userRole, supplyActions, on
               {deadlineAlert.label}
             </span>
           )}
-          {!deadlineAlert && daysUntilDeadline !== null && daysUntilDeadline >= 0 && (
+          {!deadlineAlert && hoursUntilDeadline !== null && hoursUntilDeadline >= 0 && (
             <span className="px-2 py-0.5 rounded border border-slate-200 text-xs font-medium text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={12} />
-              {daysUntilDeadline} дн
+              {hoursUntilDeadline} ч
             </span>
           )}
           {deliveryAlert && (

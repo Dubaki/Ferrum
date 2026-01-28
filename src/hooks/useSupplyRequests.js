@@ -271,31 +271,23 @@ export const useSupplyRequests = () => {
     showSuccess('Доставка подтверждена');
   };
 
-  // Отклонение заявки (с возвратом на предыдущий статус)
+  // Отклонение заявки (возвращаем снабженцу с очисткой согласований)
   const rejectRequest = async (id, role, reason) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
-    // Определяем предыдущий статус и какие approvals очищать
-    let newStatus = 'invoice_attached'; // по умолчанию возвращаем снабженцу
-    let clearApprovals = {};
+    // Все отклонения возвращают заявку снабженцу
+    const newStatus = 'invoice_attached';
 
-    if (request.status === 'pending_tech_approval') {
-      // Технолог отклонил → возвращаем снабженцу (счёт прикреплён)
-      newStatus = 'invoice_attached';
-    } else if (request.status === 'pending_shop_approval') {
-      // Начальник цеха отклонил → возвращаем технологу
-      newStatus = 'pending_tech_approval';
-      clearApprovals = { 'approvals.technologist': false, 'approvals.technologistAt': null };
-    } else if (request.status === 'pending_director_approval') {
-      // Директор отклонил → возвращаем начальнику цеха
-      newStatus = 'pending_shop_approval';
-      clearApprovals = { 'approvals.shopManager': false, 'approvals.shopManagerAt': null };
-    } else if (request.status === 'pending_payment') {
-      // Бухгалтер отклонил → возвращаем директору
-      newStatus = 'pending_director_approval';
-      clearApprovals = { 'approvals.director': false, 'approvals.directorAt': null };
-    }
+    // Очищаем все согласования
+    const clearApprovals = {
+      'approvals.technologist': false,
+      'approvals.technologistAt': null,
+      'approvals.shopManager': false,
+      'approvals.shopManagerAt': null,
+      'approvals.director': false,
+      'approvals.directorAt': null
+    };
 
     await updateRequest(id, {
       status: newStatus,

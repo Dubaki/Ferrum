@@ -91,20 +91,20 @@ export const getRequestsForRole = (requests, role) => {
   });
 };
 
-// Дедлайны для каждого статуса (в днях)
+// Дедлайны для каждого статуса (в часах)
 export const STATUS_DEADLINES = {
   // Старые статусы
-  new: 1,
-  invoice_requested: 1,
-  pending_management: 1,
+  new: 24,
+  invoice_requested: 24,
+  pending_management: 8,
   // Актуальные статусы
-  with_supplier: 1, // Снабженец: 1 день на получение счёта
-  invoice_attached: 1, // Снабженец: 1 день на отправку на согласование
-  pending_tech_approval: 1, // Технолог: 1 день
-  pending_shop_approval: 1, // Начальник цеха: 1 день
-  pending_director_approval: 1, // Директор: 1 день
-  pending_payment: 0, // Бухгалтер: срочно (в день поступления)
-  paid: 1, // Снабженец: 1 день на назначение срока доставки
+  with_supplier: 24, // Снабженец: 24 часа на получение счёта
+  invoice_attached: 4, // Снабженец: 4 часа на отправку на согласование
+  pending_tech_approval: 4, // Технолог: 4 часа
+  pending_shop_approval: 4, // Начальник цеха: 4 часа
+  pending_director_approval: 4, // Директор: 4 часа
+  pending_payment: 2, // Бухгалтер: 2 часа (срочно)
+  paid: 8, // Снабженец: 8 часов на назначение срока доставки
   awaiting_delivery: null // Зависит от deliveryDate
 };
 
@@ -115,31 +115,30 @@ export const isRequestOverdue = (request) => {
   const deadline = STATUS_DEADLINES[request.status];
   if (deadline === null || deadline === undefined) return false;
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const now = Date.now();
+  const updated = request.updatedAt;
+  const hoursPassed = (now - updated) / (1000 * 60 * 60);
 
-  const updated = new Date(request.updatedAt);
-  updated.setHours(0, 0, 0, 0);
-
-  const daysPassed = Math.floor((now - updated) / (1000 * 60 * 60 * 24));
-
-  return daysPassed > deadline;
+  return hoursPassed > deadline;
 };
 
-// Получить оставшиеся дни до дедлайна
-export const getDaysUntilDeadline = (request) => {
+// Получить оставшиеся часы до дедлайна
+export const getHoursUntilDeadline = (request) => {
   if (!request.status || !request.updatedAt) return null;
 
   const deadline = STATUS_DEADLINES[request.status];
   if (deadline === null || deadline === undefined) return null;
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const now = Date.now();
+  const updated = request.updatedAt;
+  const hoursPassed = (now - updated) / (1000 * 60 * 60);
 
-  const updated = new Date(request.updatedAt);
-  updated.setHours(0, 0, 0, 0);
+  return Math.round(deadline - hoursPassed);
+};
 
-  const daysPassed = Math.floor((now - updated) / (1000 * 60 * 60 * 24));
-
-  return deadline - daysPassed;
+// Для обратной совместимости
+export const getDaysUntilDeadline = (request) => {
+  const hours = getHoursUntilDeadline(request);
+  if (hours === null) return null;
+  return Math.ceil(hours / 24);
 };
