@@ -49,7 +49,7 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                                 <ShoppingBag size={10} /> Перепродажа
                             </span>
                         )}
-                        <span className="text-slate-400 text-xs font-medium bg-slate-100 px-1.5 py-0.5 rounded shrink-0">x{product.quantity}</span>
+                        <span className="text-slate-600 text-xs font-bold bg-slate-200 px-2 py-0.5 rounded shrink-0">{product.quantity} шт</span>
                     </div>
 
                     {/* Показываем следующую операцию */}
