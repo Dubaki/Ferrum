@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 // Конфигурация из переменных окружения
 const firebaseConfig = {
@@ -17,6 +18,9 @@ const app = initializeApp(firebaseConfig);
 
 // Экспортируем базу данных
 export const db = getFirestore(app);
+
+// Экспортируем хранилище файлов
+export const storage = getStorage(app);
 
 // Включаем offline persistence для работы без интернета
 enableIndexedDbPersistence(db).catch(err => {

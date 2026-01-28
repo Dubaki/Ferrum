@@ -1,13 +1,17 @@
-import { useState } from 'react';
-import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, ChevronRight, History, AlertTriangle, Trash2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, ChevronRight, History, AlertTriangle, Trash2, Upload, Download } from 'lucide-react';
 import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
 
 export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.new;
+  const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
   // Получаем данные с учетом старого и нового формата
   const items = request.items || [];
@@ -40,21 +44,46 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   };
 
   // Определение доступных действий
-  const canRequestInvoice = canPerformAction(userRole, 'requestInvoice') && request.status === 'new';
-  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_requested';
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && request.status === 'with_supplier';
+  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_attached';
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
-  const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_management' && !request.approvals?.shopManager;
-  const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_management' && !request.approvals?.director;
+  const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
+  const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_director_approval';
   const canMarkPaid = canPerformAction(userRole, 'markPaid') && request.status === 'pending_payment';
   const canSetDelivery = canPerformAction(userRole, 'setDeliveryDate') && request.status === 'paid';
   const canMarkDelivered = canPerformAction(userRole, 'markDelivered') && request.status === 'awaiting_delivery';
 
   // Возможность отклонения на этапах согласования
-  const canReject = (canApproveTechnologist || canApproveShopManager || canApproveDirector) &&
-    ['pending_tech_approval', 'pending_management'].includes(request.status);
+  const canReject = canPerformAction(userRole, 'rejectRequest') &&
+    ['pending_tech_approval', 'pending_shop_approval', 'pending_director_approval', 'pending_payment'].includes(request.status);
 
-  // Возможность удаления (только admin или создатель в статусе new)
-  const canDelete = userRole === 'admin' || (request.status === 'new' && request.createdBy === userRole);
+  // Возможность удаления (только admin или создатель в статусе with_supplier)
+  const canDelete = userRole === 'admin' || (request.status === 'with_supplier' && request.createdBy === userRole);
+
+  // Обработка загрузки файла счёта
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      await supplyActions.attachInvoice(request.id, file);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Обработка назначения срока доставки
+  const handleSetDeliveryDate = async () => {
+    if (!deliveryDate) return;
+    await supplyActions.setDeliveryDate(request.id, deliveryDate);
+    setShowDeliveryModal(false);
+    setDeliveryDate('');
+    onClose();
+  };
 
   const handleReject = async () => {
     await supplyActions.rejectRequest(request.id, userRole, rejectReason);
@@ -182,6 +211,25 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             </div>
           </div>
 
+          {/* Счёт */}
+          {request.invoiceFile && (
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="text-blue-600 mb-1 flex items-center gap-1 text-sm">
+                <FileText size={14} />
+                Счёт
+              </div>
+              <a
+                href={request.invoiceFile}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-blue-700 hover:underline flex items-center gap-1"
+              >
+                <Download size={14} />
+                {request.invoiceFileName || 'Скачать счёт'}
+              </a>
+            </div>
+          )}
+
           {/* Согласования */}
           {(request.approvals?.technologist || request.approvals?.shopManager || request.approvals?.director || request.approvals?.accountant) && (
             <div className="border-t border-slate-100 pt-4">
@@ -239,13 +287,23 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
           {/* Кнопки действий */}
           <div className="border-t border-slate-100 pt-4 space-y-2">
-            {canRequestInvoice && (
+            {/* Загрузка счёта (скрытый input) */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".pdf,.jpg,.jpeg,.png,.gif"
+              className="hidden"
+            />
+
+            {canAttachInvoice && (
               <button
-                onClick={() => { supplyActions.requestInvoice(request.id); onClose(); }}
-                className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition flex items-center justify-center gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <FileText size={18} />
-                Запросить счёт
+                <Upload size={18} />
+                {uploading ? 'Загрузка...' : 'Прикрепить счёт'}
               </button>
             )}
             {canSubmitForApproval && (
@@ -291,6 +349,15 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
               >
                 <CreditCard size={18} />
                 Подтвердить оплату
+              </button>
+            )}
+            {canSetDelivery && (
+              <button
+                onClick={() => setShowDeliveryModal(true)}
+                className="w-full px-4 py-2 bg-cyan-500 text-white rounded-lg font-medium hover:bg-cyan-600 transition flex items-center justify-center gap-2"
+              >
+                <Calendar size={18} />
+                Назначить срок доставки
               </button>
             )}
             {canMarkDelivered && (
@@ -372,6 +439,37 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
               >
                 Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно выбора даты доставки */}
+      {showDeliveryModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4">
+            <h3 className="font-bold text-lg text-slate-800 mb-4">Назначить срок доставки</h3>
+            <input
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowDeliveryModal(false); setDeliveryDate(''); }}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSetDeliveryDate}
+                disabled={!deliveryDate}
+                className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition font-medium disabled:opacity-50"
+              >
+                Назначить
               </button>
             </div>
           </div>

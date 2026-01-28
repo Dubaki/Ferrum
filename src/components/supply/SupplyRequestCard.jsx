@@ -3,7 +3,7 @@ import { FileText, Calendar, Package, Truck, Clock, AlertTriangle } from 'lucide
 import { SUPPLY_STATUSES, getDaysUntilDeadline } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, supplyActions, onOpenDetails, onOpenDeliveryModal, showOverdueIndicator }) {
-  const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.new;
+  const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
   // Дедлайн заявки
   const daysUntilDeadline = getDaysUntilDeadline(request);

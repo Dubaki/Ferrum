@@ -46,9 +46,12 @@ export default function DeliveryDateModal({ request, onClose, onSubmit }) {
             <p className="text-sm text-slate-600 mb-3">
               Заявка: <span className="font-medium">{request.requestNumber}</span>
             </p>
-            <p className="text-sm text-slate-600 mb-3">
-              {request.title}
-            </p>
+            {request.items?.length > 0 && (
+              <p className="text-sm text-slate-600 mb-3">
+                {request.items[0].title}
+                {request.items.length > 1 && ` и ещё ${request.items.length - 1}`}
+              </p>
+            )}
           </div>
 
           <div>

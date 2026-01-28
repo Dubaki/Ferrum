@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
 
 export const useSupplyRequests = () => {
@@ -53,7 +54,12 @@ export const useSupplyRequests = () => {
         // Желаемая дата (общая для заявки)
         desiredDate: data.desiredDate || null,
 
-        status: 'new',
+        // Сразу к снабженцу на запрос счёта
+        status: 'with_supplier',
+
+        // Файл счёта (загружается снабженцем)
+        invoiceFile: null,
+        invoiceFileName: null,
 
         approvals: {
           technologist: false,
@@ -72,7 +78,7 @@ export const useSupplyRequests = () => {
         createdBy: data.createdBy || 'technologist',
         createdAt: now,
         updatedAt: now,
-        statusHistory: [{ status: 'new', timestamp: now, role: data.createdBy || 'technologist', note: 'Заявка создана' }]
+        statusHistory: [{ status: 'with_supplier', timestamp: now, role: data.createdBy || 'technologist', note: 'Заявка создана, передана снабженцу' }]
       });
 
       showSuccess(`Заявка ${requestNumber} создана`);
@@ -115,22 +121,48 @@ export const useSupplyRequests = () => {
 
   // --- Workflow методы ---
 
-  // Снабженец запрашивает счёт
-  const requestInvoice = async (id) => {
+  // Снабженец загружает файл счёта
+  const uploadInvoiceFile = async (file, requestNumber) => {
+    try {
+      const timestamp = Date.now();
+      const fileName = `${requestNumber}_${timestamp}_${file.name}`;
+      const storageRef = ref(storage, `invoices/${fileName}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      return { url: downloadURL, fileName: file.name };
+    } catch (error) {
+      showError('Ошибка загрузки файла');
+      throw error;
+    }
+  };
+
+  // Снабженец прикрепляет счёт к заявке
+  const attachInvoice = async (id, file) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
+    const { url, fileName } = await uploadInvoiceFile(file, request.requestNumber);
+
     await updateRequest(id, {
-      status: 'invoice_requested',
-      statusHistory: addStatusHistory(request, 'invoice_requested', 'supplier', 'Запрошен счёт')
+      status: 'invoice_attached',
+      invoiceFile: url,
+      invoiceFileName: fileName,
+      statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${fileName}`)
     });
-    showSuccess('Счёт запрошен');
+    showSuccess('Счёт прикреплён');
   };
 
   // Снабженец отправляет на согласование технологу
   const submitForApproval = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
+
+    if (!request.invoiceFile) {
+      showError('Сначала прикрепите счёт');
+      return;
+    }
 
     await updateRequest(id, {
       status: 'pending_tech_approval',
@@ -139,59 +171,45 @@ export const useSupplyRequests = () => {
     showSuccess('Заявка отправлена на согласование');
   };
 
-  // Технолог согласовывает счёт
+  // Технолог согласовывает счёт → к начальнику цеха
   const approveTechnologist = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
     await updateRequest(id, {
-      status: 'pending_management',
+      status: 'pending_shop_approval',
       'approvals.technologist': true,
       'approvals.technologistAt': Date.now(),
-      statusHistory: addStatusHistory(request, 'pending_management', 'technologist', 'Технолог согласовал')
+      statusHistory: addStatusHistory(request, 'pending_shop_approval', 'technologist', 'Технолог согласовал')
     });
     showSuccess('Согласовано');
   };
 
-  // Начальник цеха согласовывает
+  // Начальник цеха согласовывает → к директору
   const approveShopManager = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
     await updateRequest(id, {
+      status: 'pending_director_approval',
       'approvals.shopManager': true,
       'approvals.shopManagerAt': Date.now(),
-      statusHistory: addStatusHistory(request, 'pending_management', 'shopManager', 'Начальник цеха согласовал')
+      statusHistory: addStatusHistory(request, 'pending_director_approval', 'shopManager', 'Начальник цеха согласовал')
     });
-
-    // Проверяем, согласовал ли директор
-    if (request.approvals.director) {
-      await updateRequest(id, {
-        status: 'pending_payment',
-        statusHistory: addStatusHistory(request, 'pending_payment', 'shopManager', 'Все руководители согласовали')
-      });
-    }
     showSuccess('Согласовано');
   };
 
-  // Директор согласовывает
+  // Директор согласовывает → к бухгалтеру на оплату
   const approveDirector = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
     await updateRequest(id, {
+      status: 'pending_payment',
       'approvals.director': true,
       'approvals.directorAt': Date.now(),
-      statusHistory: addStatusHistory(request, 'pending_management', 'director', 'Директор согласовал')
+      statusHistory: addStatusHistory(request, 'pending_payment', 'director', 'Директор согласовал, передано на оплату')
     });
-
-    // Проверяем, согласовал ли начальник цеха
-    if (request.approvals.shopManager) {
-      await updateRequest(id, {
-        status: 'pending_payment',
-        statusHistory: addStatusHistory(request, 'pending_payment', 'director', 'Все руководители согласовали')
-      });
-    }
     showSuccess('Согласовано');
   };
 
@@ -241,17 +259,30 @@ export const useSupplyRequests = () => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
-    let newStatus = 'new';
+    // Определяем предыдущий статус и какие approvals очищать
+    let newStatus = 'invoice_attached'; // по умолчанию возвращаем снабженцу
+    let clearApprovals = {};
+
     if (request.status === 'pending_tech_approval') {
-      newStatus = 'invoice_requested';
-    } else if (request.status === 'pending_management') {
+      // Технолог отклонил → возвращаем снабженцу (счёт прикреплён)
+      newStatus = 'invoice_attached';
+    } else if (request.status === 'pending_shop_approval') {
+      // Начальник цеха отклонил → возвращаем технологу
       newStatus = 'pending_tech_approval';
+      clearApprovals = { 'approvals.technologist': false, 'approvals.technologistAt': null };
+    } else if (request.status === 'pending_director_approval') {
+      // Директор отклонил → возвращаем начальнику цеха
+      newStatus = 'pending_shop_approval';
+      clearApprovals = { 'approvals.shopManager': false, 'approvals.shopManagerAt': null };
     } else if (request.status === 'pending_payment') {
-      newStatus = 'pending_management';
+      // Бухгалтер отклонил → возвращаем директору
+      newStatus = 'pending_director_approval';
+      clearApprovals = { 'approvals.director': false, 'approvals.directorAt': null };
     }
 
     await updateRequest(id, {
       status: newStatus,
+      ...clearApprovals,
       statusHistory: addStatusHistory(request, newStatus, role, `Отклонено: ${reason || 'без причины'}`)
     });
     showSuccess('Заявка отклонена');
@@ -301,7 +332,7 @@ export const useSupplyRequests = () => {
       createRequest,
       updateRequest,
       deleteRequest,
-      requestInvoice,
+      attachInvoice,
       submitForApproval,
       approveTechnologist,
       approveShopManager,

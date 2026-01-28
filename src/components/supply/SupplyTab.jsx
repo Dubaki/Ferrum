@@ -58,11 +58,18 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     // Поиск
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      list = list.filter(r =>
-        r.requestNumber?.toLowerCase().includes(query) ||
-        r.title?.toLowerCase().includes(query) ||
-        r.orderNumber?.toLowerCase().includes(query)
-      );
+      list = list.filter(r => {
+        // Поиск по номеру заявки
+        if (r.requestNumber?.toLowerCase().includes(query)) return true;
+        // Поиск по названиям позиций
+        if (r.items?.some(item => item.title?.toLowerCase().includes(query))) return true;
+        // Поиск по номерам заказов
+        if (r.orders?.some(order => order.orderNumber?.toLowerCase().includes(query))) return true;
+        // Обратная совместимость со старым форматом
+        if (r.title?.toLowerCase().includes(query)) return true;
+        if (r.orderNumber?.toLowerCase().includes(query)) return true;
+        return false;
+      });
     }
 
     return list;
@@ -99,9 +106,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const handleCreateRequest = async (data) => {
     await supplyActions.createRequest({
       ...data,
-      createdBy: userRole || 'technologist',
-      status: 'with_supplier', // Сразу попадает к снабженцу
-      updatedAt: new Date().toISOString()
+      createdBy: userRole || 'technologist'
     });
     setShowCreateModal(false);
   };
