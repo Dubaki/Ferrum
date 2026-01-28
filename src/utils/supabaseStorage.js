@@ -107,6 +107,88 @@ export const deleteDrawing = async (filePath) => {
 };
 
 /**
+ * Загрузить счёт в Supabase Storage (раздел Снабжение)
+ * @param {File} file - PDF или изображение счёта
+ * @param {string} requestNumber - Номер заявки (СН-26001)
+ * @returns {Promise<{name: string, url: string, path: string, size: number, uploadedAt: string}>}
+ */
+export const uploadInvoice = async (file, requestNumber) => {
+  try {
+    // Проверка типа файла
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Допустимые форматы: PDF, JPG, PNG, GIF');
+    }
+
+    // Проверка размера (макс 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new Error('Файл слишком большой. Максимальный размер: 10MB');
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Генерируем уникальное имя файла
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+    const safeRequestNumber = requestNumber.replace(/[^a-zA-Z0-9-]/g, '_');
+    const fileName = `${safeRequestNumber}_${timestamp}.${ext}`;
+    const filePath = `invoices/${fileName}`;
+
+    // Загружаем файл
+    const { data, error } = await supabase.storage
+      .from('planfer-drawings') // Используем тот же bucket
+      .upload(filePath, file, {
+        contentType: file.type,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Supabase upload error:', error);
+      throw new Error(error.message || 'Ошибка загрузки файла');
+    }
+
+    // Получаем публичный URL
+    const { data: urlData } = supabase.storage
+      .from('planfer-drawings')
+      .getPublicUrl(filePath);
+
+    return {
+      name: file.name,
+      url: urlData.publicUrl,
+      path: filePath,
+      size: file.size,
+      uploadedAt: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Ошибка загрузки счёта в Supabase:', error);
+    throw error;
+  }
+};
+
+/**
+ * Удалить счёт из Supabase Storage
+ * @param {string} filePath - Путь к файлу в storage
+ */
+export const deleteInvoice = async (filePath) => {
+  try {
+    const supabase = getSupabaseClient();
+
+    const { error } = await supabase.storage
+      .from('planfer-drawings')
+      .remove([filePath]);
+
+    if (error) {
+      throw new Error(error.message || 'Ошибка удаления файла');
+    }
+  } catch (error) {
+    console.error('Ошибка удаления счёта из Supabase:', error);
+    throw error;
+  }
+};
+
+/**
  * Проверить настроен ли Supabase
  * @returns {boolean}
  */
