@@ -9,6 +9,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef(null);
 
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
@@ -43,8 +44,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
     });
   };
 
-  // Определение доступных действий
-  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'new'].includes(request.status);
+  // Определение доступных действий (включая старые статусы для совместимости)
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'new', 'invoice_requested'].includes(request.status);
   const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_attached';
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
@@ -65,9 +66,27 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Проверка размера (макс 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Файл слишком большой (макс. 10 МБ)');
+      return;
+    }
+
+    // Проверка типа файла
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Допустимые форматы: PDF, JPG, PNG, GIF');
+      return;
+    }
+
     setUploading(true);
+    setUploadError('');
     try {
       await supplyActions.attachInvoice(request.id, file);
+      onClose(); // Закрываем модалку после успешной загрузки
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError(error.message || 'Ошибка загрузки файла. Проверьте подключение к интернету.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -286,7 +305,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
           )}
 
           {/* Кнопки действий */}
-          <div className="border-t border-slate-100 pt-4 space-y-2">
+          <div className="border-t border-slate-100 pt-4 space-y-3">
             {/* Загрузка счёта (скрытый input) */}
             <input
               type="file"
@@ -297,14 +316,37 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             />
 
             {canAttachInvoice && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Upload size={18} />
-                {uploading ? 'Загрузка...' : 'Прикрепить счёт'}
-              </button>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                  <Upload size={16} />
+                  Прикрепите счёт
+                </h4>
+                <p className="text-sm text-yellow-700 mb-3">
+                  Загрузите файл счёта (PDF, JPG, PNG). Максимальный размер: 10 МБ.
+                </p>
+                {uploadError && (
+                  <div className="bg-red-100 text-red-700 text-sm px-3 py-2 rounded mb-3">
+                    {uploadError}
+                  </div>
+                )}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full px-4 py-2.5 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <>
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Загрузка...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} />
+                      Выбрать файл
+                    </>
+                  )}
+                </button>
+              </div>
             )}
             {canSubmitForApproval && (
               <button

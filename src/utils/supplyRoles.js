@@ -10,8 +10,12 @@ export const SUPPLY_ROLES = {
 
 // Статусы заявок (новый workflow с указанием роли)
 export const SUPPLY_STATUSES = {
-  // Старый статус для обратной совместимости (алиас для with_supplier)
+  // Старые статусы для обратной совместимости
   new: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
+  invoice_requested: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
+  pending_management: { label: 'Согласование — руководство', color: 'bg-purple-500', textColor: 'text-purple-600', owner: 'shopManager,director' },
+  pending_payment: { label: 'Бухгалтерия — ожидает оплаты', color: 'bg-orange-500', textColor: 'text-orange-600', owner: 'accountant' },
+  // Актуальные статусы
   with_supplier: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
   invoice_attached: { label: 'Снабжение — счёт получен', color: 'bg-yellow-600', textColor: 'text-yellow-700', owner: 'supplier' },
   pending_tech_approval: { label: 'Согласование — технолог', color: 'bg-blue-500', textColor: 'text-blue-600', owner: 'technologist' },
@@ -89,7 +93,11 @@ export const getRequestsForRole = (requests, role) => {
 
 // Дедлайны для каждого статуса (в днях)
 export const STATUS_DEADLINES = {
-  new: 1, // Старый статус (алиас)
+  // Старые статусы
+  new: 1,
+  invoice_requested: 1,
+  pending_management: 1,
+  // Актуальные статусы
   with_supplier: 1, // Снабженец: 1 день на получение счёта
   invoice_attached: 1, // Снабженец: 1 день на отправку на согласование
   pending_tech_approval: 1, // Технолог: 1 день

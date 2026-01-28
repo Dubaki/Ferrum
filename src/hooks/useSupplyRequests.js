@@ -123,35 +123,50 @@ export const useSupplyRequests = () => {
 
   // Снабженец загружает файл счёта
   const uploadInvoiceFile = async (file, requestNumber) => {
-    try {
-      const timestamp = Date.now();
-      const fileName = `${requestNumber}_${timestamp}_${file.name}`;
-      const storageRef = ref(storage, `invoices/${fileName}`);
+    const timestamp = Date.now();
+    // Убираем спецсимволы из имени файла для безопасности
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `${requestNumber}_${timestamp}_${safeName}`;
+    const storageRef = ref(storage, `invoices/${fileName}`);
 
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+    console.log('Uploading file:', fileName);
+    await uploadBytes(storageRef, file);
+    console.log('File uploaded, getting URL...');
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('Download URL:', downloadURL);
 
-      return { url: downloadURL, fileName: file.name };
-    } catch (error) {
-      showError('Ошибка загрузки файла');
-      throw error;
-    }
+    return { url: downloadURL, fileName: file.name };
   };
 
   // Снабженец прикрепляет счёт к заявке
   const attachInvoice = async (id, file) => {
     const request = requests.find(r => r.id === id);
-    if (!request) return;
+    if (!request) {
+      throw new Error('Заявка не найдена');
+    }
 
-    const { url, fileName } = await uploadInvoiceFile(file, request.requestNumber);
+    try {
+      const { url, fileName } = await uploadInvoiceFile(file, request.requestNumber);
 
-    await updateRequest(id, {
-      status: 'invoice_attached',
-      invoiceFile: url,
-      invoiceFileName: fileName,
-      statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${fileName}`)
-    });
-    showSuccess('Счёт прикреплён');
+      await updateRequest(id, {
+        status: 'invoice_attached',
+        invoiceFile: url,
+        invoiceFileName: fileName,
+        statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${fileName}`)
+      });
+      showSuccess('Счёт прикреплён');
+    } catch (error) {
+      console.error('attachInvoice error:', error);
+      // Проверяем тип ошибки Firebase
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('Нет прав для загрузки файлов. Обратитесь к администратору.');
+      } else if (error.code === 'storage/canceled') {
+        throw new Error('Загрузка отменена');
+      } else if (error.code === 'storage/unknown') {
+        throw new Error('Неизвестная ошибка. Проверьте подключение к интернету.');
+      }
+      throw error;
+    }
   };
 
   // Снабженец отправляет на согласование технологу
