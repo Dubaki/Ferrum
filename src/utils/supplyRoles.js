@@ -10,6 +10,8 @@ export const SUPPLY_ROLES = {
 
 // Статусы заявок (новый workflow с указанием роли)
 export const SUPPLY_STATUSES = {
+  // Старый статус для обратной совместимости (алиас для with_supplier)
+  new: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
   with_supplier: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
   invoice_attached: { label: 'Снабжение — счёт получен', color: 'bg-yellow-600', textColor: 'text-yellow-700', owner: 'supplier' },
   pending_tech_approval: { label: 'Согласование — технолог', color: 'bg-blue-500', textColor: 'text-blue-600', owner: 'technologist' },
@@ -87,6 +89,7 @@ export const getRequestsForRole = (requests, role) => {
 
 // Дедлайны для каждого статуса (в днях)
 export const STATUS_DEADLINES = {
+  new: 1, // Старый статус (алиас)
   with_supplier: 1, // Снабженец: 1 день на получение счёта
   invoice_attached: 1, // Снабженец: 1 день на отправку на согласование
   pending_tech_approval: 1, // Технолог: 1 день

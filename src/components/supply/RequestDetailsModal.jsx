@@ -44,7 +44,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   };
 
   // Определение доступных действий
-  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && request.status === 'with_supplier';
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'new'].includes(request.status);
   const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_attached';
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
@@ -57,8 +57,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const canReject = canPerformAction(userRole, 'rejectRequest') &&
     ['pending_tech_approval', 'pending_shop_approval', 'pending_director_approval', 'pending_payment'].includes(request.status);
 
-  // Возможность удаления (только admin или создатель в статусе with_supplier)
-  const canDelete = userRole === 'admin' || (request.status === 'with_supplier' && request.createdBy === userRole);
+  // Возможность удаления (только admin или создатель в начальном статусе)
+  const canDelete = userRole === 'admin' || (['with_supplier', 'new'].includes(request.status) && request.createdBy === userRole);
 
   // Обработка загрузки файла счёта
   const handleFileUpload = async (e) => {
