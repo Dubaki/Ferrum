@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, ChevronRight, History, AlertTriangle, Trash2, Upload, Download } from 'lucide-react';
+import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, ChevronRight, History, AlertTriangle, Trash2, Upload, Eye } from 'lucide-react';
 import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
 
 export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
@@ -10,7 +10,14 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [deliveryDate, setDeliveryDate] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Определяем тип файла для предпросмотра
+  const isImageFile = request.invoiceFileName?.match(/\.(jpg|jpeg|png|gif)$/i) ||
+                      request.invoiceFile?.match(/\.(jpg|jpeg|png|gif)/i);
+  const isPdfFile = request.invoiceFileName?.match(/\.pdf$/i) ||
+                    request.invoiceFile?.match(/\.pdf/i);
 
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
@@ -233,19 +240,20 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
           {/* Счёт */}
           {request.invoiceFile && (
             <div className="bg-blue-50 p-3 rounded-lg">
-              <div className="text-blue-600 mb-1 flex items-center gap-1 text-sm">
+              <div className="text-blue-600 mb-2 flex items-center gap-1 text-sm">
                 <FileText size={14} />
                 Счёт
               </div>
-              <a
-                href={request.invoiceFile}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-blue-700 hover:underline flex items-center gap-1"
+              <button
+                onClick={() => setShowPreview(true)}
+                className="w-full px-3 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition flex items-center justify-center gap-2"
               >
-                <Download size={14} />
-                {request.invoiceFileName || 'Скачать счёт'}
-              </a>
+                <Eye size={16} />
+                Просмотреть
+              </button>
+              <div className="text-xs text-blue-600 mt-2 truncate">
+                {request.invoiceFileName}
+              </div>
             </div>
           )}
 
@@ -513,6 +521,49 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
               >
                 Назначить
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Предпросмотр файла счёта */}
+      {showPreview && request.invoiceFile && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80" onClick={() => setShowPreview(false)}>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Заголовок */}
+            <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50 rounded-t-xl flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="text-blue-600" size={20} />
+                <span className="font-medium text-slate-800 truncate">{request.invoiceFileName || 'Счёт'}</span>
+              </div>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="p-2 hover:bg-slate-200 rounded-lg transition"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+
+            {/* Содержимое */}
+            <div className="flex-1 overflow-auto p-2 bg-slate-100 flex items-center justify-center min-h-[400px]">
+              {isImageFile ? (
+                <img
+                  src={request.invoiceFile}
+                  alt="Счёт"
+                  className="max-w-full max-h-[75vh] object-contain rounded shadow-lg"
+                />
+              ) : isPdfFile ? (
+                <iframe
+                  src={request.invoiceFile}
+                  className="w-full h-[75vh] rounded bg-white"
+                  title="Предпросмотр счёта"
+                />
+              ) : (
+                <div className="text-center text-slate-600 p-8">
+                  <FileText size={48} className="mx-auto mb-4 text-slate-400" />
+                  <p>Предпросмотр недоступен для этого типа файла</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
