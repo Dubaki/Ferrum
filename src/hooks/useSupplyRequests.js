@@ -8,7 +8,6 @@ export const useSupplyRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Подписка на коллекцию supplyRequests
   useEffect(() => {
     const q = query(collection(db, 'supplyRequests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -22,7 +21,6 @@ export const useSupplyRequests = () => {
     return () => unsubscribe();
   }, []);
 
-  // Генерация номера заявки
   const generateRequestNumber = () => {
     const year = new Date().getFullYear().toString().slice(-2);
     const existingNumbers = requests
@@ -36,7 +34,6 @@ export const useSupplyRequests = () => {
     return `СН-${year}${newNumber}`;
   };
 
-  // Создание заявки
   const createRequest = async (data) => {
     try {
       const now = Date.now();
@@ -44,41 +41,27 @@ export const useSupplyRequests = () => {
 
       await addDoc(collection(db, 'supplyRequests'), {
         requestNumber,
-
-        // Множественные позиции
         items: data.items || [],
-
-        // Множественные заказы
         orders: data.orders || [],
-
-        // Желаемая дата (общая для заявки)
+        department: data.department || 'Химмаш',
+        creatorComment: data.comment || '', // <-- Added comment field
         desiredDate: data.desiredDate || null,
-
-        // Сразу к снабженцу на запрос счёта
         status: 'with_supplier',
-
-        // Файл счёта (загружается снабженцем)
         invoiceFile: null,
         invoiceFileName: null,
-
+        invoicePath: null,
         approvals: {
-          technologist: false,
-          technologistAt: null,
-          shopManager: false,
-          shopManagerAt: null,
-          director: false,
-          directorAt: null,
-          accountant: false,
-          accountantAt: null
+          technologist: false, technologistAt: null,
+          shopManager: false, shopManagerAt: null,
+          director: false, directorAt: null,
+          accountant: false, accountantAt: null
         },
-
         deliveryDate: null,
         deliveredAt: null,
-
         createdBy: data.createdBy || 'technologist',
         createdAt: now,
         updatedAt: now,
-        statusHistory: [{ status: 'with_supplier', timestamp: now, role: data.createdBy || 'technologist', note: 'Заявка создана, передана снабженцу' }]
+        statusHistory: [{ status: 'with_supplier', timestamp: now, role: data.createdBy || 'technologist', note: data.comment ? `Заявка создана. Комментарий: ${data.comment}` : 'Заявка создана, передана снабженцу' }]
       });
 
       showSuccess(`Заявка ${requestNumber} создана`);
@@ -89,7 +72,6 @@ export const useSupplyRequests = () => {
     }
   };
 
-  // Обновление заявки
   const updateRequest = async (id, updates) => {
     try {
       await updateDoc(doc(db, 'supplyRequests', id), {
@@ -102,21 +84,16 @@ export const useSupplyRequests = () => {
     }
   };
 
-  // Удаление заявки
   const deleteRequest = async (id) => {
     try {
-      // Находим заявку для получения пути к файлу счёта
       const request = requests.find(r => r.id === id);
-
-      // Удаляем файл счёта из Supabase, если он есть
       if (request?.invoicePath) {
         try {
           await deleteInvoice(request.invoicePath);
         } catch (e) {
-          console.warn('Не удалось удалить файл счёта:', e);
+          console.warn('Could not delete invoice file:', e);
         }
       }
-
       await deleteDoc(doc(db, 'supplyRequests', id));
       showSuccess('Заявка удалена');
     } catch (error) {
@@ -125,30 +102,22 @@ export const useSupplyRequests = () => {
     }
   };
 
-  // Добавление записи в историю статусов
   const addStatusHistory = (request, status, role, note) => {
     const history = request.statusHistory || [];
     return [...history, { status, timestamp: Date.now(), role, note }];
   };
 
-  // --- Workflow методы ---
-
-  // Снабженец прикрепляет счёт к заявке (через Supabase Storage)
   const attachInvoice = async (id, file) => {
     const request = requests.find(r => r.id === id);
-    if (!request) {
-      throw new Error('Заявка не найдена');
-    }
+    if (!request) throw new Error('Заявка не найдена');
 
     try {
-      // Загружаем файл в Supabase Storage
       const result = await uploadInvoice(file, request.requestNumber);
-
       await updateRequest(id, {
         status: 'invoice_attached',
         invoiceFile: result.url,
         invoiceFileName: result.name,
-        invoicePath: result.path, // Для удаления
+        invoicePath: result.path,
         statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}`)
       });
       showSuccess('Счёт прикреплён');
@@ -158,16 +127,13 @@ export const useSupplyRequests = () => {
     }
   };
 
-  // Снабженец отправляет на согласование технологу
   const submitForApproval = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     if (!request.invoiceFile) {
       showError('Сначала прикрепите счёт');
       return;
     }
-
     await updateRequest(id, {
       status: 'pending_tech_approval',
       statusHistory: addStatusHistory(request, 'pending_tech_approval', 'supplier', 'Отправлено на согласование технологу')
@@ -175,11 +141,9 @@ export const useSupplyRequests = () => {
     showSuccess('Заявка отправлена на согласование');
   };
 
-  // Технолог согласовывает счёт → к начальнику цеха
   const approveTechnologist = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     await updateRequest(id, {
       status: 'pending_shop_approval',
       'approvals.technologist': true,
@@ -189,11 +153,9 @@ export const useSupplyRequests = () => {
     showSuccess('Согласовано');
   };
 
-  // Начальник цеха согласовывает → к директору
   const approveShopManager = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     await updateRequest(id, {
       status: 'pending_director_approval',
       'approvals.shopManager': true,
@@ -203,11 +165,9 @@ export const useSupplyRequests = () => {
     showSuccess('Согласовано');
   };
 
-  // Директор согласовывает → к бухгалтеру на оплату
   const approveDirector = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     await updateRequest(id, {
       status: 'pending_payment',
       'approvals.director': true,
@@ -217,11 +177,9 @@ export const useSupplyRequests = () => {
     showSuccess('Согласовано');
   };
 
-  // Бухгалтер отмечает оплату
   const markPaid = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     await updateRequest(id, {
       status: 'paid',
       'approvals.accountant': true,
@@ -231,11 +189,9 @@ export const useSupplyRequests = () => {
     showSuccess('Оплата подтверждена');
   };
 
-  // Снабженец указывает срок доставки
   const setDeliveryDate = async (id, date) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     await updateRequest(id, {
       status: 'awaiting_delivery',
       deliveryDate: date,
@@ -244,26 +200,21 @@ export const useSupplyRequests = () => {
     showSuccess('Срок доставки установлен');
   };
 
-  // Снабженец отмечает доставку
   const markDelivered = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
     const now = new Date().toISOString().split('T')[0];
-
-    // Удаляем файл счёта из Supabase (очистка хранилища)
     if (request.invoicePath) {
       try {
         await deleteInvoice(request.invoicePath);
       } catch (e) {
-        console.warn('Не удалось удалить файл счёта:', e);
+        console.warn('Could not delete invoice file:', e);
       }
     }
-
     await updateRequest(id, {
       status: 'delivered',
       deliveredAt: now,
-      invoiceFile: null,      // Очищаем ссылку на файл
+      invoiceFile: null,
       invoiceFileName: null,
       invoicePath: null,
       statusHistory: addStatusHistory(request, 'delivered', 'supplier', 'Доставлено')
@@ -271,24 +222,15 @@ export const useSupplyRequests = () => {
     showSuccess('Доставка подтверждена');
   };
 
-  // Отклонение заявки (возвращаем снабженцу с очисткой согласований)
   const rejectRequest = async (id, role, reason) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-
-    // Все отклонения возвращают заявку снабженцу
     const newStatus = 'invoice_attached';
-
-    // Очищаем все согласования
     const clearApprovals = {
-      'approvals.technologist': false,
-      'approvals.technologistAt': null,
-      'approvals.shopManager': false,
-      'approvals.shopManagerAt': null,
-      'approvals.director': false,
-      'approvals.directorAt': null
+      'approvals.technologist': false, 'approvals.technologistAt': null,
+      'approvals.shopManager': false, 'approvals.shopManagerAt': null,
+      'approvals.director': false, 'approvals.directorAt': null
     };
-
     await updateRequest(id, {
       status: newStatus,
       ...clearApprovals,
@@ -297,59 +239,29 @@ export const useSupplyRequests = () => {
     showSuccess('Заявка отклонена');
   };
 
-  // --- Вычисляемые списки ---
-
-  // Заявки в работе (не оплачены и не доставлены)
-  const inProgressRequests = useMemo(() => {
-    return requests.filter(r => !['paid', 'awaiting_delivery', 'delivered'].includes(r.status));
-  }, [requests]);
-
-  // Оплаченные заявки (включая ожидающие доставки и доставленные)
-  const paidRequests = useMemo(() => {
-    return requests.filter(r => ['paid', 'awaiting_delivery', 'delivered'].includes(r.status));
-  }, [requests]);
-
-  // Заявки, требующие внимания (срок доставки сегодня, завтра или просрочен)
   const alertRequests = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
     return requests.filter(r => {
       if (r.status !== 'awaiting_delivery' || !r.deliveryDate) return false;
-
       const deliveryDate = new Date(r.deliveryDate);
       deliveryDate.setHours(0, 0, 0, 0);
-
-      // Просрочено, сегодня или завтра
       return deliveryDate <= tomorrow;
     });
   }, [requests]);
 
-  // Есть ли заявки, требующие внимания
   const hasSupplyAlert = alertRequests.length > 0;
 
   return {
     requests,
     loading,
-    inProgressRequests,
-    paidRequests,
-    alertRequests,
     hasSupplyAlert,
     actions: {
-      createRequest,
-      updateRequest,
-      deleteRequest,
-      attachInvoice,
-      submitForApproval,
-      approveTechnologist,
-      approveShopManager,
-      approveDirector,
-      markPaid,
-      setDeliveryDate,
-      markDelivered,
-      rejectRequest
+      createRequest, updateRequest, deleteRequest, attachInvoice, submitForApproval,
+      approveTechnologist, approveShopManager, approveDirector, markPaid, setDeliveryDate,
+      markDelivered, rejectRequest
     }
   };
 };
