@@ -179,36 +179,52 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
         </div>
       </div>
 
+      {/* Поиск - на мобилке сверху */}
+      <div className="relative sm:hidden">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <input
+          type="text"
+          placeholder="Поиск заявок..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-base"
+        />
+      </div>
+
       {/* Вкладки */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1">
           <button
             onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
               activeTab === 'all'
                 ? 'bg-cyan-600 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             <Package size={16} />
-            Все заявки ({stats.all})
+            <span className="hidden sm:inline">Все заявки</span>
+            <span className="sm:hidden">Все</span>
+            <span className="text-xs opacity-75">({stats.all})</span>
           </button>
           {userRole && (
             <button
               onClick={() => setActiveTab('my')}
-              className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'my'
                   ? 'bg-cyan-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               <Inbox size={16} />
-              Моя папка ({stats.my})
+              <span className="hidden sm:inline">Моя папка</span>
+              <span className="sm:hidden">Мои</span>
+              <span className="text-xs opacity-75">({stats.my})</span>
             </button>
           )}
           <button
             onClick={() => setActiveTab('overdue')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
               activeTab === 'overdue'
                 ? 'bg-orange-600 text-white'
                 : stats.overdue > 0
@@ -217,30 +233,33 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
             }`}
           >
             <AlertCircle size={16} />
-            Требует внимания ({stats.overdue})
+            <span className="hidden sm:inline">Требует внимания</span>
+            <span className="sm:hidden">Срочно</span>
+            <span className="text-xs opacity-75">({stats.overdue})</span>
           </button>
           <button
             onClick={() => setActiveTab('archive')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
               activeTab === 'archive'
                 ? 'bg-cyan-600 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             <Archive size={16} />
-            Архив ({stats.archive})
+            <span>Архив</span>
+            <span className="text-xs opacity-75">({stats.archive})</span>
           </button>
         </div>
 
-        {/* Поиск */}
-        <div className="relative">
+        {/* Поиск - на десктопе справа */}
+        <div className="relative hidden sm:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
             placeholder="Поиск..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
           />
         </div>
       </div>

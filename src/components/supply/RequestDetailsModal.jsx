@@ -146,20 +146,24 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
     return '';
   };
 
+  // Короткое название статуса для мобильной версии
+  const shortStatusLabel = statusInfo.label.replace('Снабжение — ', '').replace('Согласование — ', '').replace('Бухгалтерия — ', '');
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[90vh] flex flex-col">
         {/* Заголовок с кнопкой действия */}
-        <div className="p-3 border-b border-slate-200 bg-slate-50 rounded-t-xl flex-shrink-0">
+        <div className="p-3 border-b border-slate-200 bg-slate-50 rounded-t-2xl sm:rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Package className="text-cyan-600" size={20} />
+            <div className="flex items-center gap-2 min-w-0">
+              <Package className="text-cyan-600 shrink-0" size={20} />
               <span className="text-lg font-bold text-slate-800">{request.requestNumber}</span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusInfo.color} text-white`}>
-                {statusInfo.label}
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusInfo.color} text-white truncate max-w-[120px] sm:max-w-none`}>
+                <span className="sm:hidden">{shortStatusLabel}</span>
+                <span className="hidden sm:inline">{statusInfo.label}</span>
               </span>
             </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-slate-200 rounded-lg transition">
+            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition shrink-0">
               <X size={20} className="text-slate-500" />
             </button>
           </div>

@@ -78,24 +78,24 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-xl max-h-[90vh] overflow-y-auto">
         {/* Заголовок */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+          <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
             <Package className="text-cyan-600" size={20} />
-            Новая заявка на снабжение
+            Новая заявка
           </h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded transition"
+            className="p-2 hover:bg-slate-100 rounded-lg transition"
           >
             <X size={20} className="text-slate-400" />
           </button>
         </div>
 
         {/* Форма */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-6">
+        <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-4 sm:space-y-6">
           {/* Привязка к заказам */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -172,27 +172,25 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
                     type="text"
                     value={item.title}
                     onChange={(e) => updateItem(index, 'title', e.target.value)}
-                    placeholder="Название (например: Профильная труба 40x20)"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-2"
+                    placeholder="Название (труба 40x20, болты М10...)"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-2 text-base"
                   />
 
                   {/* Количество и единица */}
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <div className="col-span-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                        placeholder="Количество"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                      />
-                    </div>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                      placeholder="Кол-во"
+                      className="flex-1 min-w-0 px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-base"
+                    />
                     <select
                       value={item.unit}
                       onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      className="w-20 px-2 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-base bg-white"
                     >
                       {SUPPLY_UNITS.map(unit => (
                         <option key={unit} value={unit}>{unit}</option>
@@ -205,7 +203,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
                     type="text"
                     value={item.description}
                     onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    placeholder="Описание (необязательно)"
+                    placeholder="Примечание (опционально)"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                   />
                 </div>
@@ -223,30 +221,30 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
               value={desiredDate}
               onChange={(e) => setDesiredDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-base"
             />
           </div>
 
-          {/* Кнопки */}
-          <div className="flex gap-3 pt-2">
+          {/* Кнопки - sticky внизу на мобилке */}
+          <div className="flex gap-2 pt-2 sticky bottom-0 bg-white pb-2 -mb-2 border-t border-slate-100 sm:border-0 sm:static">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium"
+              className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-[2] px-4 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {loading ? (
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
                   <Plus size={18} />
-                  Создать заявку
+                  Создать
                 </>
               )}
             </button>
