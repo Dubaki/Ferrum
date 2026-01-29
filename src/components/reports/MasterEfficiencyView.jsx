@@ -98,7 +98,8 @@ export default function MasterEfficiencyView({ resources, actions }) {
 
     const handleCellClick = (resId, dStr, currentValue) => {
         setEditingCell({ resId, dateStr: dStr });
-        setEditValue(currentValue || '');
+        // Показываем пустую строку если КТУ не установлен или равен 0
+        setEditValue(currentValue > 0 ? String(currentValue) : '');
     };
 
     const handleCellSave = () => {
@@ -216,15 +217,16 @@ export default function MasterEfficiencyView({ resources, actions }) {
                                                         <input
                                                             type="number"
                                                             value={editValue}
+                                                            placeholder="—"
                                                             onChange={(e) => setEditValue(e.target.value)}
                                                             onBlur={handleCellBlur}
                                                             onKeyDown={handleCellKeyDown}
                                                             autoFocus
-                                                            className="w-full h-full text-center font-black text-blue-700 bg-blue-50 border-2 border-blue-500 outline-none p-1"
+                                                            className="w-full h-full text-center font-black text-blue-700 bg-blue-50 border-2 border-blue-500 outline-none p-1 placeholder:text-slate-300"
                                                         />
                                                     ) : (
                                                         <div className="py-2 px-1">
-                                                            {val > 0 ? (
+                                                            {val !== undefined && val !== null && val > 0 ? (
                                                                 <span className={`font-black text-base
                                                                     ${val >= 100 ? 'text-emerald-600' : ''}
                                                                     ${val >= 80 && val < 100 ? 'text-blue-600' : ''}

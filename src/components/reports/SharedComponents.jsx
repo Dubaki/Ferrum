@@ -22,28 +22,46 @@ export function TabButton({ id, label, icon: Icon, active, set }) {
 
 // Поле ввода КТУ (Стильное)
 export const KtuInput = ({ resId, date, initialValue, onSave }) => {
-    const [val, setVal] = useState(initialValue);
-    useEffect(() => setVal(initialValue), [initialValue]);
+    // Показываем пустую строку если значение 0 или undefined
+    const formatValue = (v) => (v > 0 ? String(v) : '');
+    const [val, setVal] = useState(formatValue(initialValue));
+
+    useEffect(() => {
+        setVal(formatValue(initialValue));
+    }, [initialValue]);
 
     const handleBlur = () => {
-        if (parseFloat(val) !== parseFloat(initialValue)) {
-            onSave(resId, date, val);
+        const numVal = parseFloat(val) || 0;
+        const numInitial = parseFloat(initialValue) || 0;
+        if (numVal !== numInitial) {
+            onSave(resId, date, numVal);
         }
     };
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.target.blur();
+        }
+    };
+
+    const numericVal = parseFloat(val) || 0;
+
     return (
         <div className="relative group">
-            <input 
+            <input
                 type="number"
                 min="0" max="50"
                 value={val}
+                placeholder="—"
                 onChange={(e) => setVal(e.target.value)}
                 onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
                 className={`
                     w-16 text-center font-bold text-lg bg-transparent border-b-2 outline-none py-1 transition-all duration-300
-                    ${val > 0 
-                        ? 'border-emerald-500 text-emerald-700' 
-                        : 'border-slate-200 text-slate-300 group-hover:border-slate-300'
+                    placeholder:text-slate-300
+                    ${numericVal > 0
+                        ? 'border-emerald-500 text-emerald-700'
+                        : 'border-slate-200 text-slate-400 group-hover:border-slate-300'
                     }
                 `}
             />
