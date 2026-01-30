@@ -49,12 +49,12 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
       className={`bg-white rounded-lg border transition-all duration-150 active:scale-[0.99] cursor-pointer hover:border-slate-300 hover:shadow-sm`}
       onClick={onOpenDetails}
     >
-      <div className="grid grid-cols-[auto_auto_1fr_auto_auto_auto_auto] items-center gap-2 p-2">
+      <div className="grid grid-cols-[auto_auto_minmax(0,1.5fr)_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-3 p-2">
         {/* Col 1: Status Indicator */}
         <span className={`w-1.5 h-8 rounded-full ${statusInfo.color} flex-shrink-0`}></span>
         
         {/* Col 2: Request Number */}
-        <div className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap pr-2">{request.requestNumber}</div>
+        <div className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{request.requestNumber}</div>
         
         {/* Col 3: Item Info (Flexible) */}
         <div className="flex items-center gap-2 text-sm min-w-0">
@@ -69,11 +69,18 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           )}
         </div>
 
-        {/* Col 4: Icons (Comment/Alerts) */}
+        {/* Col 4: creatorComment (Flexible) - Made more visible */}
+        <div className="flex items-center gap-1.5 text-slate-700 min-w-0" title={request.creatorComment}>
+            {request.creatorComment && (
+                <>
+                    <MessageSquare size={14} className="flex-shrink-0" />
+                    <span className="truncate text-xs font-semibold">{request.creatorComment}</span>
+                </>
+            )}
+        </div>
+
+        {/* Col 5: Icons (Alerts) */}
         <div className="flex items-center justify-end gap-2">
-          {request.creatorComment && (
-            <MessageSquare size={16} className="text-slate-400" title={request.creatorComment} />
-          )}
           {alertToShow && (
             <div className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 whitespace-nowrap
                 ${alertToShow.type === 'overdue' ? 'bg-red-50 text-red-600 border-red-200' : ''}
@@ -86,7 +93,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           )}
         </div>
 
-        {/* Col 5: Invoice Button */}
+        {/* Col 6: Invoice Button */}
         <div className="w-8 h-8 flex items-center justify-center">
           {request.invoiceFile && (
             <button 
@@ -99,7 +106,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           )}
         </div>
 
-        {/* Col 6: Delete Button */}
+        {/* Col 7: Delete Button */}
         <div className="w-8 h-8 flex items-center justify-center">
           {canDelete && (
             <button 
@@ -112,7 +119,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           )}
         </div>
 
-        {/* Col 7: Status Label */}
+        {/* Col 8: Status Label */}
         <div className="text-right">
             <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${statusInfo.color} whitespace-nowrap`}>
                 {statusInfo.label}
