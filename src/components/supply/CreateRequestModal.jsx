@@ -9,7 +9,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [desiredDate, setDesiredDate] = useState('');
   const [department, setDepartment] = useState('Химмаш');
-  const [comment, setComment] = useState(''); 
+  const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
 
   const addItem = () => {
@@ -30,11 +30,12 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
 
   const toggleOrder = (order) => {
     setSelectedOrders(prev => {
-      const exists = prev.find(o => o.orderId === order.id);
+      const orderId = order.id || order.orderNumber;
+      const exists = prev.find(o => o.orderId === orderId);
       if (exists) {
-        return prev.filter(o => o.orderId !== order.id);
+        return prev.filter(o => o.orderId !== orderId);
       } else {
-        return [...prev, { orderId: order.id, orderNumber: order.orderNumber }];
+        return [...prev, { orderId: orderId, orderNumber: order.orderNumber }];
       }
     });
   };
@@ -54,6 +55,11 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         return;
       }
     }
+    
+    if (selectedOrders.length === 0) {
+        alert('Выберите заказ или "В цех"');
+        return;
+    }
 
     setLoading(true);
     try {
@@ -65,7 +71,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         orders: selectedOrders,
         desiredDate,
         department,
-        comment, 
+        comment,
         createdBy: userRole
       });
     } catch (error) {
@@ -74,6 +80,8 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
       setLoading(false);
     }
   };
+
+  const workshopOrder = { orderNumber: 'В цех' };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
@@ -107,6 +115,10 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2"><FileText size={14} className="inline mr-1" />Заказы (можно выбрать несколько)</label>
             <div className="border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
+              <label className={`flex items-center gap-2 p-2 cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-0 ${selectedOrders.find(o => o.orderId === workshopOrder.orderNumber) ? 'bg-cyan-50' : ''}`}>
+                <input type="checkbox" checked={!!selectedOrders.find(o => o.orderId === workshopOrder.orderNumber)} onChange={() => toggleOrder(workshopOrder)} className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500" />
+                <span className="font-medium">{workshopOrder.orderNumber}</span>
+              </label>
               {orders.length === 0 ? (
                 <div className="p-3 text-sm text-slate-400 text-center">Нет активных заказов</div>
               ) : (
