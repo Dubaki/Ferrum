@@ -108,15 +108,38 @@ export const STATUS_DEADLINES = {
   awaiting_delivery: null // Зависит от deliveryDate
 };
 
+const getTimestampInMillis = (timestamp) => {
+  if (!timestamp) return null;
+  // Если это объект Firebase Timestamp, используем toMillis()
+  if (typeof timestamp.toMillis === 'function') {
+    return timestamp.toMillis();
+  }
+  // Если это уже число (миллисекунды), возвращаем как есть
+  if (typeof timestamp === 'number') {
+    return timestamp;
+  }
+  // Если это объект Date
+  if (timestamp instanceof Date) {
+    return timestamp.getTime();
+  }
+  // Попытка преобразовать из строки
+  const date = new Date(timestamp);
+  if (!isNaN(date.getTime())) {
+    return date.getTime();
+  }
+  return null;
+};
+
+
 // Проверка просрочки заявки
 export const isRequestOverdue = (request) => {
-  if (!request.status || !request.updatedAt) return false;
+  const updated = getTimestampInMillis(request.updatedAt);
+  if (!request.status || !updated) return false;
 
   const deadline = STATUS_DEADLINES[request.status];
   if (deadline === null || deadline === undefined) return false;
 
   const now = Date.now();
-  const updated = request.updatedAt;
   const hoursPassed = (now - updated) / (1000 * 60 * 60);
 
   return hoursPassed > deadline;
@@ -124,13 +147,13 @@ export const isRequestOverdue = (request) => {
 
 // Получить оставшиеся часы до дедлайна
 export const getHoursUntilDeadline = (request) => {
-  if (!request.status || !request.updatedAt) return null;
+  const updated = getTimestampInMillis(request.updatedAt);
+  if (!request.status || !updated) return null;
 
   const deadline = STATUS_DEADLINES[request.status];
   if (deadline === null || deadline === undefined) return null;
 
   const now = Date.now();
-  const updated = request.updatedAt;
   const hoursPassed = (now - updated) / (1000 * 60 * 60);
 
   return Math.round(deadline - hoursPassed);

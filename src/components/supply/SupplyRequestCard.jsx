@@ -17,7 +17,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
     if (request.status !== 'awaiting_delivery' || !request.deliveryDate) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const deliveryDate = new Date(request.deliveryDate);
+    const deliveryDate = request.deliveryDate.toDate ? request.deliveryDate.toDate() : new Date(request.deliveryDate);
     deliveryDate.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
     if (diffDays < 0) return { type: 'overdue', label: 'Просрочено' };
@@ -41,6 +41,8 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
   };
   
   const canDelete = userRole && ['technologist', 'shopManager', 'director'].includes(userRole);
+
+  const alertToShow = deliveryAlert || deadlineAlert;
 
   return (
     <div
@@ -72,13 +74,14 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           {request.creatorComment && (
             <MessageSquare size={16} className="text-slate-400" title={request.creatorComment} />
           )}
-          {(deadlineAlert || deliveryAlert) && (
+          {alertToShow && (
             <div className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 whitespace-nowrap
-                ${deadlineAlert ? (deadlineAlert.type === 'overdue' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-orange-50 text-orange-600 border-orange-200') : ''}
-                ${deliveryAlert ? 'bg-blue-50 text-blue-600 border-blue-200' : ''}
+                ${alertToShow.type === 'overdue' ? 'bg-red-50 text-red-600 border-red-200' : ''}
+                ${alertToShow.type === 'urgent' ? 'bg-orange-50 text-orange-600 border-orange-200' : ''}
+                ${alertToShow.type === 'today' || alertToShow.type === 'tomorrow' ? 'bg-blue-50 text-blue-600 border-blue-200' : ''}
             `}>
-                {deadlineAlert && <><AlertTriangle size={12} /><span>{deadlineAlert.label}</span></>}
-                {deliveryAlert && <><Truck size={12} /><span>{deliveryAlert.label}</span></>}
+                {deliveryAlert ? <Truck size={12} /> : <AlertTriangle size={12} />}
+                <span>{alertToShow.label}</span>
             </div>
           )}
         </div>

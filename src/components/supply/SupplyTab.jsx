@@ -27,10 +27,12 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     activeDepartment === 'Химмаш' ? r.department === 'Химмаш' || !r.department : r.department === activeDepartment
   ), [supplyRequests, activeDepartment]);
 
-  const myRequests = useMemo(() => userRole ? getRequestsForRole(departmentFilteredRequests, userRole) : [], [departmentFilteredRequests, userRole]);
+  const myRequests = useMemo(() => getRequestsForRole(departmentFilteredRequests, userRole), [departmentFilteredRequests, userRole]);
   const allRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered'), [departmentFilteredRequests]);
   const overdueRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r)), [departmentFilteredRequests]);
   const archivedRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'delivered'), [departmentFilteredRequests]);
+
+  const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
 
   const currentRequests = useMemo(() => {
     let list;
@@ -153,7 +155,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       </div>
 
       {/* Modals */}
-      {showCreateModal && <CreateRequestModal orders={useMemo(() => orders.filter(o => o.status === 'active'), [orders])} userRole={userRole} onClose={() => setShowCreateModal(false)} onCreate={handleCreateRequest} />}
+      {showCreateModal && <CreateRequestModal orders={activeOrders} userRole={userRole} onClose={() => setShowCreateModal(false)} onCreate={handleCreateRequest} />}
       {showDetailsModal && selectedRequest && <RequestDetailsModal request={selectedRequest} userRole={userRole} supplyActions={supplyActions} onClose={() => { setShowDetailsModal(false); setSelectedRequest(null); }} />}
     </div>
   );
