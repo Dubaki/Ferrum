@@ -21,7 +21,6 @@ export const SUPPLY_STATUSES = {
   pending_tech_approval: { label: 'Согласование — технолог', color: 'bg-blue-500', textColor: 'text-blue-600', owner: 'technologist' },
   pending_shop_approval: { label: 'Согласование — нач. цеха', color: 'bg-indigo-500', textColor: 'text-indigo-600', owner: 'shopManager' },
   pending_director_approval: { label: 'Согласование — директор', color: 'bg-purple-500', textColor: 'text-purple-600', owner: 'director' },
-  pending_payment: { label: 'Бухгалтерия — ожидает оплаты', color: 'bg-orange-500', textColor: 'text-orange-600', owner: 'accountant' },
   paid: { label: 'Оплачено', color: 'bg-emerald-500', textColor: 'text-emerald-600', owner: 'supplier' },
   awaiting_delivery: { label: 'Снабжение — ожидает доставки', color: 'bg-cyan-500', textColor: 'text-cyan-600', owner: 'supplier' },
   delivered: { label: 'Доставлено', color: 'bg-green-600', textColor: 'text-green-600', owner: null },
@@ -59,19 +58,30 @@ export const canPerformAction = (role, action) => {
   if (role === 'admin') return true; // Админ может всё
 
   const permissions = {
+    // Создание
     createRequest: ['director', 'shopManager', 'technologist'],
-    createOrder: ['director', 'shopManager', 'technologist'],
-    deleteOrder: ['director', 'shopManager'],
-    deleteRequest: ['director', 'shopManager', 'admin'],
-    attachInvoice: ['director', 'shopManager', 'supplier'],
-    submitForApproval: ['director', 'shopManager', 'supplier'],
-    approveTechnologist: ['director', 'shopManager', 'technologist'],
-    approveShopManager: ['director', 'shopManager'],
+    
+    // Работа со счетами (только снабженец)
+    attachInvoice: ['supplier'],
+    submitForApproval: ['supplier'],
+
+    // Согласование (каждый за себя)
+    approveTechnologist: ['technologist'],
+    approveShopManager: ['shopManager'],
     approveDirector: ['director'],
-    markPaid: ['director', 'accountant'],
-    setDeliveryDate: ['director', 'shopManager', 'supplier'],
-    markDelivered: ['director', 'shopManager', 'supplier', 'master'],
-    rejectRequest: ['director', 'shopManager', 'technologist']
+
+    // Оплата (только бухгалтер)
+    markPaid: ['accountant'],
+
+    // Доставка
+    setDeliveryDate: ['supplier'],
+    markDelivered: ['supplier', 'master'],
+
+    // Отклонение (все, кто согласовывает)
+    rejectRequest: ['director', 'shopManager', 'technologist', 'accountant'],
+
+    // Удаление (руководство)
+    deleteRequest: ['director', 'shopManager']
   };
 
   return permissions[action]?.includes(role) || false;
