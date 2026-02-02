@@ -51,6 +51,8 @@ export interface Product {
   status: 'active' | 'completed';
   operations: Operation[];
   createdAt: number;
+  isResale?: boolean;
+  estimatedHours?: number;
 }
 
 // Тип расписания

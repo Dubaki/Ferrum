@@ -152,45 +152,60 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
             const children = orderProducts.map(prod => {
                 const ops = prod.operations || [];
 
-                // Считаем общее время в минутах
-                const totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
+                let totalMinutes = 0;
 
                 // Определяем даты начала и конца изделия
                 let pStart = null;
                 let pEnd = null;
 
-                // Приоритет 1: Даты из операций (если есть хотя бы у одной)
+                // Сначала определяем дату начала, она общая для обоих случаев
                 ops.forEach(op => {
                     if (op.startDate) {
                         const opStart = new Date(op.startDate);
                         if (!pStart || opStart < pStart) pStart = opStart;
                     }
-                    if (op.endDate) {
-                        const opEnd = new Date(op.endDate);
-                        if (!pEnd || opEnd > pEnd) pEnd = opEnd;
-                    }
                     // Фоллбэк на старое поле plannedDate для обратной совместимости
-                    if (!op.startDate && op.plannedDate) {
+                    else if (op.plannedDate) {
                         const opDate = new Date(op.plannedDate);
                         if (!pStart || opDate < pStart) pStart = opDate;
-                        if (!pEnd || opDate > pEnd) pEnd = opDate;
                     }
                 });
 
-                // Приоритет 2: Дата начала изделия
                 if (!pStart && prod.startDate) {
                     pStart = new Date(prod.startDate);
                 }
 
-                // Приоритет 3: Сегодняшняя дата
                 if (!pStart) {
                     pStart = new Date();
                 }
 
-                // Если нет даты окончания - рассчитываем по трудоемкости
-                if (!pEnd) {
+                // Теперь определяем дату окончания и общее время с учетом приоритета
+                if (prod.estimatedHours && prod.estimatedHours > 0) {
+                    // ПРИОРИТЕТ: Новая логика на основе введенных часов
+                    totalMinutes = prod.estimatedHours * 60;
                     const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
                     pEnd = addWorkingDays(pStart, workDaysNeeded);
+                } else {
+                    // ФОЛЛБЭК: Старая логика на основе операций
+                    totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
+
+                    ops.forEach(op => {
+                        if (op.endDate) {
+                            const opEnd = new Date(op.endDate);
+                            if (!pEnd || opEnd > pEnd) pEnd = opEnd;
+                        }
+                         // Фоллбэк на старое поле plannedDate
+                        else if (op.plannedDate) {
+                             const opDate = new Date(op.plannedDate);
+                             if (!pEnd || opDate > pEnd) pEnd = opDate;
+                        }
+                    });
+
+                    // Если после перебора операций дата окончания все еще не найдена, рассчитываем
+                    if (!pEnd) {
+                        const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
+                        pEnd = addWorkingDays(pStart, workDaysNeeded);
+                    }
                 }
 
                 // Считаем календарную длительность для визуализации

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy, ShoppingBag } from 'lucide-react'; // Добавил Copy
 import OperationRow from './OperationRow';
+import SetProductStartDateModal from './SetProductStartDateModal'; // Import the new modal
 
 function ProductCard({ product, products, orders, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown, isAdmin }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showStartDateModal, setShowStartDateModal] = useState(false); // State for the new modal
     
     // Расчет статуса по операциям
     let totalOps = 0; 
@@ -43,7 +45,15 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                 <div className="flex-1 font-bold text-slate-800 text-sm flex items-start sm:items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-1 flex-wrap">
                         <ShoppingBag size={14} className="text-blue-500 shrink-0" />
-                        <span className="break-normal">{product.name}</span>
+                        <span 
+                            className={`break-normal ${isAdmin ? 'underline decoration-dotted cursor-pointer hover:text-orange-500' : ''}`}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (isAdmin) setShowStartDateModal(true);
+                            }}
+                        >
+                            {product.name}
+                        </span>
                         {product.isResale && (
                             <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-cyan-600 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0">
                                 <ShoppingBag size={10} /> Перепродажа
@@ -116,6 +126,20 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                                 className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
                             />
                         </div>
+
+                        {!product.isResale && (
+                            <div className="w-24">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Ориент. время (ч)</label>
+                                <input
+                                    type="number"
+                                    value={product.estimatedHours || ''}
+                                    onChange={e => actions.updateProduct(product.id, 'estimatedHours', parseInt(e.target.value, 10) || 0)}
+                                    disabled={!isAdmin}
+                                    className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
+                                    placeholder="Часы"
+                                />
+                            </div>
+                        )}
                         
                         {/* Переключатель типа (Товар/Изделие) */}
                         <div className="flex flex-col items-center">
@@ -189,6 +213,14 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                     </div>}
                 </div>
              )}
+
+            {showStartDateModal && (
+                <SetProductStartDateModal 
+                    product={product} 
+                    onClose={() => setShowStartDateModal(false)} 
+                    actions={actions} 
+                />
+            )}
         </div>
     )
 }
