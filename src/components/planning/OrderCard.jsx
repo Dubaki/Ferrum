@@ -1,6 +1,6 @@
 import React, { useState, memo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X, MessageSquare } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 import DrawingsSection from './DrawingsSection';
@@ -15,6 +15,8 @@ const OrderCard = memo(function OrderCard({
 }) {
     const orderPositions = products.filter(p => p.orderId === order.id);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
+    const [showNotesModal, setShowNotesModal] = useState(false);
+    const [notesValue, setNotesValue] = useState(order.notes || '');
 
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     let totalPlanMins = 0;
@@ -355,7 +357,17 @@ const OrderCard = memo(function OrderCard({
                         )}
                         {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={onToggleStatusMenu}></div>}
                     </div>
+
                     </div>
+
+                    {/* Заметки — между статусом и дедлайном */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowNotesModal(true); setNotesValue(order.notes || ''); }}
+                        className={`absolute right-[28%] top-1/2 -translate-y-1/2 rounded-lg transition-all z-30 ${order.notes ? 'p-1 bg-white text-slate-900 shadow-md border-2 border-slate-800 hover:bg-slate-100' : 'p-1.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100'}`}
+                        title="Заметки"
+                    >
+                        <MessageSquare size={order.notes ? 20 : 16} strokeWidth={order.notes ? 2.5 : 2} />
+                    </button>
 
                     {/* 3. ПРАВАЯ ЧАСТЬ: Дедлайн, Оплата, Завершить */}
                     <div className="flex items-center gap-2 justify-end flex-1 z-10" onClick={e => e.stopPropagation()}>
@@ -451,6 +463,42 @@ const OrderCard = memo(function OrderCard({
                     </div>
                 </div>
             </div>
+
+            {/* МОДАЛКА ЗАМЕТОК */}
+            {showNotesModal && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4" onClick={() => setShowNotesModal(false)}>
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="bg-slate-800 p-5 flex justify-between items-center">
+                            <h4 className="text-white font-bold text-lg flex items-center gap-2"><MessageSquare size={20}/> Заметка — {order.orderNumber}</h4>
+                            <button onClick={() => setShowNotesModal(false)} className="p-1.5 text-white hover:bg-white/10 rounded-lg transition"><X size={20}/></button>
+                        </div>
+                        <div className="p-6">
+                            <textarea
+                                value={notesValue}
+                                onChange={e => setNotesValue(e.target.value)}
+                                placeholder="Напишите заметку, напоминание или важный аспект..."
+                                className="w-full border-2 border-slate-200 rounded-xl p-4 text-sm min-h-[280px] resize-y focus:border-blue-500 outline-none transition-colors"
+                                autoFocus
+                            />
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={async () => { await actions.updateOrder(order.id, 'notes', notesValue); setShowNotesModal(false); }}
+                                    className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors"
+                                >
+                                    Сохранить
+                                </button>
+                                <button
+                                    onClick={() => setShowNotesModal(false)}
+                                    className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                                >
+                                    Отмена
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ */}
             {isExpanded && (
