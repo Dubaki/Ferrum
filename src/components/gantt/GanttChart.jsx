@@ -6,7 +6,7 @@ const COL_WIDTH = 48;
 const SIDEBAR_WIDTH = 320;
 const ROW_HEIGHT = 50;
 
-function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand, onItemClick, heatmapData }) {
+function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand, onItemClick, onProductNameClick, heatmapData }) {
 
     // Собираем плоский список для рендера - ОПТИМИЗИРОВАНО с useMemo
     const visibleItems = useMemo(() => {
@@ -34,11 +34,11 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
         // ИСПРАВЛЕНИЕ: Используем календарную длительность для ширины
         // Теперь если задача 5 смен попадает на выходные, она займет 7 клеток
         const duration = item.durationDays || 1;
-        
+
         const left = startOffset * COL_WIDTH;
         const width = duration * COL_WIDTH;
         const isOrder = item.type === 'order';
-        
+
         let bgClass = 'bg-gradient-to-r from-indigo-500 to-indigo-600';
         let pattern = false;
 
@@ -47,7 +47,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                 bgClass = 'bg-slate-400';
                 pattern = true;
             } else if (item.customStatus === 'drawings') {
-                bgClass = 'bg-slate-500'; 
+                bgClass = 'bg-slate-500';
                 pattern = true;
             } else if (item.deadline) {
                 const daysLeft = Math.ceil((new Date(item.deadline) - new Date()) / (1000 * 60 * 60 * 24));
@@ -85,17 +85,17 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
     const getMarkerPosition = (dateStr) => {
         if (!dateStr) return null;
         const offset = Math.round((normalizeDate(dateStr) - normalizeDate(startDate)) / (1000 * 60 * 60 * 24));
-        if (offset < 0) return null; 
+        if (offset < 0) return null;
         return offset * COL_WIDTH + (COL_WIDTH / 2) - 8;
     };
 
     return (
         <div className="flex-1 overflow-auto custom-scrollbar relative bg-white h-full">
             <div style={{ width: SIDEBAR_WIDTH + (calendarDays.length * COL_WIDTH), minHeight: '100%' }}>
-                
+
                 {/* 1. ШАПКА */}
                 <div className="flex h-12 sticky top-0 z-[100] bg-slate-100 border-b-2 border-slate-300 shadow-sm">
-                    <div 
+                    <div
                         className="sticky left-0 z-[101] bg-slate-200 border-r-2 border-slate-300 flex items-center px-4 font-black text-xs text-slate-700 uppercase tracking-widest"
                         style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}
                     >
@@ -105,7 +105,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                         const isToday = new Date().toDateString() === day.toDateString();
                         return (
-                            <div key={i} 
+                            <div key={i}
                                 className={`flex-shrink-0 border-r border-slate-300 flex flex-col items-center justify-center text-[10px] uppercase font-bold transition-colors
                                     ${isToday ? 'bg-blue-100 text-blue-800 border-blue-300' : isWeekend ? 'bg-rose-50 text-rose-600' : 'text-slate-600'}
                                 `}
@@ -148,20 +148,20 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
 
                         return (
                             <div key={item.id} className={`flex border-b-2 border-slate-300 ${rowBg} hover:bg-slate-100 transition-colors relative group`} style={{ height: ROW_HEIGHT }}>
-                                
+
                                 <div
                                     className={`sticky left-0 z-30 border-r-2 border-slate-200 flex items-center px-2 cursor-pointer shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] overflow-hidden transition-colors ${
                                         isImportant ? 'bg-amber-100/80 group-hover:bg-amber-100' : 'bg-white group-hover:bg-slate-50'
                                     }`}
                                     style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}
-                                    onClick={() => isOrder ? onToggleExpand(item.id) : null}
+                                    onClick={() => isOrder ? onToggleExpand(item.id) : onProductNameClick && onProductNameClick(item)}
                                 >
                                     {isOrder ? (
                                         <div className="flex items-center w-full pl-3 gap-2">
                                             <button className="p-1.5 mr-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors">
                                                 {expandedIds.includes(item.id) ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
                                             </button>
-                                            
+
                                             <div className="overflow-hidden flex-1 min-w-0">
                                                 <div className="flex justify-between items-center gap-2">
                                                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -175,7 +175,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center w-full pl-10 pr-2 gap-2">
+                                        <div className="flex items-center w-full pl-10 pr-2 gap-2 hover:bg-blue-50 rounded transition-colors">
                                             {item.isResale ? (
                                                 <ShoppingBag size={14} className="text-cyan-600 shrink-0" />
                                             ) : (
@@ -232,7 +232,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                                     )}
 
                                     {/* Полоска Ганта */}
-                                    <div 
+                                    <div
                                         style={{ left: bar.left, width: bar.width }}
                                         className={bar.className}
                                         onClick={(e) => { e.stopPropagation(); onItemClick(item); }}

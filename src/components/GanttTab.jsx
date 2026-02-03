@@ -216,13 +216,14 @@ export default function GanttTab({ products, resources, orders, actions }) {
             
             {/* ГРАФИК */}
             <div className="flex-1 bg-white overflow-hidden relative">
-                <GanttChart 
+                <GanttChart
                     calendarDays={calendarDays}
                     rows={filteredGanttRows}
                     startDate={startDate}
                     expandedIds={expandedIds}
                     onToggleExpand={toggleExpand}
                     onItemClick={handleOpenModal}
+                    onProductNameClick={handleOpenModal}
                     heatmapData={heatmapData}
                 />
             </div>
