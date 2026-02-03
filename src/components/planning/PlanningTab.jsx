@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, FolderOpen, Search, Package } from 'lucide-react';
 
 import OrderCard from './OrderCard';
@@ -23,7 +23,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const toggleOrder = (id) => setExpandedOrderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const toggleOrder = useCallback((id) => setExpandedOrderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]), []);
 
   // Оптимизировано с useMemo для предотвращения пересчета при каждом рендере
   const activeOrders = useMemo(() => {
@@ -66,6 +66,25 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
           setCopyingToOrder(null);
       }
   };
+
+  // Стабильные callbacks для OrderCard
+  const handleToggleStatusMenu = useCallback((orderId, e) => {
+      e.stopPropagation();
+      setOpenStatusMenuId(prev => prev === orderId ? null : orderId);
+  }, []);
+
+  const handleOpenSettings = useCallback((order, e) => {
+      e.stopPropagation();
+      setSettingsOrder(order);
+  }, []);
+
+  const handleAddProduct = useCallback((order) => {
+      setAddingProductToOrder(order);
+  }, []);
+
+  const handleCopyFromArchiveOrder = useCallback((order) => {
+      setCopyingToOrder(order);
+  }, []);
 
   return (
     <div className="space-y-6 pb-20 fade-in font-sans text-slate-800">
@@ -113,23 +132,16 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 resources={resources}
                 ganttItems={ganttItems}
                 isExpanded={expandedOrderIds.includes(order.id)}
-                onToggle={() => toggleOrder(order.id)}
+                onToggle={toggleOrder}
                 isAdmin={isAdmin}
                 openExecutorDropdown={openExecutorDropdown}
                 setOpenExecutorDropdown={setOpenExecutorDropdown}
 
                 isStatusMenuOpen={openStatusMenuId === order.id}
-                onToggleStatusMenu={(e) => {
-                    e.stopPropagation();
-                    setOpenStatusMenuId(openStatusMenuId === order.id ? null : order.id);
-                }}
-                onOpenSettings={(e) => {
-                    e.stopPropagation();
-                    setSettingsOrder(order);
-                }}
-                // Передаем функции открытия модалок
-                onAddProduct={() => setAddingProductToOrder(order)}
-                onCopyFromArchive={() => setCopyingToOrder(order)}
+                onToggleStatusMenu={handleToggleStatusMenu}
+                onOpenSettings={handleOpenSettings}
+                onAddProduct={handleAddProduct}
+                onCopyFromArchive={handleCopyFromArchiveOrder}
             />
         ))}
         {activeOrders.length === 0 && <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-300 rounded-xl">Список пуст</div>}

@@ -1,4 +1,4 @@
-import React, { useState, memo, useEffect } from 'react';
+import React, { useState, memo, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X, MessageSquare } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
@@ -13,33 +13,39 @@ const OrderCard = memo(function OrderCard({
     onCopyFromArchive, // Функция копирования из архива
     isAdmin // Права админа
 }) {
-    const orderPositions = products.filter(p => p.orderId === order.id);
+    const orderPositions = useMemo(() => products.filter(p => p.orderId === order.id), [products, order.id]);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
     const [showNotesModal, setShowNotesModal] = useState(false);
     const [notesValue, setNotesValue] = useState(order.notes || '');
 
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
-    let totalPlanMins = 0;
-    let totalFactMins = 0;
-    let resaleCount = 0; // Счетчик товаров перепродажи
+    const { totalPlanMins, totalFactMins, resaleCount, remainingManHours, progress, isResaleOrder } = useMemo(() => {
+        let planMins = 0;
+        let factMins = 0;
+        let resale = 0;
 
-    orderPositions.forEach(p => {
-        if (p.isResale) {
-            resaleCount++;
-        } else {
-            p.operations.forEach(op => {
-                const qty = p.quantity || 1;
-                totalPlanMins += (op.minutesPerUnit || 0) * qty;
-                totalFactMins += (op.actualMinutes || 0); 
-            });
-        }
-    });
+        orderPositions.forEach(p => {
+            if (p.isResale) {
+                resale++;
+            } else {
+                p.operations.forEach(op => {
+                    const qty = p.quantity || 1;
+                    planMins += (op.minutesPerUnit || 0) * qty;
+                    factMins += (op.actualMinutes || 0);
+                });
+            }
+        });
 
-    const remainingMins = Math.max(0, totalPlanMins - totalFactMins);
-    const remainingManHours = (remainingMins / 60).toFixed(1);
-    const progress = totalPlanMins > 0 ? Math.round((totalFactMins / totalPlanMins) * 100) : 0;
-    
-    const isResaleOrder = totalPlanMins === 0 && resaleCount > 0 && orderPositions.length > 0;
+        const remaining = Math.max(0, planMins - factMins);
+        return {
+            totalPlanMins: planMins,
+            totalFactMins: factMins,
+            resaleCount: resale,
+            remainingManHours: (remaining / 60).toFixed(1),
+            progress: planMins > 0 ? Math.round((factMins / planMins) * 100) : 0,
+            isResaleOrder: planMins === 0 && resale > 0 && orderPositions.length > 0
+        };
+    }, [orderPositions]);
 
     // --- РАСЧЕТ РАБОЧИХ ДНЕЙ ---
     const getWorkDays = (start, end) => {
@@ -102,34 +108,34 @@ const OrderCard = memo(function OrderCard({
         return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
     };
 
-    const dlInfo = calculateDeadlineInfo(order.deadline);
-    const drawDiff = getCountdown(order.drawingsDeadline);
-    const matDiff = getCountdown(order.materialsDeadline);
-    const currentStatus = ORDER_STATUSES.find(s => s.id === order.customStatus) || ORDER_STATUSES[0];
+    const dlInfo = useMemo(() => calculateDeadlineInfo(order.deadline), [order.deadline]);
+    const drawDiff = useMemo(() => getCountdown(order.drawingsDeadline), [order.drawingsDeadline]);
+    const matDiff = useMemo(() => getCountdown(order.materialsDeadline), [order.materialsDeadline]);
+    const currentStatus = useMemo(() => ORDER_STATUSES.find(s => s.id === order.customStatus) || ORDER_STATUSES[0], [order.customStatus]);
 
-    const handleStatusChange = (statusId) => {
+    const handleStatusChange = useCallback((statusId) => {
         if (statusId === 'metal' && !order.materialsDeadline) return alert("Сначала укажите дату поставки металла в настройках!");
         if (statusId === 'drawings' && !order.drawingsDeadline) return alert("Сначала укажите дату готовности КМД в настройках!");
         actions.updateOrder(order.id, 'customStatus', statusId);
-    };
+    }, [order.id, order.materialsDeadline, order.drawingsDeadline, actions]);
 
     // Подсветка важного заказа
     const importantHighlight = order.isImportant
         ? 'ring-4 ring-amber-300 bg-amber-50/40 shadow-amber-200'
         : '';
 
-    const borderClass = isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border;
+    const borderClass = useMemo(() => isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border, [isResaleOrder, dlInfo.border]);
 
     return (
         <div className={`relative rounded-lg shadow-sm transition-all duration-200 border border-slate-200/60 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10 border-slate-300' : 'hover:shadow-md hover:border-slate-300/80'} ${isStatusMenuOpen ? 'z-[998]' : ''}`}>
-            <div className="p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 relative cursor-pointer" onClick={onToggle}>
+            <div className="p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 relative cursor-pointer" onClick={() => onToggle(order.id)}>
 
                 {/* Mobile: Header Row */}
                 <div className="flex items-center justify-between gap-1.5 sm:hidden">
                     {/* Left: Settings + Star + Info */}
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
                         {isAdmin && (
-                            <button onClick={onOpenSettings} className="w-7 h-7 bg-slate-800 rounded flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-sm shrink-0 border border-slate-700">
+                            <button onClick={(e) => onOpenSettings(order, e)} className="w-7 h-7 bg-slate-800 rounded flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-sm shrink-0 border border-slate-700">
                                 <Settings size={14} />
                             </button>
                         )}
@@ -168,21 +174,30 @@ const OrderCard = memo(function OrderCard({
                 <div className="flex items-center gap-1.5 sm:hidden w-full" onClick={e => e.stopPropagation()}>
                     {/* GROUP 1: Status */}
                     <div className="relative flex-1">
-                        <button onClick={isAdmin ? onToggleStatusMenu : undefined} className={`w-full flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[9px] ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
+                        <button onClick={isAdmin ? (e) => onToggleStatusMenu(order.id, e) : undefined} className={`w-full flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[9px] ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
                             <span className="font-black uppercase tracking-wider truncate">{currentStatus.label}</span>
                             <ChevronDown size={10} className="shrink-0"/>
                         </button>
                         {isStatusMenuOpen && (
                             <div className="absolute top-full left-0 mt-2 w-56 bg-white shadow-2xl rounded-xl p-2 z-[1000] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
-                                    <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-2.5 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
+                                    <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu(order.id, { stopPropagation: () => {} }); }} className={`px-3 py-2.5 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
                                     </div>
                                 ))}
                             </div>
                         )}
-                        {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={onToggleStatusMenu}></div>}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={(e) => onToggleStatusMenu(order.id, e)}></div>}
                     </div>
+
+                    {/* Заметки (Mobile) */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowNotesModal(true); setNotesValue(order.notes || ''); }}
+                        className={`shrink-0 rounded-lg transition-all ${order.notes ? 'p-1 bg-white text-slate-900 shadow-md border-2 border-slate-800' : 'p-1.5 text-slate-300 hover:text-slate-500'}`}
+                        title="Заметки"
+                    >
+                        <MessageSquare size={order.notes ? 18 : 14} strokeWidth={order.notes ? 2.5 : 2} />
+                    </button>
 
                     {/* DIVIDER */}
                     {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
@@ -244,7 +259,7 @@ const OrderCard = memo(function OrderCard({
 
                         {/* Settings */}
                         {isAdmin && (
-                            <button onClick={onOpenSettings} className="w-6 h-6 bg-slate-800 rounded flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-sm shrink-0 border border-slate-700">
+                            <button onClick={(e) => onOpenSettings(order, e)} className="w-6 h-6 bg-slate-800 rounded flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-sm shrink-0 border border-slate-700">
                                 <Settings size={12} />
                             </button>
                         )}
@@ -342,20 +357,20 @@ const OrderCard = memo(function OrderCard({
 
                         {/* Статус (по центру) */}
                         <div className="relative">
-                        <button onClick={isAdmin ? onToggleStatusMenu : undefined} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
+                        <button onClick={isAdmin ? (e) => onToggleStatusMenu(order.id, e) : undefined} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
                             <span className="text-[10px] font-black uppercase tracking-wider">{currentStatus.label}</span>
                             <ChevronDown size={12}/>
                         </button>
                         {isStatusMenuOpen && (
                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white shadow-2xl rounded-xl p-2 z-[1000] border border-slate-200 animate-in zoom-in-95">
                                 {ORDER_STATUSES.map(st => (
-                                    <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu({ stopPropagation: () => {} }); }} className={`px-3 py-3 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
+                                    <div key={st.id} onClick={() => { handleStatusChange(st.id); onToggleStatusMenu(order.id, { stopPropagation: () => {} }); }} className={`px-3 py-3 text-xs font-bold rounded-lg cursor-pointer hover:brightness-95 mb-1 last:mb-0 text-center uppercase tracking-wide border ${st.color}`}>
                                         {st.label}
                                     </div>
                                 ))}
                             </div>
                         )}
-                        {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={onToggleStatusMenu}></div>}
+                        {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={(e) => onToggleStatusMenu(order.id, e)}></div>}
                     </div>
 
                     </div>
@@ -611,7 +626,7 @@ const OrderCard = memo(function OrderCard({
                     {isAdmin && (
                     <div className="mt-3 flex flex-col sm:flex-row gap-2">
                         <button
-                            onClick={() => onAddProduct()}
+                            onClick={() => onAddProduct(order)}
                             className={`${order.isProductOrder ? 'w-full' : 'flex-1'} px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg ${order.isProductOrder ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap`}
                         >
                             {order.isProductOrder ? <ShoppingBag size={14} strokeWidth={3} className="sm:w-4 sm:h-4 shrink-0" /> : <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4 shrink-0" />}
@@ -621,7 +636,7 @@ const OrderCard = memo(function OrderCard({
                         {/* Кнопка "Из архива" только для производственных заказов */}
                         {!order.isProductOrder && (
                             <button
-                                onClick={() => onCopyFromArchive()}
+                                onClick={() => onCopyFromArchive(order)}
                                 className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap"
                             >
                                 <Copy size={14} className="sm:w-4 sm:h-4 shrink-0" />
