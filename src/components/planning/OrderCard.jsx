@@ -128,7 +128,7 @@ const OrderCard = memo(function OrderCard({
     const borderClass = useMemo(() => isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border, [isResaleOrder, dlInfo.border]);
 
     return (
-        <div className={`relative rounded-lg shadow-sm transition-all duration-200 border border-slate-200/60 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10 border-slate-300' : 'hover:shadow-md hover:border-slate-300/80'} ${isStatusMenuOpen ? 'z-[998]' : ''}`}>
+        <div className={`relative rounded-lg shadow-md transition-all duration-200 border border-slate-900 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10' : 'hover:shadow-lg'} ${isStatusMenuOpen ? 'z-[998]' : ''}`}>
             <div className="p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 relative cursor-pointer" onClick={() => onToggle(order.id)}>
 
                 {/* Mobile: Header Row */}
