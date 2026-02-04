@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue } from '../../utils/supplyRoles';
 
 export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -60,7 +60,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
   const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_director_approval';
   const canMarkPaid = canPerformAction(userRole, 'markPaid') && request.status === 'pending_payment';
-  const canSetDelivery = canPerformAction(userRole, 'setDeliveryDate') && request.status === 'paid';
+  const canSetDelivery = canPerformAction(userRole, 'setDeliveryDate') && (request.status === 'paid' || isDeliveryOverdue(request));
   const canMarkDelivered = canPerformAction(userRole, 'markDelivered') && request.status === 'awaiting_delivery';
 
   // Возможность отклонения

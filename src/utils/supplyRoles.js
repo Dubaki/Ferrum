@@ -22,7 +22,7 @@ export const SUPPLY_STATUSES = {
   pending_shop_approval: { label: 'Согласование — нач. цеха', color: 'bg-indigo-500', textColor: 'text-indigo-600', owner: 'shopManager' },
   pending_director_approval: { label: 'Согласование — директор', color: 'bg-purple-500', textColor: 'text-purple-600', owner: 'director' },
   paid: { label: 'Оплачено', color: 'bg-emerald-500', textColor: 'text-emerald-600', owner: 'supplier' },
-  awaiting_delivery: { label: 'Снабжение — ожидает доставки', color: 'bg-cyan-500', textColor: 'text-cyan-600', owner: 'supplier' },
+  awaiting_delivery: { label: 'Снабжение — ожидает доставки', color: 'bg-cyan-500', textColor: 'text-cyan-600', owner: null },
   delivered: { label: 'Доставлено', color: 'bg-green-600', textColor: 'text-green-600', owner: null },
   rejected: { label: 'Отклонено', color: 'bg-red-500', textColor: 'text-red-600', owner: null }
 };
@@ -75,7 +75,7 @@ export const canPerformAction = (role, action) => {
 
     // Доставка
     setDeliveryDate: ['supplier'],
-    markDelivered: ['supplier', 'master'],
+    markDelivered: ['shopManager', 'master', 'director', 'technologist', 'accountant'],
 
     // Отклонение (все, кто согласовывает)
     rejectRequest: ['director', 'shopManager', 'technologist', 'accountant'],
@@ -87,11 +87,24 @@ export const canPerformAction = (role, action) => {
   return permissions[action]?.includes(role) || false;
 };
 
+// Проверка просрочки доставки
+export const isDeliveryOverdue = (request) => {
+  if (request.status !== 'awaiting_delivery' || !request.deliveryDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deliveryDate = request.deliveryDate.toDate ? request.deliveryDate.toDate() : new Date(request.deliveryDate);
+  deliveryDate.setHours(0, 0, 0, 0);
+  return deliveryDate < today;
+};
+
 // Получить заявки для роли (личная папка)
 export const getRequestsForRole = (requests, role) => {
   if (!role || role === 'admin') return [];
 
   return requests.filter(req => {
+    // Просроченная доставка возвращается к снабженцу
+    if (role === 'supplier' && isDeliveryOverdue(req)) return true;
+
     const status = SUPPLY_STATUSES[req.status];
     if (!status || !status.owner) return false;
 

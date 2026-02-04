@@ -30,6 +30,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const myRequests = useMemo(() => getRequestsForRole(departmentFilteredRequests, userRole), [departmentFilteredRequests, userRole]);
   const allRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered'), [departmentFilteredRequests]);
   const overdueRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r)), [departmentFilteredRequests]);
+  const awaitingRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery'), [departmentFilteredRequests]);
   const archivedRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'delivered'), [departmentFilteredRequests]);
 
   const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
@@ -38,6 +39,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     let list;
     switch (activeTab) {
       case 'my': list = myRequests; break;
+      case 'awaiting': list = awaitingRequests; break;
       case 'overdue': list = overdueRequests; break;
       case 'archive': list = archivedRequests; break;
       default: list = allRequests; break;
@@ -49,17 +51,18 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       r.items?.some(item => item.title.toLowerCase().includes(query)) ||
       r.orders?.some(order => order.orderNumber.toLowerCase().includes(query))
     );
-  }, [activeTab, myRequests, allRequests, overdueRequests, archivedRequests, searchQuery]);
+  }, [activeTab, myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, searchQuery]);
 
   const stats = useMemo(() => ({
     my: myRequests.length,
+    awaiting: awaitingRequests.length,
     all: allRequests.length,
     overdue: overdueRequests.length,
     archive: archivedRequests.length,
     inProgress: departmentFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status)).length,
     paid: departmentFilteredRequests.filter(r => r.status === 'paid').length,
     awaitingDelivery: departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
-  }), [myRequests, allRequests, overdueRequests, archivedRequests, departmentFilteredRequests]);
+  }), [myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, departmentFilteredRequests]);
 
   const handleOpenDetails = (request) => {
     setSelectedRequest(request);
@@ -140,6 +143,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
         <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
           {renderFilterButton('all', 'Все', stats.all, null)}
           {userRole && renderFilterButton('my', 'Моя папка', stats.my, <Inbox size={16}/>)}
+          {renderFilterButton('awaiting', 'Ожидаем доставку', stats.awaiting, <Truck size={16}/>)}
           {renderFilterButton('overdue', 'Внимание', stats.overdue, <AlertCircle size={16}/>)}
           {renderFilterButton('archive', 'Архив', stats.archive, <Archive size={16}/>)}
         </div>
