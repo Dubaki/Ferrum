@@ -83,7 +83,7 @@ const OrderCard = memo(function OrderCard({
                 text: `${diffCalendarDays}`, 
                 sub: 'ПРОСРОЧЕНО',
                 color: 'text-red-600', 
-                border: 'border-l-[6px] border-l-red-600 border-y border-r border-red-200 bg-red-50/60 shadow-red-100',
+                border: 'border-l-[6px] border-l-red-600 bg-red-50/60 shadow-red-100',
                 isLate: true
             };
         }
@@ -92,10 +92,10 @@ const OrderCard = memo(function OrderCard({
         const availableHours = workDays * 8; 
 
         let color = 'text-emerald-600';
-        let border = 'border-l-[6px] border-l-emerald-500 border-emerald-200 bg-emerald-50/30 shadow-emerald-100';
+        let border = 'border-l-[6px] border-l-emerald-500 bg-emerald-50/30 shadow-emerald-100';
 
-        if (workDays <= 3) { color = 'text-orange-600'; border = 'border-l-[6px] border-l-orange-500 border-orange-200 bg-orange-50/60 shadow-orange-100'; }
-        else if (workDays <= 10) { color = 'text-yellow-600'; border = 'border-l-[6px] border-l-yellow-400 border-yellow-200 bg-yellow-50/40 shadow-yellow-100'; }
+        if (workDays <= 3) { color = 'text-orange-600'; border = 'border-l-[6px] border-l-orange-500 bg-orange-50/60 shadow-orange-100'; }
+        else if (workDays <= 10) { color = 'text-yellow-600'; border = 'border-l-[6px] border-l-yellow-400 bg-yellow-50/40 shadow-yellow-100'; }
 
         return { 
             text: `${workDays}`, 
@@ -125,7 +125,7 @@ const OrderCard = memo(function OrderCard({
         ? 'ring-4 ring-amber-300 bg-amber-50/40 shadow-amber-200'
         : '';
 
-    const borderClass = useMemo(() => isResaleOrder ? 'border-l-[6px] border-l-cyan-500 border-cyan-200 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border, [isResaleOrder, dlInfo.border]);
+    const borderClass = useMemo(() => isResaleOrder ? 'border-l-[6px] border-l-cyan-500 bg-cyan-50/40 shadow-cyan-100' : dlInfo.border, [isResaleOrder, dlInfo.border]);
 
     return (
         <div className={`relative rounded-lg shadow-md transition-all duration-200 border border-slate-900 ${borderClass} ${importantHighlight} ${isExpanded ? 'shadow-xl sm:scale-[1.01] z-10' : 'hover:shadow-lg'} ${isStatusMenuOpen ? 'z-[998]' : ''}`}>
