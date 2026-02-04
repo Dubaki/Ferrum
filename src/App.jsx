@@ -58,6 +58,7 @@ export default function App() {
   });
   const [showRoleModal, setShowRoleModal] = useState(false);
   const isAdmin = userRole === 'director' || userRole === 'shopManager';
+  const canManageDrawings = isAdmin || userRole === 'technologist';
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
 
@@ -196,6 +197,7 @@ export default function App() {
                 actions={actions}
                 ganttItems={ganttItems}
                 isAdmin={isAdmin}
+                canManageDrawings={canManageDrawings}
               />
             }
           />

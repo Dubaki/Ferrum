@@ -12,7 +12,8 @@ const OrderCard = memo(function OrderCard({
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
     onAddProduct, // Функция добавления изделия
     onCopyFromArchive, // Функция копирования из архива
-    isAdmin // Права админа
+    isAdmin, // Права админа
+    canManageDrawings // Права на управление чертежами (админ + технолог)
 }) {
     const orderPositions = useMemo(() => products.filter(p => p.orderId === order.id), [products, order.id]);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
@@ -588,7 +589,7 @@ const OrderCard = memo(function OrderCard({
                         <DrawingsSection
                             order={order}
                             actions={actions}
-                            isAdmin={isAdmin}
+                            isAdmin={canManageDrawings}
                         />
                     )}
 

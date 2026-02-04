@@ -2,8 +2,8 @@
 export const SUPPLY_ROLES = {
   technologist: { label: 'Технолог', password: 'fer25', icon: '👷' },
   supplier: { label: 'Снабженец', password: 'fer25', icon: '📦' },
-  shopManager: { label: 'Начальник цеха', password: 'fer25', icon: '🏭' },
-  director: { label: 'Директор', password: 'fer25', icon: '💼' },
+  shopManager: { label: 'Начальник цеха', password: 'proplex', icon: '🏭' },
+  director: { label: 'Директор', password: 'proplex', icon: '💼' },
   accountant: { label: 'Бухгалтер', password: 'fer25', icon: '💰' },
   master: { label: 'Мастер', password: 'fer25', icon: '🔧' }
 };

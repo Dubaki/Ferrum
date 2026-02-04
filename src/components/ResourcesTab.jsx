@@ -115,12 +115,9 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       </th>
                                   );
                               })}
-                              <th className="p-3 text-center bg-emerald-700 border-l-2 border-emerald-500 min-w-[80px] font-bold uppercase tracking-wider sticky right-[120px] z-10">
+                              <th className="p-3 text-center bg-emerald-700 border-l-2 border-emerald-500 min-w-[80px] font-bold uppercase tracking-wider sticky right-0 z-10">
                                   <Clock size={14} className="inline mr-1"/>
                                   Часов
-                              </th>
-                              <th className="p-3 text-center bg-orange-700 border-l-2 border-orange-500 min-w-[120px] font-bold uppercase tracking-wider sticky right-0 z-10">
-                                  💰 Зарплата
                               </th>
                           </tr>
                       </thead>
@@ -165,72 +162,6 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   }
                               });
 
-                              // Расчет средней часовой ставки за прошлый месяц
-                              const prevMonth = new Date(currentDate);
-                              prevMonth.setMonth(prevMonth.getMonth() - 1);
-                              const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
-
-                              // Берем данные из SalaryMatrixModal logic
-                              const prevMonthDays = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate();
-                              let prevMonthTotal = 0;
-                              let prevMonthHours = 0;
-
-                              Array.from({length: prevMonthDays}, (_, i) => i + 1).forEach(day => {
-                                  const dateStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                                  const dateObj = new Date(dateStr);
-                                  const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                                  const override = res.scheduleOverrides?.[dateStr];
-                                  const reason = res.scheduleReasons?.[dateStr];
-                                  // ЗАЩИТА: ограничиваем standardHours разумными пределами
-                                  const rawStandardHours = res.hoursPerDay || 8;
-                                  const standardHours = Math.min(Math.max(rawStandardHours, 0), 24);
-                                  const isStandardWorkDay = res.workWeekends ? true : !isWeekend;
-
-                                  let workedHours = 0;
-                                  if (override !== undefined) {
-                                      // ЗАЩИТА: ограничиваем override разумными пределами
-                                      workedHours = Math.min(Math.max(override, 0), 24);
-                                  } else if (isStandardWorkDay) {
-                                      workedHours = standardHours;
-                                  }
-
-                                  if (workedHours > 0) {
-                                      const history = res.rateHistory || [];
-                                      const sortedHistory = [...history].sort((a,b) => new Date(a.date) - new Date(b.date));
-                                      const applicableRateEntry = sortedHistory.reverse().find(h => new Date(h.date) <= dateObj);
-                                      const currentRate = applicableRateEntry ? parseFloat(applicableRateEntry.rate) : (parseFloat(res.baseRate) || 0);
-                                      const hourlyRate = currentRate / standardHours;
-
-                                      const probationEnd = new Date(res.employmentDate);
-                                      probationEnd.setDate(probationEnd.getDate() + 7);
-                                      const violation = res.safetyViolations?.[dateStr];
-                                      const ktu = res.dailyEfficiency?.[dateStr] || 0;
-
-                                      let basePay = hourlyRate * workedHours;
-                                      let tbBonus = 0, ktuBonus = 0;
-
-                                      // Позиции без ТБ и КТУ
-                                      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
-                                      const noTbPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
-
-                                      const hasKtu = !noKtuPositions.includes(res.position);
-                                      const hasTb = !noTbPositions.includes(res.position);
-
-                                      if (hasTb && dateObj > probationEnd && !violation) tbBonus = basePay * 0.22;
-                                      if (hasKtu) ktuBonus = basePay * (ktu / 100);
-
-                                      prevMonthTotal += basePay + tbBonus + ktuBonus;
-                                      prevMonthHours += workedHours;
-                                  }
-                              });
-
-                              // Добавляем месячные премии для определенных должностей
-                              if (res.position === 'Мастер') prevMonthTotal += 30000;
-                              else if (res.position === 'Технолог') prevMonthTotal += 20000;
-
-                              const avgHourlyRate = prevMonthHours > 0 ? Math.round(prevMonthTotal / prevMonthHours) : 0;
-                              const totalSalary = Math.round(avgHourlyRate * totalHours);
-
                               const isOfficial = res.isOfficiallyEmployed ?? false;
 
                               return (
@@ -259,9 +190,6 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       {res.name}
                                       <div className={`text-[9px] font-normal flex items-center gap-1 ${isOfficial ? 'text-emerald-700' : 'text-slate-400'}`}>
                                           {res.position}
-                                          {avgHourlyRate > 0 && (
-                                              <span className="text-emerald-700 font-bold ml-1">• {avgHourlyRate}₽/ч</span>
-                                          )}
                                       </div>
                                   </td>
                                   
@@ -340,13 +268,8 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   })}
 
                                   {/* Итоговая ячейка с часами */}
-                                  <td className={`p-3 text-center font-black text-lg ${totalHours > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-emerald-500 sticky right-[120px] z-10`}>
+                                  <td className={`p-3 text-center font-black text-lg ${totalHours > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-emerald-500 sticky right-0 z-10`}>
                                       {totalHours}
-                                  </td>
-
-                                  {/* Итоговая ячейка с зарплатой */}
-                                  <td className={`p-3 text-center font-black text-base ${totalSalary > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-orange-500 sticky right-0 z-10`}>
-                                      {totalSalary > 0 ? `${totalSalary.toLocaleString()}₽` : '—'}
                                   </td>
                               </tr>
                               );
