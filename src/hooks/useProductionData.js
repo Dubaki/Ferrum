@@ -104,7 +104,7 @@ export const useProductionData = () => {
 
   const restoreOrder = async (id) => {
     try {
-      await updateDoc(doc(db, 'orders', id), { status: 'active', finishedAt: null });
+      await updateDoc(doc(db, 'orders', id), { status: 'active', finishedAt: null, shippedAt: null });
       showSuccess('Заказ восстановлен');
     } catch (error) {
       showError(getFirebaseErrorMessage(error));

@@ -135,7 +135,8 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
 
 
 // Статистика за месяц
-const MonthlyStats = memo(function MonthlyStats({ orders, selectedMonth, onMonthChange }) {
+const MonthlyStats = memo(function MonthlyStats({ orders, products, selectedMonth, onMonthChange }) {
+  const [expandedId, setExpandedId] = useState(null);
   const months = useMemo(() => {
     const result = [];
     const now = new Date();
@@ -192,19 +193,42 @@ const MonthlyStats = memo(function MonthlyStats({ orders, selectedMonth, onMonth
       </div>
 
       {stats.orders.length > 0 && (
-        <div className="space-y-2 max-h-60 overflow-y-auto">
+        <div className="space-y-1 max-h-80 overflow-y-auto">
           <div className="text-xs font-medium text-slate-500 mb-2">Последние отгрузки:</div>
-          {stats.orders.map(order => (
-            <div key={order.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-              <div>
-                <div className="font-medium text-slate-700 text-sm">{order.orderNumber}</div>
-                <div className="text-xs text-slate-400">{order.clientName}</div>
+          {stats.orders.map(order => {
+            const isOpen = expandedId === order.id;
+            const orderProducts = products.filter(p => p.orderId === order.id);
+            return (
+              <div key={order.id} className="border-b border-slate-100 last:border-0">
+                <button
+                  onClick={() => setExpandedId(isOpen ? null : order.id)}
+                  className="w-full flex items-center justify-between py-2 hover:bg-slate-50 rounded-lg px-1 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {isOpen ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                    <div className="text-left">
+                      <div className="font-medium text-slate-700 text-sm">{order.orderNumber}</div>
+                      <div className="text-xs text-slate-400">{order.clientName}</div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {new Date(order.shippedAt).toLocaleDateString('ru-RU')}
+                  </div>
+                </button>
+                {isOpen && orderProducts.length > 0 && (
+                  <div className="ml-7 mb-2 space-y-1">
+                    {orderProducts.map(p => (
+                      <div key={p.id} className="text-xs text-slate-500 flex items-center gap-1.5 py-0.5">
+                        <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+                        <span>{p.name}</span>
+                        {p.quantity > 1 && <span className="text-slate-400">×{p.quantity}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="text-xs text-slate-500">
-                {new Date(order.shippedAt).toLocaleDateString('ru-RU')}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -293,6 +317,7 @@ export default memo(function ShippingTab({ orders, products, actions, isAdmin })
         <div className="space-y-4">
           <MonthlyStats
             orders={orders}
+            products={products}
             selectedMonth={selectedMonth}
             onMonthChange={setSelectedMonth}
           />

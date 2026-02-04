@@ -142,7 +142,7 @@ function ArchiveOrderRow({ order, products, resources, actions }) {
                         <div className="font-bold text-blue-700 text-lg">{Math.round(orderLaborCost).toLocaleString()} ₽</div>
                     </div>
                     <button 
-                        onClick={(e) => { e.stopPropagation(); actions.restoreOrder(order.id); }} 
+                        onClick={(e) => { e.stopPropagation(); if (window.confirm(`Вернуть заказ ${order.orderNumber} в работу?`)) actions.restoreOrder(order.id); }}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" 
                         title="Вернуть в работу"
                     >
