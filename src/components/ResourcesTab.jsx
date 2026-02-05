@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { 
-  Plus, User, MapPin, Phone, Calendar, Archive, 
-  X, Save, ShieldAlert, ChevronLeft, ChevronRight, Clock, 
-  Thermometer, MinusCircle, CheckCircle, Briefcase, Percent
+import React, { useState, useMemo } from 'react';
+import {
+  Plus, User, MapPin, Phone, Calendar, Archive,
+  X, Save, ShieldAlert, ChevronLeft, ChevronRight, Clock,
+  Thermometer, MinusCircle, CheckCircle, Briefcase, Percent,
+  DollarSign, AlertCircle
 } from 'lucide-react';
 
 // ИМПОРТ КОМПОНЕНТА КТУ (из папки reports, куда мы его сохраняли ранее)
@@ -27,6 +28,60 @@ export default function ResourcesTab({ resources, setResources, actions }) {
 
   const activeResources = resources.filter(r => r.status !== 'fired');
   const firedResources = resources.filter(r => r.status === 'fired');
+
+  // Уволенные за последний месяц — для блока "К расчёту" в архиве
+  const recentlyFiredWithSalary = useMemo(() => {
+      const now = new Date();
+      return firedResources.filter(r => {
+          if (!r.firedAt) return false;
+          const firedDate = new Date(r.firedAt);
+          const cutoff = new Date(firedDate);
+          cutoff.setMonth(cutoff.getMonth() + 1);
+          return now <= cutoff;
+      }).map(res => {
+          const firedDate = new Date(res.firedAt);
+          const firedYear = firedDate.getFullYear();
+          const firedMonth = firedDate.getMonth();
+          const firedDateStr = res.firedAt.split('T')[0];
+          const daysInFiredMonth = new Date(firedYear, firedMonth + 1, 0).getDate();
+          const standardHours = parseFloat(res.hoursPerDay) || 8;
+          const baseRate = parseFloat(res.baseRate) || 0;
+          const hourlyRate = baseRate / 8;
+
+          let hoursWorked = 0;
+          let shiftsWorked = 0;
+          let totalEarned = 0;
+
+          for (let day = 1; day <= daysInFiredMonth; day++) {
+              const dateStr = `${firedYear}-${String(firedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              if (dateStr > firedDateStr) break;
+
+              const dateObj = new Date(dateStr + 'T00:00:00');
+              const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+              const isWorkDay = res.workWeekends ? true : !isWeekend;
+
+              const employmentDate = res.employmentDate || res.startDate;
+              if (employmentDate && dateStr < employmentDate) continue;
+
+              const override = res.scheduleOverrides?.[dateStr];
+              let dailyHours = 0;
+              if (override !== undefined) dailyHours = override;
+              else if (isWorkDay) dailyHours = standardHours;
+
+              if (dailyHours > 0) {
+                  hoursWorked += dailyHours;
+                  shiftsWorked++;
+                  totalEarned += hourlyRate * dailyHours;
+              }
+          }
+
+          const monthKey = `${firedYear}-${String(firedMonth + 1).padStart(2, '0')}`;
+          const advance = res.advances?.[monthKey] || 0;
+          const toPay = totalEarned - advance;
+
+          return { ...res, hoursWorked, shiftsWorked, totalEarned, advance, toPay, firedDate };
+      }).filter(r => r.totalEarned > 0);
+  }, [firedResources]);
 
   return (
     <div className="pb-20 fade-in font-sans text-slate-800">
@@ -293,6 +348,55 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                       </button>
                   )}
               </div>
+
+              {/* Блок "К расчёту" для недавно уволенных */}
+              {activeView === 'archive' && recentlyFiredWithSalary.length > 0 && (
+                  <div className="mb-6 bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-2xl p-5 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                          <AlertCircle size={18} className="text-red-500" />
+                          <h3 className="font-black text-slate-800 uppercase text-sm tracking-wide">К расчёту при увольнении</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {recentlyFiredWithSalary.map(res => (
+                              <div key={res.id} className="bg-white rounded-xl p-4 border border-red-100 shadow-sm">
+                                  <div className="flex items-center justify-between mb-3">
+                                      <div>
+                                          <div className="font-bold text-slate-800">{res.name}</div>
+                                          <div className="text-[10px] text-slate-400 uppercase font-bold">{res.position}</div>
+                                      </div>
+                                      <span className="px-2 py-1 text-[10px] font-bold bg-red-100 text-red-600 rounded-lg uppercase">
+                                          Уволен {res.firedDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                                      </span>
+                                  </div>
+                                  <div className="space-y-1.5 text-xs border-t border-slate-100 pt-3">
+                                      <div className="flex justify-between">
+                                          <span className="text-slate-500">Смен в месяце увольнения</span>
+                                          <span className="font-bold text-slate-700">{res.shiftsWorked}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                          <span className="text-slate-500">Часов отработано</span>
+                                          <span className="font-bold text-slate-700">{parseFloat(res.hoursWorked.toFixed(1))}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                          <span className="text-slate-500">Начислено</span>
+                                          <span className="font-bold text-slate-700">{Math.round(res.totalEarned).toLocaleString()} ₽</span>
+                                      </div>
+                                      {res.advance > 0 && (
+                                          <div className="flex justify-between">
+                                              <span className="text-slate-500">Аванс</span>
+                                              <span className="font-bold text-orange-600">−{Math.round(res.advance).toLocaleString()} ₽</span>
+                                          </div>
+                                      )}
+                                      <div className="flex justify-between pt-2 border-t border-dashed border-slate-200">
+                                          <span className="font-bold text-slate-700">К выплате</span>
+                                          <span className="font-black text-lg text-emerald-600">{Math.round(res.toPay).toLocaleString()} ₽</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {(activeView === 'cards' ? activeResources : firedResources).map(res => (

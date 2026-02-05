@@ -64,11 +64,26 @@ export default function SalaryView({ resources, actions }) {
         // 1. Уволенных (показываем только если уволен ПОЗЖЕ текущего месяца или работает)
         // 2. Сотрудников с отключенной зарплатой (salaryEnabled === false)
         return resources.filter(r => {
-            // Проверка увольнения
-            const notFired = r.status !== 'fired' || (r.firedAt && new Date(r.firedAt) > currentDate);
             // Проверка включенного расчета зарплаты (по умолчанию true)
             const salaryEnabled = r.salaryEnabled !== false;
-            return notFired && salaryEnabled;
+            if (!salaryEnabled) return false;
+
+            // Проверка увольнения
+            if (r.status === 'fired') {
+                if (!r.firedAt) return false;
+                const firedDate = new Date(r.firedAt);
+                const now = new Date();
+                const cutoff = new Date(firedDate);
+                cutoff.setMonth(cutoff.getMonth() + 1);
+                // Не прошёл ли 1 месяц с увольнения
+                if (now > cutoff) return false;
+                // Просматриваемый месяц не позже месяца увольнения
+                const viewedMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                const firedMonthEnd = new Date(firedDate.getFullYear(), firedDate.getMonth() + 1, 0);
+                return viewedMonthEnd <= firedMonthEnd;
+            }
+
+            return true;
         }).map(res => {
             let totalBase = 0;
             let totalTb = 0;
@@ -103,6 +118,12 @@ export default function SalaryView({ resources, actions }) {
                 // Пропускаем будущие дни - учитываем только фактически отработанные
                 if (dateStr > todayStr) {
                     return;
+                }
+
+                // Пропускаем дни после увольнения
+                if (res.status === 'fired' && res.firedAt) {
+                    const firedDateStr = res.firedAt.split('T')[0];
+                    if (dateStr > firedDateStr) return;
                 }
 
                 const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
@@ -335,7 +356,7 @@ export default function SalaryView({ resources, actions }) {
                                 <tr
                                     key={row.id}
                                     onClick={() => setSelectedResource(row)}
-                                    className="hover:bg-orange-50/50 transition-colors cursor-pointer group"
+                                    className={`hover:bg-orange-50/50 transition-colors cursor-pointer group ${row.status === 'fired' ? 'bg-red-50/30' : ''}`}
                                 >
                                     <td className="p-3 font-bold text-slate-700">
                                         <div className="flex items-center gap-2">
@@ -343,7 +364,14 @@ export default function SalaryView({ resources, actions }) {
                                                 {row.name.charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="text-sm">{row.name}</div>
+                                                <div className="text-sm flex items-center gap-1.5">
+                                                    {row.name}
+                                                    {row.status === 'fired' && row.firedAt && (
+                                                        <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-100 text-red-600 rounded uppercase leading-none">
+                                                            Уволен {new Date(row.firedAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="text-[9px] text-slate-400 font-normal uppercase">{row.position}</div>
                                             </div>
                                         </div>
