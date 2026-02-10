@@ -175,6 +175,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 : 1;
             const visualWidth = calendarDuration;
 
+            // NEW: Calculate elapsed working hours for the order
+            const elapsedWorkDays = countWorkingDays(minStart, maxEnd);
+            const elapsedHours = elapsedWorkDays * 8; // Assuming 8 working hours per day
+
             const startOffset = Math.ceil((minStart - startDate) / (1000 * 60 * 60 * 24));
 
             return {
@@ -193,7 +197,7 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 deadline: order.deadline,
                 startDate: minStart,
                 endDate: maxEnd,
-                totalHours: orderTotalHours.toFixed(1),
+                totalHours: elapsedHours.toFixed(1), // Use elapsedHours instead of summed orderTotalHours
                 durationDays: visualWidth, // Ширина полоски = максимальная длительность изделия
                 startOffset,
                 children: children
