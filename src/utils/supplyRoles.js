@@ -24,7 +24,7 @@ export const SUPPLY_STATUSES = {
   paid: { label: 'Оплачено', color: 'bg-emerald-500', textColor: 'text-emerald-600', owner: 'supplier' },
   awaiting_delivery: { label: 'Снабжение — ожидает доставки', color: 'bg-cyan-500', textColor: 'text-cyan-600', owner: null },
   delivered: { label: 'Доставлено', color: 'bg-green-600', textColor: 'text-green-600', owner: null },
-  rejected: { label: 'Отклонено', color: 'bg-red-500', textColor: 'text-red-600', owner: null }
+  rejected: { label: 'Отклонено', color: 'bg-red-500', textColor: 'text-red-600', owner: 'supplier' }
 };
 
 // Единицы измерения

@@ -3,6 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, order
 import { db } from '../firebase';
 import { uploadInvoice, deleteInvoice } from '../utils/supabaseStorage';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
+import { getRoleLabel } from '../utils/supplyRoles';
 
 export const useSupplyRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -61,6 +62,7 @@ export const useSupplyRequests = () => {
         createdBy: data.createdBy || 'technologist',
         createdAt: now,
         updatedAt: now,
+        invoiceRequestCount: 1, // <--- NEW FIELD
         statusHistory: [{ status: 'with_supplier', timestamp: now, role: data.createdBy || 'technologist', note: data.comment ? `Заявка создана. Комментарий: ${data.comment}` : 'Заявка создана, передана снабженцу' }]
       });
 
@@ -134,8 +136,12 @@ export const useSupplyRequests = () => {
       showError('Сначала прикрепите счёт');
       return;
     }
+    const newInvoiceRequestCount = request.status === 'rejected' ? (request.invoiceRequestCount || 1) + 1 : (request.invoiceRequestCount || 1);
     await updateRequest(id, {
       status: 'pending_tech_approval',
+      rejectionReason: null, // Clear rejection reason
+      rejectedByRole: null,  // Clear rejected by role
+      invoiceRequestCount: newInvoiceRequestCount,
       statusHistory: addStatusHistory(request, 'pending_tech_approval', 'supplier', 'Отправлено на согласование технологу')
     });
     showSuccess('Заявка отправлена на согласование');
@@ -148,6 +154,9 @@ export const useSupplyRequests = () => {
       status: 'pending_shop_approval',
       'approvals.technologist': true,
       'approvals.technologistAt': Date.now(),
+      rejectionReason: null, // Clear rejection reason
+      rejectedByRole: null,  // Clear rejected by role
+      invoiceRequestCount: 1, // Reset count on approval
       statusHistory: addStatusHistory(request, 'pending_shop_approval', 'technologist', 'Технолог согласовал')
     });
     showSuccess('Согласовано');
@@ -160,6 +169,9 @@ export const useSupplyRequests = () => {
       status: 'pending_director_approval',
       'approvals.shopManager': true,
       'approvals.shopManagerAt': Date.now(),
+      rejectionReason: null, // Clear rejection reason
+      rejectedByRole: null,  // Clear rejected by role
+      invoiceRequestCount: 1, // Reset count on approval
       statusHistory: addStatusHistory(request, 'pending_director_approval', 'shopManager', 'Начальник цеха согласовал')
     });
     showSuccess('Согласовано');
@@ -172,6 +184,9 @@ export const useSupplyRequests = () => {
       status: 'pending_payment',
       'approvals.director': true,
       'approvals.directorAt': Date.now(),
+      rejectionReason: null, // Clear rejection reason
+      rejectedByRole: null,  // Clear rejected by role
+      invoiceRequestCount: 1, // Reset count on approval
       statusHistory: addStatusHistory(request, 'pending_payment', 'director', 'Директор согласовал, передано на оплату')
     });
     showSuccess('Согласовано');
@@ -225,7 +240,7 @@ export const useSupplyRequests = () => {
   const rejectRequest = async (id, role, reason) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-    const newStatus = 'invoice_attached';
+    const newStatus = 'rejected'; // Status is now 'rejected'
     const clearApprovals = {
       'approvals.technologist': false, 'approvals.technologistAt': null,
       'approvals.shopManager': false, 'approvals.shopManagerAt': null,
@@ -233,8 +248,10 @@ export const useSupplyRequests = () => {
     };
     await updateRequest(id, {
       status: newStatus,
+      rejectionReason: reason || 'Причина не указана', // Store rejection reason
+      rejectedByRole: role, // Store who rejected it
       ...clearApprovals,
-      statusHistory: addStatusHistory(request, newStatus, role, `Отклонено: ${reason || 'без причины'}`)
+      statusHistory: addStatusHistory(request, newStatus, role, `Отклонено (${getRoleLabel(role)}): ${reason || 'без причины'}`)
     });
     showSuccess('Заявка отклонена');
   };

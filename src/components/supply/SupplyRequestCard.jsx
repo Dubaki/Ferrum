@@ -1,9 +1,24 @@
 import { useMemo } from 'react';
 import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2 } from 'lucide-react';
-import { SUPPLY_STATUSES, getHoursUntilDeadline } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete }) {
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
+
+  // NEW: Dynamic status label calculation
+  const statusLabel = useMemo(() => {
+    if (request.status === 'rejected' && request.invoiceRequestCount) {
+      const count = request.invoiceRequestCount;
+      let countText = '';
+      if (count === 1) {
+        countText = 'повторный';
+      } else {
+        countText = `${count + 1}-й`;
+      }
+      return `Снабжение - ${countText} запрос счёта`;
+    }
+    return statusInfo.label;
+  }, [request.status, request.invoiceRequestCount, statusInfo.label]);
 
   const hoursUntilDeadline = getHoursUntilDeadline(request);
   const deadlineAlert = useMemo(() => {
@@ -46,9 +61,10 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
 
   return (
     <div
-      className={`bg-white rounded-lg border transition-all duration-150 active:scale-[0.99] cursor-pointer hover:border-slate-300 hover:shadow-sm`}
+      className={`bg-white rounded-lg border transition-all duration-150 active:scale-[0.99] cursor-pointer hover:border-slate-300 hover:shadow-sm relative`}
       onClick={onOpenDetails}
     >
+
       <div className="grid grid-cols-[auto_auto_minmax(0,1.5fr)_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-3 p-2">
         {/* Col 1: Status Indicator */}
         <span className={`w-1.5 h-8 rounded-full ${statusInfo.color} flex-shrink-0`}></span>
@@ -56,28 +72,40 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
         {/* Col 2: Request Number */}
         <div className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{request.requestNumber}</div>
         
-        {/* Col 3: Item Info (Flexible) */}
-        <div className="flex items-center gap-2 text-sm min-w-0">
-          {firstItem ? (
-            <>
-              <Package size={14} className="text-slate-400 flex-shrink-0" />
-              <span className="text-slate-700 truncate font-medium">{firstItem.title}</span>
-              {request.items.length > 1 && <span className="text-slate-400 text-xs whitespace-nowrap">+{request.items.length - 1}</span>}
-            </>
-          ) : (
-            <span className="text-slate-400 italic">Нет позиций</span>
-          )}
-        </div>
-
-        {/* Col 4: creatorComment (Flexible) - Made more visible */}
-        <div className="flex items-center gap-1.5 text-slate-700 min-w-0" title={request.creatorComment}>
-            {request.creatorComment && (
+        {/* Col 3 & 4: Item Info (Flexible) or Rejection Message */}
+        {request.status !== 'rejected' ? (
+          <>
+            {/* Original Col 3: Item Info (Flexible) */}
+            <div className="flex items-center gap-2 text-sm min-w-0">
+              {firstItem ? (
                 <>
-                    <MessageSquare size={14} className="flex-shrink-0" />
-                    <span className="truncate text-xs font-semibold">{request.creatorComment}</span>
+                  <Package size={14} className="text-slate-400 flex-shrink-0" />
+                  <span className="text-slate-700 truncate font-medium">{firstItem.title}</span>
+                  {request.items.length > 1 && <span className="text-slate-400 text-xs whitespace-nowrap">+{request.items.length - 1}</span>}
                 </>
+              ) : (
+                <span className="text-slate-400 italic">Нет позиций</span>
+              )}
+            </div>
+            {/* Original Col 4: creatorComment (Flexible) - Made more visible */}
+            <div className="flex items-center gap-1.5 text-slate-700 min-w-0" title={request.creatorComment}>
+                {request.creatorComment && (
+                    <>
+                        <MessageSquare size={14} className="flex-shrink-0" />
+                        <span className="truncate text-xs font-semibold">{request.creatorComment}</span>
+                    </>
+                )}
+            </div>
+          </>
+        ) : (
+          /* Replacement for Col 3 & 4 when rejected */
+          <div className="col-span-2 flex items-center justify-start bg-red-500 rounded px-2 py-1 text-white text-sm font-semibold whitespace-nowrap overflow-hidden">
+            ОТКЛОНЕНО: {request.rejectionReason}
+            {request.rejectedByRole && (
+              <span className="ml-1"> (Кем: {getRoleLabel(request.rejectedByRole)})</span>
             )}
-        </div>
+          </div>
+        )}
 
         {/* Col 5: Icons (Alerts) */}
         <div className="flex items-center justify-end gap-2">
@@ -122,7 +150,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
         {/* Col 8: Status Label */}
         <div className="text-right">
             <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${statusInfo.color} whitespace-nowrap`}>
-                {statusInfo.label}
+                {statusLabel}
             </span>
         </div>
 
