@@ -8,7 +8,7 @@ const tabs = [
   { path: '/products', label: 'Товары', icon: ShoppingBag },
   { path: '/shipping', label: 'Отгрузки', icon: Truck },
   { path: '/supply', label: 'Снабжение', icon: Package },
-  { path: '/workload', label: 'Загрузка', icon: Calendar },
+
   { path: '/resources', label: 'Цех', icon: Users },
   { path: '/gantt', label: 'Гант', icon: BarChart3 },
   { path: '/reports', label: 'Финансы', icon: FileText },

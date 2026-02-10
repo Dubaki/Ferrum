@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, PenTool, Truck, Flag, Star, Droplet, ShoppingBag } from 'lucide-react';
-import Heatmap from './Heatmap';
+
 
 const COL_WIDTH = 48;
 const SIDEBAR_WIDTH = 320;
 const ROW_HEIGHT = 50;
 
-function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand, onItemClick, onProductNameClick, heatmapData }) {
+function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand, onItemClick, onProductNameClick }) {
 
     // Собираем плоский список для рендера - ОПТИМИЗИРОВАНО с useMemo
     const visibleItems = useMemo(() => {
@@ -26,6 +26,11 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
         date.setHours(0, 0, 0, 0);
         return date;
     };
+
+    // Calculate today's line position dynamically
+    const today = useMemo(() => normalizeDate(new Date()), []);
+    const todayIndex = useMemo(() => calendarDays.findIndex(day => normalizeDate(day).getTime() === today.getTime()), [calendarDays, today]);
+    const todayLineLeft = useMemo(() => todayIndex !== -1 ? SIDEBAR_WIDTH + (todayIndex * COL_WIDTH) + (COL_WIDTH / 2) : -1, [todayIndex]);
 
     const getBarStyles = (item) => {
         const startOffset = Math.round((normalizeDate(item.startDate) - normalizeDate(startDate)) / (1000 * 60 * 60 * 24));
@@ -121,12 +126,14 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                 {/* 2. КОНТЕНТ */}
                 <div className="relative pb-24">
                     {/* Линия сегодня */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-20 pointer-events-none" style={{ left: SIDEBAR_WIDTH + (3 * COL_WIDTH) + (COL_WIDTH/2) }}></div>
+                    {todayLineLeft !== -1 && (
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-blue-500 z-20 pointer-events-none" style={{ left: todayLineLeft }}></div>
+                    )}
 
                     {/* Сетка и выходные */}
                     <div className="absolute inset-0 flex pointer-events-none" style={{ left: SIDEBAR_WIDTH }}>
                         {calendarDays.map((d, i) => (
-                            <div key={i} className={`h-full border-r border-slate-300/50 ${d.getDay()===0||d.getDay()===6 ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxwYXRoIGQ9Ik0xIDNMMCA0TDMgMkw0IDN6IiBmaWxsPSIjZmRhNGE1IiBmaWxsLW9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==")] bg-rose-50/20' : ''}`} style={{width: COL_WIDTH}}></div>
+                            <div key={i} className={`h-full border-r border-red-500 ${d.getDay()===0||d.getDay()===6 ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxwYXRoIGQ9Ik0xIDNMMCA0TDMgMkw0IDN6IiBmaWxsPSIjZmRhNGE1IiBmaWxsLW9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==")] bg-rose-50/20' : ''}`} style={{width: COL_WIDTH}}></div>
                         ))}
                     </div>
 
@@ -143,9 +150,8 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                         // Подсветка важного заказа
                         const isImportant = isOrder && item.isImportant;
                         const rowBg = isImportant
-                            ? 'bg-gradient-to-r from-amber-200 via-amber-100 to-amber-50 border-l-[8px] border-l-amber-500 shadow-[inset_0_0_20px_rgba(251,191,36,0.3)]'
+                            ? 'bg-gradient-to-r from-amber-200 via-amber-100 to-amber-50'
                             : (isOrder ? 'bg-white' : 'bg-slate-50');
-
                         return (
                             <div key={item.id} className={`flex border-b-2 border-slate-300 ${rowBg} hover:bg-slate-100 transition-colors relative group`} style={{ height: ROW_HEIGHT }}>
 
@@ -156,6 +162,9 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                                     style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}
                                     onClick={() => isOrder ? onToggleExpand(item.id) : onProductNameClick && onProductNameClick(item)}
                                 >
+                                    {isImportant && (
+                                        <div className="absolute left-0 top-0 bottom-0 w-2 bg-amber-500"></div>
+                                    )}
                                     {isOrder ? (
                                         <div className="flex items-center w-full pl-3 gap-2">
                                             <button className="p-1.5 mr-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors">
@@ -188,6 +197,20 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                                 </div>
 
                                 <div className="flex-1 relative">
+                                    {/* Построчная сетка */}
+                                    {calendarDays.map((d, i) => {
+                                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                                        return (
+                                            <div
+                                                key={`grid-${item.id}-${i}`}
+                                                className={`absolute top-0 bottom-0 border-r border-slate-400 pointer-events-none ${isWeekend ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5uY29tL3N2ZyIgd2lkdGg9IjQiIGhlaWdodD0iNCI+PHBhdGggZD0iTTEgM0wwIDRMMyAyTDQgM3oiIGZpbGllPSIjZmRhNGE1IiBmaWxsLW9wYWFjaXR5PSIwLjIiLz48L3N2Zz4=")] bg-rose-50/20' : ''}`}
+                                                style={{ left: i * COL_WIDTH, width: COL_WIDTH }}
+                                            ></div>
+                                        );
+                                    })}
+
+
+
                                     {/* Маркеры */}
                                     {drawLeft !== null && (
                                         <div className="absolute top-1/2 -translate-y-1/2 z-30 flex flex-col items-center group/marker" style={{ left: drawLeft }} title={`КМД: ${new Date(item.drawingsDeadline).toLocaleDateString()}`}>
@@ -251,14 +274,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
                     })}
                 </div>
 
-                {/* 3. ПОДВАЛ (HEATMAP) */}
-                <div className="sticky bottom-0 z-[100] flex h-16 bg-white border-t-2 border-slate-400 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-                    <div className="sticky left-0 z-[101] bg-gradient-to-br from-slate-100 to-slate-50 border-r-2 border-slate-300 flex flex-col items-center justify-center font-black text-xs text-slate-500 uppercase tracking-widest px-4" style={{ width: SIDEBAR_WIDTH, minWidth: SIDEBAR_WIDTH }}>
-                        <div>Загрузка</div>
-                        <div className="text-[10px] opacity-70">цеха</div>
-                    </div>
-                    <Heatmap calendarDays={calendarDays} heatmapData={heatmapData} />
-                </div>
+
 
             </div>
         </div>

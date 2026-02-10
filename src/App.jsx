@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
-import { useSimulation } from './hooks/useSimulation';
+
 import { useSupplyRequests } from './hooks/useSupplyRequests';
 import { getRoleLabel } from './utils/supplyRoles';
 
@@ -10,7 +10,7 @@ import Header from './components/Header';
 import ResourcesTab from './components/ResourcesTab';
 import GanttTab from './components/GanttTab';
 import ReportsTab from './components/ReportsTab';
-import WorkloadTab from './components/WorkloadTab';
+
 import ShippingTab from './components/ShippingTab';
 import PlanningTab from './components/planning/PlanningTab';
 import ProductsTab from './components/ProductsTab';
@@ -49,7 +49,7 @@ function AccessDenied({ navigate }) {
 
 export default function App() {
   const { resources, products, orders, reports, loading, actions } = useProductionData();
-  const { ganttItems, globalTimeline, dailyAllocations } = useSimulation(products, resources, orders);
+
   const { requests: supplyRequests, hasSupplyAlert, actions: supplyActions } = useSupplyRequests();
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
   const [userRole, setUserRole] = useState(() => {
@@ -195,7 +195,6 @@ export default function App() {
                 resources={resources}
                 orders={orders}
                 actions={actions}
-                ganttItems={ganttItems}
                 isAdmin={isAdmin}
                 canManageDrawings={canManageDrawings}
               />
@@ -210,7 +209,6 @@ export default function App() {
                   resources={resources}
                   orders={orders}
                   actions={actions}
-                  ganttItems={ganttItems}
                   isAdmin={isAdmin}
                 />
               ) : (
@@ -245,22 +243,7 @@ export default function App() {
               />
             }
           />
-          <Route
-            path="/workload"
-            element={
-              isAdmin ? (
-                <WorkloadTab
-                  resources={resources}
-                  globalTimeline={globalTimeline}
-                  dailyAllocations={dailyAllocations}
-                  products={products}
-                  orders={orders}
-                />
-              ) : (
-                <AccessDenied navigate={navigate} />
-              )
-            }
-          />
+
           <Route
             path="/resources"
             element={

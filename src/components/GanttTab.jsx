@@ -4,7 +4,7 @@ import GanttChart from './gantt/GanttChart';
 import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, Timer, Target, Loader } from 'lucide-react';
 
 export default function GanttTab({ products, resources, orders, actions }) {
-    const { calendarDays, heatmapData, ganttRows, startDate } = useGanttData(orders, products, resources);
+    const { calendarDays, ganttRows, startDate } = useGanttData(orders, products, resources);
     
     const [selectedItem, setSelectedItem] = useState(null); 
     const [newDateValue, setNewDateValue] = useState('');
@@ -38,18 +38,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
         }
     }, [actions]);
 
-    // --- DEBUG: Логирование загрузки цеха ---
-    React.useEffect(() => {
-        if (heatmapData && heatmapData.length > 0) {
-            const overloaded = heatmapData.find(d => d.percent > 100);
-            if (overloaded) {
-                console.group('🔥 Диагностика загрузки цеха (>100%)');
-                console.log('Найден день с перегрузкой:', overloaded);
-                console.log('Формула: (Минуты работы / Минуты ресурса) * 100');
-                console.groupEnd();
-            }
-        }
-    }, [heatmapData]);
+
 
     const toggleExpand = (id) => {
         setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -224,7 +213,6 @@ export default function GanttTab({ products, resources, orders, actions }) {
                     onToggleExpand={toggleExpand}
                     onItemClick={handleOpenModal}
                     onProductNameClick={handleOpenModal}
-                    heatmapData={heatmapData}
                 />
             </div>
 

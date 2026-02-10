@@ -59,80 +59,7 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
         });
     }, [daysToRender, startDate]);
 
-    // 2. Расчет загрузки (Heatmap)
-    const heatmapData = useMemo(() => {
-        const map = {};
-        // Учитываем только активных сотрудников (не уволенных)
-        const activeResources = resources.filter(r => !r.firedAt);
-        const dailyCapacity = activeResources.reduce((sum, r) => sum + (parseFloat(r.hoursPerDay) || 8), 0);
 
-        calendarDays.forEach(date => {
-            const dateStr = date.toISOString().split('T')[0];
-            map[dateStr] = { capacity: dailyCapacity, booked: 0, percent: 0 };
-        });
-
-        // НОВАЯ ЛОГИКА: Учитываем даты операций и назначенных исполнителей
-        products.forEach(p => {
-            // Пропускаем товары для перепродажи и неактивные изделия
-            if (p.isResale === true || p.status !== 'active') return;
-
-            const ops = p.operations || [];
-            const quantity = p.quantity || 1;
-
-            ops.forEach(op => {
-                // Пропускаем операции без назначенных исполнителей
-                if (!op.resourceIds || op.resourceIds.length === 0) return;
-
-                // Пропускаем операции без дат
-                if (!op.startDate) return;
-
-                const opMinutes = parseFloat(op.minutesPerUnit) || 0;
-                if (opMinutes <= 0) return;
-
-                // Общее время операции на всю партию
-                const totalOpHours = (opMinutes * quantity) / 60;
-
-                // Время на каждого исполнителя (делим поровну)
-                const hoursPerResource = totalOpHours / op.resourceIds.length;
-
-                // Определяем период распределения
-                let opStart = new Date(op.startDate);
-                let opEnd = op.endDate ? new Date(op.endDate) : new Date(op.startDate);
-
-                // Считаем рабочие дни в периоде
-                const workDays = countWorkingDays(opStart, opEnd);
-
-                // Распределяем часы равномерно по рабочим дням
-                const hoursPerDay = hoursPerResource / Math.max(1, workDays);
-
-                let currentDate = new Date(opStart);
-                let loopGuard = 0;
-
-                while (currentDate <= opEnd && loopGuard < 365) {
-                    const dStr = currentDate.toISOString().split('T')[0];
-                    const dayOfWeek = currentDate.getDay();
-
-                    // Учитываем только рабочие дни
-                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                        if (map[dStr]) {
-                            map[dStr].booked += hoursPerDay;
-                        }
-                    }
-
-                    currentDate.setDate(currentDate.getDate() + 1);
-                    loopGuard++;
-                }
-            });
-        });
-
-        Object.keys(map).forEach(key => {
-            map[key].percent = map[key].capacity > 0
-                ? Math.round((map[key].booked / map[key].capacity) * 100)
-                : 0;
-        });
-
-        return map;
-    }, [products, resources, calendarDays]); // calendarDays теперь мемоизирован, поэтому безопасно
 
     // 3. Структура для Ганта
     const ganttRows = useMemo(() => {
@@ -275,5 +202,5 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
 
     }, [orders, products, startDate]);
 
-    return { calendarDays, heatmapData, ganttRows, startDate };
+    return { calendarDays, ganttRows, startDate };
 };
