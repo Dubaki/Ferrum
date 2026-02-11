@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { uploadInvoice, deleteInvoice } from '../utils/supabaseStorage';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
 import { getRoleLabel } from '../utils/supplyRoles';
+import { notifyRoles, buildNotificationMessage } from '../utils/telegramNotify';
 
 export const useSupplyRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -67,6 +68,10 @@ export const useSupplyRequests = () => {
       });
 
       showSuccess(`Заявка ${requestNumber} создана`);
+
+      const createdRequest = { requestNumber, items: data.items || [] };
+      notifyRoles(['supplier'], buildNotificationMessage(createdRequest, 'created'));
+
       return requestNumber;
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
@@ -115,12 +120,13 @@ export const useSupplyRequests = () => {
 
     try {
       const result = await uploadInvoice(file, request.requestNumber);
+      console.log('attachInvoice: Request ID:', id, 'New status: invoice_attached'); // Add this line
       await updateRequest(id, {
-        status: 'invoice_attached',
+        status: request.status === 'rejected' ? 'pending_tech_approval' : 'invoice_attached',
         invoiceFile: result.url,
         invoiceFileName: result.name,
         invoicePath: result.path,
-        statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}`)
+        statusHistory: addStatusHistory(request, request.status === 'rejected' ? 'pending_tech_approval' : 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}${request.status === 'rejected' ? ', отправлено на повторное согласование' : ''}`)
       });
       showSuccess('Счёт прикреплён');
     } catch (error) {
@@ -145,6 +151,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'pending_tech_approval', 'supplier', 'Отправлено на согласование технологу')
     });
     showSuccess('Заявка отправлена на согласование');
+    notifyRoles(['technologist'], buildNotificationMessage(request, 'submitted_for_approval'));
   };
 
   const approveTechnologist = async (id) => {
@@ -160,6 +167,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'pending_shop_approval', 'technologist', 'Технолог согласовал')
     });
     showSuccess('Согласовано');
+    notifyRoles(['shopManager'], buildNotificationMessage(request, 'approved_technologist'));
   };
 
   const approveShopManager = async (id) => {
@@ -175,6 +183,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'pending_director_approval', 'shopManager', 'Начальник цеха согласовал')
     });
     showSuccess('Согласовано');
+    notifyRoles(['director'], buildNotificationMessage(request, 'approved_shop_manager'));
   };
 
   const approveDirector = async (id) => {
@@ -190,6 +199,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'pending_payment', 'director', 'Директор согласовал, передано на оплату')
     });
     showSuccess('Согласовано');
+    notifyRoles(['accountant'], buildNotificationMessage(request, 'approved_director'));
   };
 
   const markPaid = async (id) => {
@@ -202,6 +212,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'paid', 'accountant', 'Оплачено')
     });
     showSuccess('Оплата подтверждена');
+    notifyRoles(['supplier'], buildNotificationMessage(request, 'paid'));
   };
 
   const setDeliveryDate = async (id, date) => {
@@ -213,6 +224,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'awaiting_delivery', 'supplier', `Срок доставки: ${date}`)
     });
     showSuccess('Срок доставки установлен');
+    notifyRoles(['shopManager', 'master', 'technologist'], buildNotificationMessage(request, 'delivery_date_set', { date }));
   };
 
   const markDelivered = async (id) => {
@@ -235,6 +247,8 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'delivered', 'supplier', 'Доставлено')
     });
     showSuccess('Доставка подтверждена');
+    const createdByRole = request.createdBy || 'technologist';
+    notifyRoles([createdByRole], buildNotificationMessage(request, 'delivered'));
   };
 
   const rejectRequest = async (id, role, reason) => {
@@ -254,6 +268,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, newStatus, role, `Отклонено (${getRoleLabel(role)}): ${reason || 'без причины'}`)
     });
     showSuccess('Заявка отклонена');
+    notifyRoles(['supplier'], buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
   const detachInvoice = async (id) => {
@@ -262,13 +277,16 @@ export const useSupplyRequests = () => {
     if (!request.invoicePath) throw new Error('Счет не прикреплен');
 
     try {
+      console.log('detachInvoice called for request ID:', id, 'Current status:', request.status);
       await deleteInvoice(request.invoicePath); // Удаляем файл из Supabase Storage
       await updateRequest(id, {
         invoiceFile: null,
         invoiceFileName: null,
         invoicePath: null,
-        statusHistory: addStatusHistory(request, request.status, 'supplier', 'Счёт откреплён') // Статус не меняем, просто логируем
+        status: 'with_supplier', // Возвращаем в статус ожидания счета
+        statusHistory: addStatusHistory(request, 'with_supplier', 'supplier', 'Счёт откреплён, ожидается новый счёт')
       });
+      console.log('Request ID:', id, 'Status updated to with_supplier');
       showSuccess('Счёт откреплён');
     } catch (error) {
       console.error('detachInvoice error:', error);

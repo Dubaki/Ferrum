@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
@@ -13,29 +13,40 @@ export const useProductionData = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubResources = onSnapshot(collection(db, 'resources'), (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setResources(list.sort((a,b) => a.name.localeCompare(b.name)));
-    });
-    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProducts(list);
-    });
-    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(list.sort((a,b) => b.createdAt - a.createdAt));
-    });
-    const unsubReports = onSnapshot(collection(db, 'reports'), (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setReports(list.sort((a,b) => b.createdAt - a.createdAt)); 
-      setLoading(false);
-    });
-    return () => { unsubResources(); unsubProducts(); unsubOrders(); unsubReports(); };
+    const unsubscribes = [];
+
+    const createSnapshotPromise = (collectionName, setState, sortFn = null) => {
+      return new Promise(resolve => {
+        const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
+          const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setState(sortFn ? list.sort(sortFn) : list);
+          resolve(); // Resolve the promise on the first snapshot
+        });
+        unsubscribes.push(unsubscribe); // Add unsubscribe to the list
+      });
+    };
+
+    const resourcePromise = createSnapshotPromise('resources', setResources, (a,b) => a.name.localeCompare(b.name));
+    const productsPromise = createSnapshotPromise('products', setProducts);
+    const ordersPromise = createSnapshotPromise('orders', setOrders, (a,b) => b.createdAt - a.createdAt);
+    const reportsPromise = createSnapshotPromise('reports', setReports, (a,b) => b.createdAt - a.createdAt);
+
+    Promise.all([resourcePromise, productsPromise, ordersPromise, reportsPromise])
+      .then(() => setLoading(false))
+      .catch(error => {
+        console.error("Error loading initial data:", error);
+        showError("Ошибка при загрузке данных.");
+        setLoading(false); // Ensure loading is false even on error
+      });
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub()); // Unsubscribe all listeners
+    };
   }, []);
 
   // --- Actions ---
 
-  const addOrder = async (data) => {
+  const addOrder = useCallback(async (data) => {
     try {
       const now = Date.now();
       await addDoc(collection(db, 'orders'), {
@@ -58,9 +69,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const updateOrder = async (id, field, value) => {
+  const updateOrder = useCallback(async (id, field, value) => {
     try {
       if (field === 'customStatus') {
         const order = orders.find(o => o.id === id);
@@ -76,9 +87,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [orders, showError, getFirebaseErrorMessage, db]);
 
-  const finishOrder = async (id) => {
+  const finishOrder = useCallback(async (id) => {
     try {
       const orderProducts = products.filter(p => p.orderId === id);
       const incompleteOperations = [];
@@ -100,9 +111,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, showSuccess, getFirebaseErrorMessage, db]);
 
-  const restoreOrder = async (id) => {
+  const restoreOrder = useCallback(async (id) => {
     try {
       await updateDoc(doc(db, 'orders', id), { status: 'active', finishedAt: null, shippedAt: null });
       showSuccess('Заказ восстановлен');
@@ -110,12 +121,12 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // --- ОТГРУЗКИ ---
 
   // Переместить заказ в раздел отгрузок
-  const moveToShipping = async (id) => {
+  const moveToShipping = useCallback(async (id) => {
     try {
       // Помечаем заказ как в отгрузке
       await updateDoc(doc(db, 'orders', id), {
@@ -148,10 +159,10 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Вернуть заказ из отгрузок в заказы
-  const returnFromShipping = async (id) => {
+  const returnFromShipping = useCallback(async (id) => {
     try {
       await updateDoc(doc(db, 'orders', id), {
         inShipping: false,
@@ -162,10 +173,10 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Отметить/снять отметку "отгрузка сегодня"
-  const toggleShippingToday = async (id) => {
+  const toggleShippingToday = useCallback(async (id) => {
     try {
       const order = orders.find(o => o.id === id);
       if (!order) return;
@@ -176,9 +187,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [orders, showError, getFirebaseErrorMessage, db]);
 
-  const completeShipping = async (id) => {
+  const completeShipping = useCallback(async (id) => {
     try {
       const order = orders.find(o => o.id === id);
       const updates = {
@@ -213,9 +224,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [orders, deleteDrawing, showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const deleteOrder = async (id) => {
+  const deleteOrder = useCallback(async (id) => {
     try {
       await deleteDoc(doc(db, 'orders', id));
       showSuccess('Заказ удалён');
@@ -223,7 +234,7 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // --- ЧЕРТЕЖИ (Cloudinary) ---
 
@@ -246,7 +257,7 @@ export const useProductionData = () => {
   };
 
   // Добавить чертёж к заказу (метаданные)
-  const addDrawingToOrder = async (orderId, drawingData) => {
+  const addDrawingToOrder = useCallback(async (orderId, drawingData) => {
     try {
       const order = orders.find(o => o.id === orderId);
       if (!order) return;
@@ -263,10 +274,10 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [orders, cleanUndefined, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Удалить чертёж (пометить как deleted)
-  const deleteDrawingFromOrder = async (orderId, filePath) => {
+  const deleteDrawingFromOrder = useCallback(async (orderId, filePath) => {
     try {
       const order = orders.find(o => o.id === orderId);
       if (!order) return;
@@ -282,10 +293,10 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [orders, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // --- ПРОДУКТЫ ---
-  const addProduct = async (orderId = null, initialDate = null) => {
+  const addProduct = useCallback(async (orderId = null, initialDate = null) => {
     try {
       const startDate = initialDate || formatDate(new Date());
       const docRef = await addDoc(collection(db, 'products'), {
@@ -302,10 +313,10 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [formatDate, showError, getFirebaseErrorMessage, db]);
 
   // Пакетное добавление из пресетов
-  const addProductsBatch = async (orderId, presetItems) => {
+  const addProductsBatch = useCallback(async (orderId, presetItems) => {
     try {
       const startDate = formatDate(new Date());
 
@@ -335,18 +346,18 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [formatDate, showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const updateProduct = async (id, field, value) => {
+  const updateProduct = useCallback(async (id, field, value) => {
     try {
       await updateDoc(doc(db, 'products', id), { [field]: value });
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showError, getFirebaseErrorMessage, db]);
 
-  const deleteProduct = async (id) => {
+  const deleteProduct = useCallback(async (id) => {
     try {
       await deleteDoc(doc(db, 'products', id));
       showSuccess('Изделие удалено');
@@ -354,9 +365,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const copyOperationsToAll = async (sourceProductId) => {
+  const copyOperationsToAll = useCallback(async (sourceProductId) => {
     try {
       const sourceProduct = products.find(p => p.id === sourceProductId);
       if (!sourceProduct || !sourceProduct.operations.length) {
@@ -385,9 +396,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, showSuccess, getFirebaseErrorMessage, db]);
 
-  const addOperation = async (productId, initialName = 'Новая операция') => {
+  const addOperation = useCallback(async (productId, initialName = 'Новая операция') => {
     try {
       const product = products.find(p => p.id === productId);
       if (!product) return;
@@ -405,9 +416,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, getFirebaseErrorMessage, db]);
 
-  const updateOperation = async (productId, opId, field, value) => {
+  const updateOperation = useCallback(async (productId, opId, field, value) => {
     try {
       const product = products.find(p => p.id === productId);
       if (!product) return;
@@ -417,9 +428,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, getFirebaseErrorMessage, db]);
 
-  const toggleResourceForOp = async (productId, opId, resourceId) => {
+  const toggleResourceForOp = useCallback(async (productId, opId, resourceId) => {
     try {
       const product = products.find(p => p.id === productId);
       if (!product) return;
@@ -433,9 +444,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, getFirebaseErrorMessage, db]);
 
-  const deleteOperation = async (productId, opId) => {
+  const deleteOperation = useCallback(async (productId, opId) => {
     try {
       const product = products.find(p => p.id === productId);
       if (!product) return;
@@ -445,9 +456,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, getFirebaseErrorMessage, db]);
 
-  const moveOperationUp = async (productId, opId) => {
+  const moveOperationUp = useCallback(async (productId, opId) => {
     try {
       console.log('moveOperationUp called', { productId, opId });
       const product = products.find(p => p.id === productId);
@@ -483,9 +494,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, getFirebaseErrorMessage, db]);
 
-  const moveOperationDown = async (productId, opId) => {
+  const moveOperationDown = useCallback(async (productId, opId) => {
     try {
       console.log('moveOperationDown called', { productId, opId });
       const product = products.find(p => p.id === productId);
@@ -521,10 +532,10 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [products, showError, getFirebaseErrorMessage, db]);
 
   // --- Resources ---
-  const addResource = async (data) => {
+  const addResource = useCallback(async (data) => {
     try {
       await addDoc(collection(db, 'resources'), {
         name: data.name || 'Новый',
@@ -549,9 +560,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const updateResource = async (id, field, value) => {
+  const updateResource = useCallback(async (id, field, value) => {
     try {
       const res = resources.find(r => r.id === id);
       const updates = { [field]: value };
@@ -589,9 +600,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [resources, showError, getFirebaseErrorMessage, db]);
 
-  const updateResourceSchedule = async (id, dateStr, hours, type = null) => {
+  const updateResourceSchedule = useCallback(async (id, dateStr, hours, type = null) => {
     try {
       const res = resources.find(r => r.id === id);
       if (!res) return;
@@ -606,9 +617,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [resources, showError, getFirebaseErrorMessage, db]);
 
-  const updateResourceEfficiency = async (id, dateStr, percent) => {
+  const updateResourceEfficiency = useCallback(async (id, dateStr, percent) => {
     try {
       const res = resources.find(r => r.id === id);
       if (!res) return;
@@ -619,9 +630,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [resources, showError, getFirebaseErrorMessage, db]);
 
-  const updateResourceSafety = async (id, dateStr, violationData) => {
+  const updateResourceSafety = useCallback(async (id, dateStr, violationData) => {
     try {
       const res = resources.find(r => r.id === id);
       if (!res) return;
@@ -634,9 +645,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [resources, showError, getFirebaseErrorMessage, db]);
 
-  const fireResource = async (id) => {
+  const fireResource = useCallback(async (id) => {
     try {
       await updateDoc(doc(db, 'resources', id), { status: 'fired', firedAt: new Date().toISOString() });
       showSuccess('Сотрудник уволен');
@@ -644,9 +655,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const deleteResource = async (id) => {
+  const deleteResource = useCallback(async (id) => {
     try {
       await deleteDoc(doc(db, 'resources', id));
       showSuccess('Сотрудник удалён');
@@ -654,9 +665,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const addReport = async (data) => {
+  const addReport = useCallback(async (data) => {
     try {
       await addDoc(collection(db, 'reports'), data);
       showSuccess('Отчёт сохранён');
@@ -664,9 +675,9 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const deleteReport = async (id) => {
+  const deleteReport = useCallback(async (id) => {
     try {
       await deleteDoc(doc(db, 'reports', id));
       showSuccess('Отчёт удалён');
@@ -674,20 +685,34 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  };
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
+
+  const memoizedActions = useMemo(() => ({
+    addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
+    moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
+    addDrawingToOrder, deleteDrawingFromOrder,
+    addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
+    addOperation, updateOperation, toggleResourceForOp, deleteOperation,
+    moveOperationUp, moveOperationDown,
+    addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
+    fireResource, deleteResource, addReport, deleteReport
+  }), [
+    addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
+    moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
+    addDrawingToOrder, deleteDrawingFromOrder,
+    addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
+    addOperation, updateOperation, toggleResourceForOp, deleteOperation,
+    moveOperationUp, moveOperationDown,
+    addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
+    fireResource, deleteResource, addReport, deleteReport
+  ]);
 
   return {
-    resources, setResources: updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
-    products, setProducts, orders, setOrders: updateOrder, reports, setReports: addReport, loading,
-    actions: {
-        addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
-        moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
-        addDrawingToOrder, deleteDrawingFromOrder,
-        addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
-        addOperation, updateOperation, toggleResourceForOp, deleteOperation,
-        moveOperationUp, moveOperationDown,
-        addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
-        fireResource, deleteResource, addReport, deleteReport
-    }
+    resources, setResources,
+    products, setProducts,
+    orders, setOrders,
+    reports, setReports,
+    loading,
+    actions: memoizedActions
   };
 };

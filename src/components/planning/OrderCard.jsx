@@ -13,7 +13,8 @@ const OrderCard = memo(function OrderCard({
     onAddProduct, // Функция добавления изделия
     onCopyFromArchive, // Функция копирования из архива
     isAdmin, // Права админа
-    canManageDrawings // Права на управление чертежами (админ + технолог)
+    canManageDrawings, // Права на управление чертежами (админ + технолог)
+    userRole // Добавляем userRole
 }) {
     const orderPositions = useMemo(() => products.filter(p => p.orderId === order.id), [products, order.id]);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
@@ -594,7 +595,7 @@ const OrderCard = memo(function OrderCard({
                     )}
 
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
-                    {isAdmin && (
+                    {(isAdmin || userRole === 'manager') && (
                     <div className="mt-3 flex flex-col sm:flex-row gap-2">
                         <button
                             onClick={() => onAddProduct(order)}

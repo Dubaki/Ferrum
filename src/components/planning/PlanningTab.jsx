@@ -8,7 +8,7 @@ import NewOrderModal from './NewOrderModal';
 import AddProductModal from './AddProductModal';
 import CopyFromArchiveModal from './CopyFromArchiveModal'; 
 
-export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, canManageDrawings }) {
+export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, canManageDrawings, userRole }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
   const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
@@ -109,7 +109,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                  />
              </div>
 
-             {isAdmin && (
+             {(isAdmin || userRole === 'manager') && (
                  <button 
                     onClick={() => setIsCreating(true)} 
                     className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-xs"
@@ -137,12 +137,12 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 canManageDrawings={canManageDrawings}
                 openExecutorDropdown={openExecutorDropdown}
                 setOpenExecutorDropdown={setOpenExecutorDropdown}
-
                 isStatusMenuOpen={openStatusMenuId === order.id}
                 onToggleStatusMenu={handleToggleStatusMenu}
                 onOpenSettings={handleOpenSettings}
                 onAddProduct={handleAddProduct}
                 onCopyFromArchive={handleCopyFromArchiveOrder}
+                userRole={userRole}
             />
         ))}
         {activeOrders.length === 0 && <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-300 rounded-xl">Список пуст</div>}
@@ -183,12 +183,12 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
       {/* Модалка настроек заказа */}
       {settingsOrder && (
-          <OrderSettingsModal 
-              order={settingsOrder} 
-              onClose={() => setSettingsOrder(null)} 
-              actions={actions} 
-          />
-      )}
+                    <OrderSettingsModal
+                        order={settingsOrder}
+                        onClose={() => setSettingsOrder(null)}
+                        actions={actions}
+                        userRole={userRole}
+                    />      )}
 
       {/* Модалка добавления изделия */}
       {addingProductToOrder && (

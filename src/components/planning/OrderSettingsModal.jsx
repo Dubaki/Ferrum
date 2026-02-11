@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Settings, Trash2, Save, PenTool, Truck, Droplet } from 'lucide-react';
 
-export default function OrderSettingsModal({ order, onClose, actions }) {
+export default function OrderSettingsModal({ order, onClose, actions, userRole }) {
     const [formData, setFormData] = useState({
         orderNumber: order.orderNumber || '',
         clientName: order.clientName || '',
@@ -133,14 +133,15 @@ export default function OrderSettingsModal({ order, onClose, actions }) {
                     </div>
 
                     <div className="pt-4 flex gap-3 mt-4 border-t border-slate-100">
-                        <button 
-                            onClick={() => { if(confirm("Удалить заказ полностью?")) { actions.deleteOrder(order.id); onClose(); }}} 
-                            className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition bg-slate-50 border border-transparent hover:border-red-100" 
-                            title="Удалить заказ"
-                        >
-                            <Trash2 size={20}/>
-                        </button>
-                        <button 
+                                            {userRole !== 'manager' && (
+                                                <button
+                                                    onClick={() => { if(confirm("Удалить заказ полностью?")) { actions.deleteOrder(order.id); onClose(); }}}
+                                                    className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition bg-slate-50 border border-transparent hover:border-red-100"
+                                                    title="Удалить заказ"
+                                                >
+                                                    <Trash2 size={20}/>
+                                                </button>
+                                            )}                        <button 
                             onClick={handleSave} 
                             className="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-orange-600 transition shadow-lg flex justify-center gap-2 active:scale-95"
                         >

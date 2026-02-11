@@ -128,6 +128,7 @@ export const STATUS_DEADLINES = {
   pending_director_approval: 4, // Директор: 4 часа
   pending_payment: 2, // Бухгалтер: 2 часа (срочно)
   paid: 8, // Снабженец: 8 часов на назначение срока доставки
+  rejected: 24, // Снабженец: 24 часа на повторное прикрепление счета после отклонения
   awaiting_delivery: null // Зависит от deliveryDate
 };
 
