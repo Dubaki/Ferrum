@@ -2,9 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import { getRoleLabel } from './supplyRoles';
 
 /**
- * Supabase-клиент для вызова Edge Functions
+ * Supabase-клиент (синглтон) для вызова Edge Functions
  */
+let _supabase = null;
 const getSupabaseClient = () => {
+  if (_supabase) return _supabase;
+
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -12,7 +15,8 @@ const getSupabaseClient = () => {
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  _supabase = createClient(supabaseUrl, supabaseKey);
+  return _supabase;
 };
 
 /**
@@ -51,15 +55,26 @@ export const buildNotificationMessage = (request, statusKey, extra = {}) => {
 export const notifyRoles = (roles, message) => {
   try {
     const supabase = getSupabaseClient();
-    if (!supabase) return;
+    if (!supabase) {
+      console.warn('[TG-Notify] Supabase client not created — check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+      return;
+    }
+
+    console.log(`[TG-Notify] Sending to roles: [${roles.join(', ')}]`, { message: message.substring(0, 80) + '...' });
 
     // Fire-and-forget: не ждём ответа, не блокируем UI
     supabase.functions.invoke('telegram-notify', {
       body: { roles, message },
+    }).then(({ data, error }) => {
+      if (error) {
+        console.error('[TG-Notify] Edge Function error:', error);
+      } else {
+        console.log('[TG-Notify] Response:', data);
+      }
     }).catch(err => {
-      console.warn('Telegram notify failed (non-blocking):', err);
+      console.error('[TG-Notify] Network/invoke error:', err);
     });
   } catch (err) {
-    console.warn('Telegram notify setup failed:', err);
+    console.warn('[TG-Notify] Setup failed:', err);
   }
 };

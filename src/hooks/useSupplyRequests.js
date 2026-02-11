@@ -177,7 +177,7 @@ export const useSupplyRequests = () => {
   const submitForApproval = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-    if (!request.invoiceFile) {
+    if (!request.invoices || request.invoices.length === 0) {
       showError('Сначала прикрепите счёт');
       return;
     }
