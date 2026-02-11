@@ -13,7 +13,26 @@ export const useSupplyRequests = () => {
   useEffect(() => {
     const q = query(collection(db, 'supplyRequests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const list = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Адаптация старых заявок к новой структуре с несколькими счетами
+        if (!data.invoices && data.invoiceFile) {
+          data.invoices = [{
+            url: data.invoiceFile,
+            name: data.invoiceFileName || 'Счёт',
+            path: data.invoicePath || 'legacy-path', // Временно, если path не сохранялся
+            uploadedAt: data.updatedAt || Date.now(),
+            uploadedBy: 'legacy'
+          }];
+          // Очищаем старые поля, чтобы не было дублирования и путаницы
+          delete data.invoiceFile;
+          delete data.invoiceFileName;
+          delete data.invoicePath;
+        } else if (!data.invoices) {
+          data.invoices = []; // Убедимся, что invoices всегда массив
+        }
+        return { id: doc.id, ...data };
+      });
       setRequests(list);
       setLoading(false);
     }, (error) => {
@@ -49,9 +68,7 @@ export const useSupplyRequests = () => {
         creatorComment: data.comment || '', // <-- Added comment field
         desiredDate: data.desiredDate || null,
         status: 'with_supplier',
-        invoiceFile: null,
-        invoiceFileName: null,
-        invoicePath: null,
+        invoices: [], // Массив для хранения нескольких счетов
         approvals: {
           technologist: false, technologistAt: null,
           shopManager: false, shopManagerAt: null,
@@ -94,11 +111,21 @@ export const useSupplyRequests = () => {
   const deleteRequest = async (id) => {
     try {
       const request = requests.find(r => r.id === id);
+      if (request?.invoices && request.invoices.length > 0) {
+        for (const invoice of request.invoices) {
+          try {
+            await deleteInvoice(invoice.path);
+          } catch (e) {
+            console.warn('Could not delete invoice file:', e);
+          }
+        }
+      }
+      // Также удаляем старые одиночные поля, если они существуют (для обратной совместимости)
       if (request?.invoicePath) {
         try {
           await deleteInvoice(request.invoicePath);
         } catch (e) {
-          console.warn('Could not delete invoice file:', e);
+          console.warn('Could not delete legacy invoice file:', e);
         }
       }
       await deleteDoc(doc(db, 'supplyRequests', id));
@@ -121,11 +148,23 @@ export const useSupplyRequests = () => {
     try {
       const result = await uploadInvoice(file, request.requestNumber);
       console.log('attachInvoice: Request ID:', id, 'New status: invoice_attached'); // Add this line
+      const currentInvoices = request.invoices || [];
+      const newInvoice = {
+        url: result.url,
+        name: result.name,
+        path: result.path,
+        uploadedAt: Date.now(),
+        uploadedBy: 'supplier' // Или userRole
+      };
+      const updatedInvoices = [...currentInvoices, newInvoice];
+
       await updateRequest(id, {
         status: request.status === 'rejected' ? 'pending_tech_approval' : 'invoice_attached',
-        invoiceFile: result.url,
-        invoiceFileName: result.name,
-        invoicePath: result.path,
+        invoices: updatedInvoices,
+        // Удаляем старые поля, если они существуют
+        invoiceFile: null,
+        invoiceFileName: null,
+        invoicePath: null,
         statusHistory: addStatusHistory(request, request.status === 'rejected' ? 'pending_tech_approval' : 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}${request.status === 'rejected' ? ', отправлено на повторное согласование' : ''}`)
       });
       showSuccess('Счёт прикреплён');
@@ -205,6 +244,7 @@ export const useSupplyRequests = () => {
   const markPaid = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
+    console.log('markPaid: Request ID:', id, 'Status set to: paid');
     await updateRequest(id, {
       status: 'paid',
       'approvals.accountant': true,
@@ -231,19 +271,30 @@ export const useSupplyRequests = () => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     const now = new Date().toISOString().split('T')[0];
+    if (request?.invoices && request.invoices.length > 0) {
+      for (const invoice of request.invoices) {
+        try {
+          await deleteInvoice(invoice.path);
+        } catch (e) {
+          console.warn('Could not delete invoice file:', e);
+        }
+      }
+    }
+    // Также удаляем старые одиночные поля, если они существуют (для обратной совместимости)
     if (request.invoicePath) {
       try {
         await deleteInvoice(request.invoicePath);
       } catch (e) {
-        console.warn('Could not delete invoice file:', e);
+        console.warn('Could not delete legacy invoice file:', e);
       }
     }
     await updateRequest(id, {
       status: 'delivered',
       deliveredAt: now,
-      invoiceFile: null,
-      invoiceFileName: null,
-      invoicePath: null,
+      invoices: [], // Очищаем массив счетов
+      invoiceFile: null, // Для обратной совместимости
+      invoiceFileName: null, // Для обратной совместимости
+      invoicePath: null, // Для обратной совместимости
       statusHistory: addStatusHistory(request, 'delivered', 'supplier', 'Доставлено')
     });
     showSuccess('Доставка подтверждена');
@@ -271,22 +322,27 @@ export const useSupplyRequests = () => {
     notifyRoles(['supplier'], buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
-  const detachInvoice = async (id) => {
+  const detachInvoice = async (id, invoicePathToRemove) => { // Принимаем invoicePathToRemove
     const request = requests.find(r => r.id === id);
     if (!request) throw new Error('Заявка не найдена');
-    if (!request.invoicePath) throw new Error('Счет не прикреплен');
+    if (!request.invoices || request.invoices.length === 0) throw new Error('Счет не прикреплен');
+
+    const invoiceToRemove = request.invoices.find(inv => inv.path === invoicePathToRemove);
+    if (!invoiceToRemove) throw new Error('Счет не найден в заявке');
 
     try {
-      console.log('detachInvoice called for request ID:', id, 'Current status:', request.status);
-      await deleteInvoice(request.invoicePath); // Удаляем файл из Supabase Storage
+      await deleteInvoice(invoicePathToRemove); // Удаляем конкретный файл из Supabase Storage
+
+      const updatedInvoices = request.invoices.filter(inv => inv.path !== invoicePathToRemove);
+
+      const newStatus = updatedInvoices.length === 0 ? 'with_supplier' : request.status; // Если счетов нет, статус 'with_supplier'
+      console.log('detachInvoice: Request ID:', id, 'New status set to:', newStatus, 'Invoices remaining:', updatedInvoices.length);
+
       await updateRequest(id, {
-        invoiceFile: null,
-        invoiceFileName: null,
-        invoicePath: null,
-        status: 'with_supplier', // Возвращаем в статус ожидания счета
-        statusHistory: addStatusHistory(request, 'with_supplier', 'supplier', 'Счёт откреплён, ожидается новый счёт')
+        invoices: updatedInvoices,
+        status: newStatus,
+        statusHistory: addStatusHistory(request, newStatus, 'supplier', `Счёт ${invoiceToRemove.name} откреплён${updatedInvoices.length === 0 ? ', ожидается новый счёт' : ''}`)
       });
-      console.log('Request ID:', id, 'Status updated to with_supplier');
       showSuccess('Счёт откреплён');
     } catch (error) {
       console.error('detachInvoice error:', error);

@@ -10,16 +10,10 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [deliveryDate, setDeliveryDate] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState(null); // Будет хранить объект счета для предпросмотра
   const [showItems, setShowItems] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const fileInputRef = useRef(null);
-
-  // Определяем тип файла для предпросмотра
-  const isImageFile = request.invoiceFileName?.match(/\.(jpg|jpeg|png|gif)$/i) ||
-                      request.invoiceFile?.match(/\.(jpg|jpeg|png|gif)/i);
-  const isPdfFile = request.invoiceFileName?.match(/\.pdf$/i) ||
-                    request.invoiceFile?.match(/\.pdf/i);
 
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
@@ -54,7 +48,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   };
 
   // Определение доступных действий на основе роли и статуса
-  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'new', 'invoice_requested', 'rejected'].includes(request.status);
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && !['paid', 'delivered'].includes(request.status);
   const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && ['invoice_attached', 'pending_tech_approval'].includes(request.status);
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
@@ -71,7 +65,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const canDelete = canPerformAction(userRole, 'deleteRequest');
 
   // Возможность открепить счет
-  const canDetachInvoice = userRole === 'supplier' && request.invoiceFile && !['paid', 'delivered'].includes(request.status);
+  const canDetachInvoice = userRole === 'supplier' && request.invoices && request.invoices.length > 0 && !['paid', 'delivered'].includes(request.status);
 
   // Обработка загрузки файла счёта
   const handleFileUpload = async (e) => {
@@ -157,6 +151,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
   const shortStatusLabel = statusInfo.label.replace('Снабжение — ', '').replace('Согласование — ', '').replace('Бухгалтерия — ', '');
 
+  console.log('RequestDetailsModal - Request ID:', request.id, 'Status:', request.status, 'canAttachInvoice:', canAttachInvoice);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
       <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[90vh] flex flex-col">
@@ -228,37 +224,48 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             </div>
           )}
 
-          {request.invoiceFile && (
-            <div className="flex items-center justify-between bg-blue-50 rounded-lg p-2.5">
-              <div className="flex items-center gap-2 text-blue-700 text-sm min-w-0">
-                <FileText size={16} className="shrink-0" />
-                <span className="truncate">{request.invoiceFileName || 'Счёт'}</span>
-              </div>
-              <div className="flex gap-1"> {/* Обертка для кнопок */}
-                {canDetachInvoice && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Предотвратить закрытие модалки
-                      if (window.confirm('Вы уверены, что хотите открепить счёт?')) {
-                        supplyActions.detachInvoice(request.id);
-                        onClose(); // Закрыть модалку после открепления
-                      }
-                    }}
-                    className="px-2.5 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition flex items-center gap-1"
-                    title="Открепить счёт"
-                  >
-                    <Trash2 size={12} />
-                    Открепить
-                  </button>
-                )}
-                <button onClick={() => setShowPreview(true)} className="px-2.5 py-1 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition flex items-center gap-1">
-                  <Eye size={12} />
-                  Открыть
-                </button>
-              </div>
+
+          
+          {request.invoices && request.invoices.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold text-slate-700">Прикреплённые счета ({request.invoices.length})</h4>
+              {request.invoices.map((invoice, index) => (
+                <div key={index} className="flex items-center justify-between bg-blue-50 rounded-lg p-2.5">
+                  <div className="flex items-center gap-2 text-blue-700 text-sm min-w-0">
+                    <FileText size={16} className="shrink-0" />
+                    <span className="truncate">{invoice.name || `Счёт ${index + 1}`}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {canDetachInvoice && ( // canDetachInvoice должен быть адаптирован для каждого счета
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Вы уверены, что хотите открепить счёт ${invoice.name}?`)) {
+                            supplyActions.detachInvoice(request.id, invoice.path);
+                            onClose();
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition flex items-center gap-1"
+                        title="Открепить счёт"
+                      >
+                        <Trash2 size={12} />
+                        Открепить
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setPreviewInvoice(invoice)} // Устанавливаем конкретный счет для предпросмотра
+                      className="px-2.5 py-1 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition flex items-center gap-1"
+                      title="Просмотреть счет"
+                    >
+                      <Eye size={12} />
+                      Открыть
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-          
+
           {(items.length > 0 || legacyTitle) && (
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               <button onClick={() => setShowItems(!showItems)} className="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 transition text-left">
@@ -341,7 +348,33 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
       {showRejectModal && <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Причина отклонения</h3><textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Укажите причину..." rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none mb-4" /><div className="flex gap-2"><button onClick={() => setShowRejectModal(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleReject} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Отклонить</button></div></div></div>}
       {showDeleteConfirm && <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-2">Удалить заявку?</h3><p className="text-slate-600 mb-4">Это действие нельзя отменить.</p><div className="flex gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Удалить</button></div></div></div>}
       {showDeliveryModal && <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Назначить срок доставки</h3><input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-4" /><div className="flex gap-2"><button onClick={() => { setShowDeliveryModal(false); setDeliveryDate(''); }} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleSetDeliveryDate} disabled={!deliveryDate} className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition font-medium disabled:opacity-50">Назначить</button></div></div></div>}
-      {showPreview && request.invoiceFile && <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80" onClick={() => setShowPreview(false)}><div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}><div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50 rounded-t-xl flex-shrink-0"><div className="flex items-center gap-2"><FileText className="text-blue-600" size={20} /><span className="font-medium text-slate-800 truncate">{request.invoiceFileName || 'Счёт'}</span></div><button onClick={() => setShowPreview(false)} className="p-2 hover:bg-slate-200 rounded-lg transition"><X size={20} className="text-slate-500" /></button></div><div className="flex-1 overflow-auto p-2 bg-slate-100 flex items-center justify-center min-h-[400px]">{isImageFile ? <img src={request.invoiceFile} alt="Счёт" className="max-w-full max-h-[75vh] object-contain rounded shadow-lg" /> : isPdfFile ? <iframe src={request.invoiceFile} className="w-full h-[75vh] rounded bg-white" title="Предпросмотр счёта" /> : <div className="text-center text-slate-600 p-8"><FileText size={48} className="mx-auto mb-4 text-slate-400" /><p>Предпросмотр недоступен для этого типа файла</p></div>}</div></div></div>}
+      {previewInvoice && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80" onClick={() => setPreviewInvoice(null)}>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-slate-50 rounded-t-xl flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="text-blue-600" size={20} />
+                <span className="font-medium text-slate-800 truncate">{previewInvoice.name || 'Счёт'}</span>
+              </div>
+              <button onClick={() => setPreviewInvoice(null)} className="p-2 hover:bg-slate-200 rounded-lg transition">
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-2 bg-slate-100 flex items-center justify-center min-h-[400px]">
+              {previewInvoice.url?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                <img src={previewInvoice.url} alt="Счёт" className="max-w-full max-h-[75vh] object-contain rounded shadow-lg" />
+              ) : previewInvoice.url?.match(/\.pdf$/i) ? (
+                <iframe src={previewInvoice.url} className="w-full h-[75vh] rounded bg-white" title="Предпросмотр счёта" />
+              ) : (
+                <div className="text-center text-slate-600 p-8">
+                  <FileText size={48} className="mx-auto mb-4 text-slate-400" />
+                  <p>Предпросмотр недоступен для этого типа файла</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -43,10 +43,12 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
 
   const firstItem = request.items && request.items.length > 0 ? request.items[0] : null;
 
-  const handleInvoiceClick = (e) => {
+  const handleInvoiceClick = (e, invoice) => { // Теперь принимает invoice
     e.stopPropagation();
-    onOpenInvoice(request.invoiceFile);
+    onOpenInvoice(invoice.url); // Передаем URL конкретного счета
   };
+
+
 
   const handleDeleteClick = (e) => {
     e.stopPropagation();
@@ -120,13 +122,15 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           )}
         </div>
 
+
+
         {/* Col 6: Invoice Button */}
         <div className="w-8 h-8 flex items-center justify-center">
-          {request.invoiceFile && (
+          {request.invoices && request.invoices.length > 0 && ( // Если есть счета
             <button 
-              onClick={handleInvoiceClick}
+              onClick={(e) => handleInvoiceClick(e, request.invoices[0])} // Открываем первый счет
               className="h-full w-full rounded-md bg-cyan-50 text-cyan-600 hover:bg-cyan-100 flex items-center justify-center transition"
-              title="Просмотреть счет"
+              title="Просмотреть первый счёт"
             >
               <Eye size={16} />
             </button>
