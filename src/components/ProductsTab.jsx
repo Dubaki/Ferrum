@@ -7,7 +7,7 @@ import OrderSettingsModal from './planning/OrderSettingsModal';
 import NewOrderModal from './planning/NewOrderModal';
 import AddProductModal from './planning/AddProductModal';
 
-export default function ProductsTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin }) {
+export default function ProductsTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, userRole }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
   const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
@@ -72,7 +72,7 @@ export default function ProductsTab({ products, resources, actions, ganttItems =
                  />
              </div>
 
-             {isAdmin && (
+             {(isAdmin || userRole === 'manager') && (
                  <button
                     onClick={() => setIsCreating(true)}
                     className="shiny-effect flex items-center gap-2 bg-cyan-600 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-cyan-700 transition-all active:scale-95 font-bold uppercase tracking-wide text-xs"
@@ -117,9 +117,11 @@ export default function ProductsTab({ products, resources, actions, ganttItems =
             onAddProduct={() => setAddingProductToOrder(order)}
             onCopyFromArchive={() => {}}
             isAdmin={isAdmin}
+            userRole={userRole}
           />
         ))}
       </div>
+
 
       {/* Изделия без заказа */}
       {orphanProducts.length > 0 && (
@@ -162,6 +164,7 @@ export default function ProductsTab({ products, resources, actions, ganttItems =
           order={settingsOrder}
           onClose={() => setSettingsOrder(null)}
           actions={actions}
+          userRole={userRole}
         />
       )}
 

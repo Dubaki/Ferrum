@@ -54,7 +54,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   };
 
   // Определение доступных действий на основе роли и статуса
-  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'new', 'invoice_requested'].includes(request.status);
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'new', 'invoice_requested', 'rejected'].includes(request.status);
   const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && request.status === 'invoice_attached';
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
@@ -69,6 +69,9 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
   // Возможность удаления
   const canDelete = canPerformAction(userRole, 'deleteRequest');
+
+  // Возможность открепить счет
+  const canDetachInvoice = userRole === 'supplier' && request.invoiceFile && !['paid', 'delivered'].includes(request.status);
 
   // Обработка загрузки файла счёта
   const handleFileUpload = async (e) => {
@@ -231,10 +234,28 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                 <FileText size={16} className="shrink-0" />
                 <span className="truncate">{request.invoiceFileName || 'Счёт'}</span>
               </div>
-              <button onClick={() => setShowPreview(true)} className="px-2.5 py-1 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition flex items-center gap-1">
-                <Eye size={12} />
-                Открыть
-              </button>
+              <div className="flex gap-1"> {/* Обертка для кнопок */}
+                {canDetachInvoice && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Предотвратить закрытие модалки
+                      if (window.confirm('Вы уверены, что хотите открепить счёт?')) {
+                        supplyActions.detachInvoice(request.id);
+                        onClose(); // Закрыть модалку после открепления
+                      }
+                    }}
+                    className="px-2.5 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition flex items-center gap-1"
+                    title="Открепить счёт"
+                  >
+                    <Trash2 size={12} />
+                    Открепить
+                  </button>
+                )}
+                <button onClick={() => setShowPreview(true)} className="px-2.5 py-1 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition flex items-center gap-1">
+                  <Eye size={12} />
+                  Открыть
+                </button>
+              </div>
             </div>
           )}
           

@@ -55,8 +55,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
     }
   };
   
-  const canDelete = userRole && ['technologist', 'shopManager', 'director'].includes(userRole);
-
+      const canDelete = userRole && ['technologist', 'shopManager', 'director', 'supplier'].includes(userRole);
   const alertToShow = deliveryAlert || deadlineAlert;
 
   return (

@@ -89,8 +89,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     return <div className="space-y-2.5">{requests.map(request => <SupplyRequestCard key={request.id} request={request} userRole={userRole} onOpenDetails={() => handleOpenDetails(request)} onOpenInvoice={(url) => url && window.open(url, '_blank')} onDelete={supplyActions.deleteRequest} />)}</div>;
   };
 
-  const canCreate = userRole && ['technologist', 'director', 'shopManager'].includes(userRole);
-  const roleLabel = getRoleLabel(userRole);
+      const canCreate = userRole && ['technologist', 'director', 'shopManager', 'master', 'supplier'].includes(userRole);  const roleLabel = getRoleLabel(userRole);
 
   const renderFilterButton = (tab, label, count, icon) => {
     const isActive = activeTab === tab;

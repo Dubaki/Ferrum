@@ -256,6 +256,27 @@ export const useSupplyRequests = () => {
     showSuccess('Заявка отклонена');
   };
 
+  const detachInvoice = async (id) => {
+    const request = requests.find(r => r.id === id);
+    if (!request) throw new Error('Заявка не найдена');
+    if (!request.invoicePath) throw new Error('Счет не прикреплен');
+
+    try {
+      await deleteInvoice(request.invoicePath); // Удаляем файл из Supabase Storage
+      await updateRequest(id, {
+        invoiceFile: null,
+        invoiceFileName: null,
+        invoicePath: null,
+        statusHistory: addStatusHistory(request, request.status, 'supplier', 'Счёт откреплён') // Статус не меняем, просто логируем
+      });
+      showSuccess('Счёт откреплён');
+    } catch (error) {
+      console.error('detachInvoice error:', error);
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
   const alertRequests = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -278,7 +299,7 @@ export const useSupplyRequests = () => {
     actions: {
       createRequest, updateRequest, deleteRequest, attachInvoice, submitForApproval,
       approveTechnologist, approveShopManager, approveDirector, markPaid, setDeliveryDate,
-      markDelivered, rejectRequest
+      markDelivered, rejectRequest, detachInvoice
     }
   };
 };

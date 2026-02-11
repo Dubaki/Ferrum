@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
 
@@ -119,7 +119,7 @@ export default function App() {
     return notMarked > 0 || noKtu > 0;
   }, [resources, currentTime]);
 
-  const handleToggleAuth = () => {
+  const handleToggleAuth = useCallback(() => {
     if (userRole) {
       // Выход
       setUserRole(null);
@@ -128,7 +128,7 @@ export default function App() {
       // Показываем модальное окно выбора роли
       setShowRoleModal(true);
     }
-  };
+  }, [userRole]);
 
   const handleSelectRole = (role) => {
     setUserRole(role);
@@ -172,18 +172,20 @@ export default function App() {
       )}
 
       {/* Кнопка входа в режим цеха */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          onClick={() => setIsWorkshopMode(true)}
-          className="bg-slate-800 text-white p-4 rounded-full shadow-xl hover:bg-orange-600 transition-all hover:scale-110 active:scale-95 group border-2 border-slate-700 hover:border-orange-500"
-          title="Перейти в режим цеха"
-        >
-          🏭
-          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-lg">
-            Открыть режим цеха
-          </span>
-        </button>
-      </div>
+      {(isAdmin || userRole === 'master') && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() => setIsWorkshopMode(true)}
+            className="bg-slate-800 text-white p-4 rounded-full shadow-xl hover:bg-orange-600 transition-all hover:scale-110 active:scale-95 group border-2 border-slate-700 hover:border-orange-500"
+            title="Перейти в режим цеха"
+          >
+            🏭
+            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-lg">
+              Открыть режим цеха
+            </span>
+          </button>
+        </div>
+      )}
 
       <main className="max-w-[1600px] mx-auto px-4 md:px-6 py-6">
         <Routes>
@@ -197,19 +199,21 @@ export default function App() {
                 actions={actions}
                 isAdmin={isAdmin}
                 canManageDrawings={canManageDrawings}
+                userRole={userRole} // Pass userRole here
               />
             }
           />
           <Route
             path="/products"
             element={
-              isAdmin ? (
+              isAdmin ? ( // This route itself is protected by isAdmin, will update later
                 <ProductsTab
                   products={products}
                   resources={resources}
                   orders={orders}
                   actions={actions}
                   isAdmin={isAdmin}
+                  userRole={userRole} // Pass userRole here
                 />
               ) : (
                 <AccessDenied navigate={navigate} />
@@ -219,12 +223,13 @@ export default function App() {
           <Route
             path="/shipping"
             element={
-              isAdmin ? (
+              isAdmin || userRole === 'master' || userRole === 'technologist' || userRole === 'manager' ? (
                 <ShippingTab
                   orders={orders}
                   products={products}
                   actions={actions}
                   isAdmin={isAdmin}
+                  userRole={userRole}
                 />
               ) : (
                 <AccessDenied navigate={navigate} />
@@ -234,13 +239,17 @@ export default function App() {
           <Route
             path="/supply"
             element={
-              <SupplyTab
-                orders={orders}
-                supplyRequests={supplyRequests}
-                supplyActions={supplyActions}
-                userRole={userRole}
-                hasSupplyAlert={hasSupplyAlert}
-              />
+              isAdmin || userRole === 'master' || userRole === 'technologist' || userRole === 'manager' || userRole === 'supplier' ? (
+                <SupplyTab
+                  orders={orders}
+                  supplyRequests={supplyRequests}
+                  supplyActions={supplyActions}
+                  userRole={userRole}
+                  hasSupplyAlert={hasSupplyAlert}
+                />
+              ) : (
+                <AccessDenied navigate={navigate} />
+              )
             }
           />
 
@@ -262,13 +271,14 @@ export default function App() {
           <Route
             path="/gantt"
             element={
-              isAdmin ? (
+              isAdmin || userRole === 'technologist' || userRole === 'master' ? (
                 <GanttTab
                   products={products}
                   resources={resources}
                   orders={orders}
                   actions={actions}
                   isAdmin={isAdmin}
+                  userRole={userRole} // Pass userRole for more granular control if needed within GanttTab
                 />
               ) : (
                 <AccessDenied navigate={navigate} />
