@@ -31,8 +31,32 @@ export const useSupplyRequests = () => {
         } else if (!data.invoices) {
           data.invoices = []; // Убедимся, что invoices всегда массив
         }
+        // Извлечение причины отклонения из истории, если поле отсутствует
+        if (!data.rejectionReason && data.statusHistory && data.statusHistory.length > 0) {
+          const lastRejection = [...data.statusHistory].reverse().find(e =>
+            e.status === 'rejected' || (e.note && e.note.includes('Отклонено'))
+          );
+          if (lastRejection && lastRejection.note) {
+            // Форматы: "Отклонено (Директор): причина" или "Отклонено: причина"
+            const match = lastRejection.note.match(/Отклонено(?:\s*\([^)]+\))?:\s*(.*)/);
+            data.rejectionReason = match ? match[1].trim() : lastRejection.note;
+            data.rejectedByRole = lastRejection.role || null;
+          }
+        }
         return { id: doc.id, ...data };
       });
+      // Одноразовая миграция: отклонённые НЕ технологом → перевести к технологу
+      list.forEach(req => {
+        const stuckWithSupplier = ['rejected', 'with_supplier', 'invoice_attached'].includes(req.status);
+        if (stuckWithSupplier && req.rejectedByRole && req.rejectedByRole !== 'technologist') {
+          console.log(`[Migration] Переводим ${req.requestNumber} (${req.status}) к технологу`);
+          updateDoc(doc(db, 'supplyRequests', req.id), {
+            status: 'pending_tech_approval',
+            updatedAt: Date.now()
+          }).catch(err => console.error('Migration error:', err));
+        }
+      });
+
       setRequests(list);
       setLoading(false);
     }, (error) => {
@@ -305,7 +329,13 @@ export const useSupplyRequests = () => {
   const rejectRequest = async (id, role, reason) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-    const newStatus = 'rejected'; // Status is now 'rejected'
+
+    // Технолог отклоняет → к снабженцу. Все остальные → сначала к технологу.
+    const isToSupplier = role === 'technologist';
+    const newStatus = isToSupplier ? 'rejected' : 'pending_tech_approval';
+    const notifyRole = isToSupplier ? ['supplier'] : ['technologist'];
+    const noteTarget = isToSupplier ? ', возврат снабженцу' : ', передано технологу';
+
     const clearApprovals = {
       'approvals.technologist': false, 'approvals.technologistAt': null,
       'approvals.shopManager': false, 'approvals.shopManagerAt': null,
@@ -313,13 +343,13 @@ export const useSupplyRequests = () => {
     };
     await updateRequest(id, {
       status: newStatus,
-      rejectionReason: reason || 'Причина не указана', // Store rejection reason
-      rejectedByRole: role, // Store who rejected it
+      rejectionReason: reason || 'Причина не указана',
+      rejectedByRole: role,
       ...clearApprovals,
-      statusHistory: addStatusHistory(request, newStatus, role, `Отклонено (${getRoleLabel(role)}): ${reason || 'без причины'}`)
+      statusHistory: addStatusHistory(request, newStatus, role, `Отклонено (${getRoleLabel(role)}): ${reason || 'без причины'}${noteTarget}`)
     });
     showSuccess('Заявка отклонена');
-    notifyRoles(['supplier'], buildNotificationMessage(request, 'rejected', { role, reason }));
+    notifyRoles(notifyRole, buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
   const detachInvoice = async (id, invoicePathToRemove) => { // Принимаем invoicePathToRemove

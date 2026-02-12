@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
-import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X } from 'lucide-react';
 import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete }) {
+  const [showRejectReason, setShowRejectReason] = useState(false);
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
-  // NEW: Dynamic status label calculation
   const statusLabel = useMemo(() => {
     if (request.status === 'rejected' && request.invoiceRequestCount) {
       const count = request.invoiceRequestCount;
@@ -43,12 +43,10 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
 
   const firstItem = request.items && request.items.length > 0 ? request.items[0] : null;
 
-  const handleInvoiceClick = (e, invoice) => { // Теперь принимает invoice
+  const handleInvoiceClick = (e, invoice) => {
     e.stopPropagation();
-    onOpenInvoice(invoice.url); // Передаем URL конкретного счета
+    onOpenInvoice(invoice.url);
   };
-
-
 
   const handleDeleteClick = (e) => {
     e.stopPropagation();
@@ -56,108 +54,146 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
       onDelete(request.id);
     }
   };
-  
-      const canDelete = userRole && ['technologist', 'shopManager', 'director'].includes(userRole);
+
+  const handleRejectReasonClick = (e) => {
+    e.stopPropagation();
+    setShowRejectReason(true);
+  };
+
+  const canDelete = userRole && ['technologist', 'shopManager', 'director'].includes(userRole);
   const alertToShow = deliveryAlert || deadlineAlert;
+  const isRejected = (request.status === 'rejected' || request.rejectionReason) &&
+    ['rejected', 'with_supplier', 'invoice_attached', 'pending_tech_approval'].includes(request.status);
 
   return (
-    <div
-      className={`bg-white rounded-lg border transition-all duration-150 active:scale-[0.99] cursor-pointer hover:border-slate-300 hover:shadow-sm relative`}
-      onClick={onOpenDetails}
-    >
+    <>
+      <div
+        className={`rounded-lg transition-all duration-150 active:scale-[0.99] cursor-pointer hover:shadow-sm relative ${isRejected ? 'bg-red-50 border-2 border-red-400' : 'bg-white border border-slate-200 hover:border-slate-300'}`}
+        onClick={onOpenDetails}
+      >
+        <div className="grid grid-cols-[auto_auto_minmax(0,1.5fr)_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-3 p-2">
+          {/* Col 1: Status Indicator */}
+          <span className={`w-1.5 h-8 rounded-full ${statusInfo.color} flex-shrink-0`}></span>
 
-      <div className="grid grid-cols-[auto_auto_minmax(0,1.5fr)_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-3 p-2">
-        {/* Col 1: Status Indicator */}
-        <span className={`w-1.5 h-8 rounded-full ${statusInfo.color} flex-shrink-0`}></span>
-        
-        {/* Col 2: Request Number */}
-        <div className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{request.requestNumber}</div>
-        
-        {/* Col 3 & 4: Item Info (Flexible) or Rejection Message */}
-        {request.status !== 'rejected' ? (
-          <>
-            {/* Original Col 3: Item Info (Flexible) */}
-            <div className="flex items-center gap-2 text-sm min-w-0">
-              {firstItem ? (
-                <>
-                  <Package size={14} className="text-slate-400 flex-shrink-0" />
-                  <span className="text-slate-700 truncate font-medium">{firstItem.title}</span>
-                  {request.items.length > 1 && <span className="text-slate-400 text-xs whitespace-nowrap">+{request.items.length - 1}</span>}
-                </>
-              ) : (
-                <span className="text-slate-400 italic">Нет позиций</span>
-              )}
-            </div>
-            {/* Original Col 4: creatorComment (Flexible) - Made more visible */}
-            <div className="flex items-center gap-1.5 text-slate-700 min-w-0" title={request.creatorComment}>
-                {request.creatorComment && (
-                    <>
-                        <MessageSquare size={14} className="flex-shrink-0" />
-                        <span className="truncate text-xs font-semibold">{request.creatorComment}</span>
-                    </>
-                )}
-            </div>
-          </>
-        ) : (
-          /* Replacement for Col 3 & 4 when rejected */
-          <div className="col-span-2 flex items-center justify-start bg-red-500 rounded px-2 py-1 text-white text-sm font-semibold whitespace-nowrap overflow-hidden">
-            ОТКЛОНЕНО: {request.rejectionReason}
-            {request.rejectedByRole && (
-              <span className="ml-1"> (Кем: {getRoleLabel(request.rejectedByRole)})</span>
+          {/* Col 2: Request Number */}
+          <div className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{request.requestNumber}</div>
+
+          {/* Col 3 & 4: Item Info / Comment ИЛИ причина отклонения */}
+          {/* Col 3: Item Info (всегда) */}
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            {firstItem ? (
+              <>
+                <Package size={14} className="text-slate-400 flex-shrink-0" />
+                <span className="text-slate-700 truncate font-medium">{firstItem.title}</span>
+                {request.items.length > 1 && <span className="text-slate-400 text-xs whitespace-nowrap">+{request.items.length - 1}</span>}
+              </>
+            ) : (
+              <span className="text-slate-400 italic">Нет позиций</span>
             )}
           </div>
-        )}
-
-        {/* Col 5: Icons (Alerts) */}
-        <div className="flex items-center justify-end gap-2">
-          {alertToShow && (
-            <div className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 whitespace-nowrap
-                ${alertToShow.type === 'overdue' ? 'bg-red-50 text-red-600 border-red-200' : ''}
-                ${alertToShow.type === 'urgent' ? 'bg-orange-50 text-orange-600 border-orange-200' : ''}
-                ${alertToShow.type === 'today' || alertToShow.type === 'tomorrow' ? 'bg-blue-50 text-blue-600 border-blue-200' : ''}
-            `}>
-                {deliveryAlert ? <Truck size={12} /> : <AlertTriangle size={12} />}
-                <span>{alertToShow.label}</span>
+          {/* Col 4: Причина отклонения ИЛИ комментарий */}
+          {isRejected ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <button
+                onClick={handleRejectReasonClick}
+                className="flex items-center gap-1 min-w-0 px-2 py-0.5 bg-red-100 hover:bg-red-200 border border-red-300 rounded text-red-700 transition"
+                title="Нажмите чтобы прочитать причину"
+              >
+                <AlertTriangle size={12} className="flex-shrink-0" />
+                <span className="text-xs font-semibold truncate">{request.rejectionReason || 'Отклонено'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-slate-700 min-w-0" title={request.creatorComment}>
+              {request.creatorComment && (
+                <>
+                  <MessageSquare size={14} className="flex-shrink-0" />
+                  <span className="truncate text-xs font-semibold">{request.creatorComment}</span>
+                </>
+              )}
             </div>
           )}
-        </div>
 
+          {/* Col 5: Icons (Alerts) */}
+          <div className="flex items-center justify-end gap-2">
+            {alertToShow && (
+              <div className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 whitespace-nowrap
+                  ${alertToShow.type === 'overdue' ? 'bg-red-50 text-red-600 border-red-200' : ''}
+                  ${alertToShow.type === 'urgent' ? 'bg-orange-50 text-orange-600 border-orange-200' : ''}
+                  ${alertToShow.type === 'today' || alertToShow.type === 'tomorrow' ? 'bg-blue-50 text-blue-600 border-blue-200' : ''}
+              `}>
+                  {deliveryAlert ? <Truck size={12} /> : <AlertTriangle size={12} />}
+                  <span>{alertToShow.label}</span>
+              </div>
+            )}
+          </div>
 
+          {/* Col 6: Invoice Button */}
+          <div className="w-8 h-8 flex items-center justify-center">
+            {request.invoices && request.invoices.length > 0 && (
+              <button
+                onClick={(e) => handleInvoiceClick(e, request.invoices[0])}
+                className="h-full w-full rounded-md bg-cyan-50 text-cyan-600 hover:bg-cyan-100 flex items-center justify-center transition"
+                title="Просмотреть первый счёт"
+              >
+                <Eye size={16} />
+              </button>
+            )}
+          </div>
 
-        {/* Col 6: Invoice Button */}
-        <div className="w-8 h-8 flex items-center justify-center">
-          {request.invoices && request.invoices.length > 0 && ( // Если есть счета
-            <button 
-              onClick={(e) => handleInvoiceClick(e, request.invoices[0])} // Открываем первый счет
-              className="h-full w-full rounded-md bg-cyan-50 text-cyan-600 hover:bg-cyan-100 flex items-center justify-center transition"
-              title="Просмотреть первый счёт"
-            >
-              <Eye size={16} />
-            </button>
-          )}
-        </div>
+          {/* Col 7: Delete Button */}
+          <div className="w-8 h-8 flex items-center justify-center">
+            {canDelete && (
+              <button
+                onClick={handleDeleteClick}
+                className="h-full w-full rounded-md bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition"
+                title="Удалить заявку"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
 
-        {/* Col 7: Delete Button */}
-        <div className="w-8 h-8 flex items-center justify-center">
-          {canDelete && (
-            <button 
-              onClick={handleDeleteClick} 
-              className="h-full w-full rounded-md bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition"
-              title="Удалить заявку"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-
-        {/* Col 8: Status Label */}
-        <div className="text-right">
+          {/* Col 8: Status Label */}
+          <div className="text-right">
             <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${statusInfo.color} whitespace-nowrap`}>
-                {statusLabel}
+              {statusLabel}
             </span>
+          </div>
         </div>
-
       </div>
-    </div>
+
+      {/* Модалка с причиной отклонения */}
+      {showRejectReason && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowRejectReason(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertTriangle size={20} />
+                <h3 className="font-bold text-lg">Заявка отклонена</h3>
+              </div>
+              <button onClick={() => setShowRejectReason(false)} className="p-1 hover:bg-slate-100 rounded-lg transition">
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-slate-500">Заявка: <span className="font-bold text-slate-800">{request.requestNumber}</span></div>
+              {request.rejectedByRole && (
+                <div className="text-sm text-slate-500">Отклонил: <span className="font-bold text-slate-800">{getRoleLabel(request.rejectedByRole)}</span></div>
+              )}
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm leading-relaxed">
+                {request.rejectionReason || 'Причина не указана'}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowRejectReason(false)}
+              className="w-full mt-4 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition font-medium"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
