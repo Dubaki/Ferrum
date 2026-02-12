@@ -206,7 +206,7 @@ export default function App() {
           <Route
             path="/products"
             element={
-              isAdmin ? ( // This route itself is protected by isAdmin, will update later
+              isAdmin || userRole === 'technologist' || userRole === 'vesta' ? (
                 <ProductsTab
                   products={products}
                   resources={resources}
@@ -223,7 +223,7 @@ export default function App() {
           <Route
             path="/shipping"
             element={
-              isAdmin || userRole === 'master' || userRole === 'technologist' || userRole === 'manager' ? (
+              isAdmin || userRole === 'master' || userRole === 'technologist' || userRole === 'manager' || userRole === 'vesta' ? (
                 <ShippingTab
                   orders={orders}
                   products={products}
@@ -271,7 +271,7 @@ export default function App() {
           <Route
             path="/gantt"
             element={
-              isAdmin || userRole === 'technologist' || userRole === 'master' ? (
+              isAdmin || userRole === 'technologist' || userRole === 'master' || userRole === 'vesta' ? (
                 <GanttTab
                   products={products}
                   resources={resources}
@@ -288,7 +288,7 @@ export default function App() {
           <Route
             path="/reports"
             element={
-              isAdmin ? (
+              isAdmin || userRole === 'vesta' ? (
                 <ReportsTab
                   reports={reports}
                   actions={actions}
