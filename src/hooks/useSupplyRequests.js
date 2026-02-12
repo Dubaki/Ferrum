@@ -45,18 +45,6 @@ export const useSupplyRequests = () => {
         }
         return { id: doc.id, ...data };
       });
-      // Одноразовая миграция: отклонённые НЕ технологом → перевести к технологу
-      list.forEach(req => {
-        const stuckWithSupplier = ['rejected', 'with_supplier', 'invoice_attached'].includes(req.status);
-        if (stuckWithSupplier && req.rejectedByRole && req.rejectedByRole !== 'technologist') {
-          console.log(`[Migration] Переводим ${req.requestNumber} (${req.status}) к технологу`);
-          updateDoc(doc(db, 'supplyRequests', req.id), {
-            status: 'pending_tech_approval',
-            updatedAt: Date.now()
-          }).catch(err => console.error('Migration error:', err));
-        }
-      });
-
       setRequests(list);
       setLoading(false);
     }, (error) => {
