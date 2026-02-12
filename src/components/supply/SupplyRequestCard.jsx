@@ -4,6 +4,7 @@ import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel } from '../../util
 
 export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete }) {
   const [showRejectReason, setShowRejectReason] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
   const statusLabel = useMemo(() => {
@@ -50,9 +51,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
 
   const handleDeleteClick = (e) => {
     e.stopPropagation();
-    if (window.confirm(`Вы уверены, что хотите удалить заявку ${request.requestNumber}?`)) {
-      onDelete(request.id);
-    }
+    setShowDeleteConfirm(true);
   };
 
   const handleRejectReasonClick = (e) => {
@@ -191,6 +190,19 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
             >
               Закрыть
             </button>
+          </div>
+        </div>
+      )}
+      {/* Модалка подтверждения удаления */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg text-slate-800 mb-2">Удалить заявку {request.requestNumber}?</h3>
+            <p className="text-slate-500 text-sm mb-4">Заявка и все прикреплённые счета будут удалены. Это действие нельзя отменить.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button>
+              <button onClick={() => { setShowDeleteConfirm(false); onDelete(request.id); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Удалить</button>
+            </div>
           </div>
         </div>
       )}

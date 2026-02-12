@@ -8,6 +8,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showActionConfirm, setShowActionConfirm] = useState(null); // { label, onConfirm, color }
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -131,13 +132,17 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const hasMainAction = canSubmitForApproval || canApproveTechnologist || canApproveShopManager || canApproveDirector || canMarkPaid || canSetDelivery || canMarkDelivered;
 
   const handleMainAction = () => {
-    if (canSubmitForApproval) { supplyActions.submitForApproval(request.id); onClose(); }
-    else if (canApproveTechnologist) { supplyActions.approveTechnologist(request.id); onClose(); }
-    else if (canApproveShopManager) { supplyActions.approveShopManager(request.id); onClose(); }
-    else if (canApproveDirector) { supplyActions.approveDirector(request.id); onClose(); }
-    else if (canMarkPaid) { supplyActions.markPaid(request.id); onClose(); }
-    else if (canSetDelivery) { setShowDeliveryModal(true); }
-    else if (canMarkDelivered) { supplyActions.markDelivered(request.id); onClose(); }
+    if (canSetDelivery) { setShowDeliveryModal(true); return; }
+
+    let label, onConfirm;
+    if (canSubmitForApproval) { label = 'Отправить на согласование?'; onConfirm = () => { supplyActions.submitForApproval(request.id); onClose(); }; }
+    else if (canApproveTechnologist) { label = 'Согласовать заявку?'; onConfirm = () => { supplyActions.approveTechnologist(request.id); onClose(); }; }
+    else if (canApproveShopManager) { label = 'Согласовать заявку?'; onConfirm = () => { supplyActions.approveShopManager(request.id); onClose(); }; }
+    else if (canApproveDirector) { label = 'Согласовать заявку?'; onConfirm = () => { supplyActions.approveDirector(request.id); onClose(); }; }
+    else if (canMarkPaid) { label = 'Подтвердить оплату?'; onConfirm = () => { supplyActions.markPaid(request.id); onClose(); }; }
+    else if (canMarkDelivered) { label = 'Подтвердить доставку?'; onConfirm = () => { supplyActions.markDelivered(request.id); onClose(); }; }
+
+    if (label) setShowActionConfirm({ label, onConfirm });
   };
 
   const getMainActionLabel = () => {
@@ -254,16 +259,19 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                   <div className="flex gap-1">
                     {canDetachInvoice && (
                       <button
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation();
-                          if (window.confirm(`Вы уверены, что хотите открепить счёт ${invoice.name}?`)) {
-                            try {
-                              await supplyActions.detachInvoice(request.id, invoice.path);
-                              onClose();
-                            } catch (err) {
-                              // ошибка уже показана в detachInvoice через showError
+                          setShowActionConfirm({
+                            label: `Открепить счёт ${invoice.name}?`,
+                            onConfirm: async () => {
+                              try {
+                                await supplyActions.detachInvoice(request.id, invoice.path);
+                                onClose();
+                              } catch (err) {
+                                // ошибка уже показана в detachInvoice через showError
+                              }
                             }
-                          }
+                          });
                         }}
                         className="px-2.5 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition flex items-center gap-1"
                         title="Открепить счёт"
@@ -365,9 +373,21 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
         </div>
       </div>
 
-      {showRejectModal && <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Причина отклонения</h3><textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Укажите причину..." rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none mb-4" /><div className="flex gap-2"><button onClick={() => setShowRejectModal(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleReject} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Отклонить</button></div></div></div>}
-      {showDeleteConfirm && <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-2">Удалить заявку?</h3><p className="text-slate-600 mb-4">Это действие нельзя отменить.</p><div className="flex gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Удалить</button></div></div></div>}
-      {showDeliveryModal && <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Назначить срок доставки</h3><input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-4" /><div className="flex gap-2"><button onClick={() => { setShowDeliveryModal(false); setDeliveryDate(''); }} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleSetDeliveryDate} disabled={!deliveryDate} className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition font-medium disabled:opacity-50">Назначить</button></div></div></div>}
+      {showActionConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4">
+            <h3 className="font-bold text-lg text-slate-800 mb-2">{showActionConfirm.label}</h3>
+            <p className="text-slate-500 text-sm mb-4">Заявка: {request.requestNumber}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowActionConfirm(null)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button>
+              <button onClick={() => { setShowActionConfirm(null); showActionConfirm.onConfirm(); }} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition font-medium">Подтвердить</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showRejectModal && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Причина отклонения</h3><textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Укажите причину..." rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none mb-4" /><div className="flex gap-2"><button onClick={() => setShowRejectModal(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleReject} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Отклонить</button></div></div></div>}
+      {showDeleteConfirm && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-2">Удалить заявку?</h3><p className="text-slate-600 mb-4">Это действие нельзя отменить.</p><div className="flex gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Удалить</button></div></div></div>}
+      {showDeliveryModal && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Назначить срок доставки</h3><input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-4" /><div className="flex gap-2"><button onClick={() => { setShowDeliveryModal(false); setDeliveryDate(''); }} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleSetDeliveryDate} disabled={!deliveryDate} className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition font-medium disabled:opacity-50">Назначить</button></div></div></div>}
       {previewInvoice && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80" onClick={() => setPreviewInvoice(null)}>
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
