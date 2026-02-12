@@ -169,14 +169,17 @@ export const useSupplyRequests = () => {
       };
       const updatedInvoices = [...currentInvoices, newInvoice];
 
+      const wasRejected = request.status === 'rejected';
       await updateRequest(id, {
-        status: request.status === 'rejected' ? 'pending_tech_approval' : 'invoice_attached',
+        status: 'invoice_attached',
         invoices: updatedInvoices,
+        // Чистим данные отклонения при повторном прикреплении
+        ...(wasRejected && { rejectionReason: null, rejectedByRole: null }),
         // Удаляем старые поля, если они существуют
         invoiceFile: null,
         invoiceFileName: null,
         invoicePath: null,
-        statusHistory: addStatusHistory(request, request.status === 'rejected' ? 'pending_tech_approval' : 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}${request.status === 'rejected' ? ', отправлено на повторное согласование' : ''}`)
+        statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}`)
       });
       showSuccess('Счёт прикреплён');
     } catch (error) {

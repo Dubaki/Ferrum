@@ -51,7 +51,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
   // Определение доступных действий на основе роли и статуса
   const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'invoice_attached', 'rejected'].includes(request.status);
-  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && ['invoice_attached', 'pending_tech_approval'].includes(request.status);
+  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && ['invoice_attached', 'rejected'].includes(request.status) && request.invoices?.length > 0;
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
   const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_director_approval';
