@@ -256,7 +256,7 @@ export default function App() {
           <Route
             path="/resources"
             element={
-              isAdmin ? (
+              isAdmin || userRole === 'technologist' || userRole === 'vesta' ? (
                 <ResourcesTab
                   resources={resources}
                   setResources={actions.setResources}
