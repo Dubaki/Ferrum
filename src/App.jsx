@@ -239,7 +239,7 @@ export default function App() {
           <Route
             path="/supply"
             element={
-              isAdmin || userRole === 'master' || userRole === 'technologist' || userRole === 'manager' || userRole === 'supplier' || userRole === 'accountant' ? (
+              isAdmin || userRole === 'master' || userRole === 'technologist' || userRole === 'manager' || userRole === 'supplier' || userRole === 'vesta' ? (
                 <SupplyTab
                   orders={orders}
                   supplyRequests={supplyRequests}

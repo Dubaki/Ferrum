@@ -2,14 +2,19 @@ import { useState } from 'react';
 import { X, Package, Plus, Trash2, FileText, Building, MessageSquare } from 'lucide-react';
 import { SUPPLY_UNITS } from '../../utils/supplyRoles';
 
-export default function CreateRequestModal({ orders, userRole, onClose, onCreate }) {
-  const [items, setItems] = useState([
-    { title: '', quantity: '', unit: 'шт' }
-  ]);
-  const [selectedOrders, setSelectedOrders] = useState([]);
-  const [desiredDate, setDesiredDate] = useState('');
-  const [department, setDepartment] = useState('Химмаш');
-  const [comment, setComment] = useState('');
+export default function CreateRequestModal({ orders, userRole, onClose, onCreate, editData, onEdit }) {
+  const isEditing = !!editData;
+  const [items, setItems] = useState(
+    isEditing && editData.items?.length > 0
+      ? editData.items.map(item => ({ title: item.title || '', quantity: item.quantity?.toString() || '', unit: item.unit || 'шт' }))
+      : [{ title: '', quantity: '', unit: 'шт' }]
+  );
+  const [selectedOrders, setSelectedOrders] = useState(
+    isEditing && editData.orders?.length > 0 ? editData.orders : []
+  );
+  const [desiredDate, setDesiredDate] = useState(isEditing ? (editData.desiredDate || '') : '');
+  const [department, setDepartment] = useState(isEditing ? (editData.department || 'Химмаш') : 'Химмаш');
+  const [comment, setComment] = useState(isEditing ? (editData.creatorComment || '') : '');
   const [loading, setLoading] = useState(false);
 
   const addItem = () => {
@@ -63,7 +68,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
 
     setLoading(true);
     try {
-      await onCreate({
+      const payload = {
         items: validItems.map(item => ({
           ...item,
           quantity: parseFloat(item.quantity)
@@ -73,9 +78,14 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         department,
         comment,
         createdBy: userRole
-      });
+      };
+      if (isEditing && onEdit) {
+        await onEdit(payload);
+      } else {
+        await onCreate(payload);
+      }
     } catch (error) {
-      console.error('Error creating request:', error);
+      console.error(isEditing ? 'Error editing request:' : 'Error creating request:', error);
     } finally {
       setLoading(false);
     }
@@ -89,7 +99,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
           <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
             <Package className="text-cyan-600" size={20} />
-            Новая заявка
+            {isEditing ? 'Редактирование заявки' : 'Новая заявка'}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition">
             <X size={20} className="text-slate-400" />
@@ -189,7 +199,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
           <div className="flex gap-2 pt-2 sticky bottom-0 bg-white pb-2 -mb-2 border-t border-slate-100 sm:border-0 sm:static">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button>
             <button type="submit" disabled={loading} className="flex-[2] px-4 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]">
-              {loading ? (<span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />) : (<><Plus size={18} />Создать</>)}
+              {loading ? (<span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />) : (<><Plus size={18} />{isEditing ? 'Сохранить' : 'Создать'}</>)}
             </button>
           </div>
         </form>

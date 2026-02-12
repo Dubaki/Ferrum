@@ -4,7 +4,7 @@ export const SUPPLY_ROLES = {
   supplier: { label: 'Снабженец', password: 'fer25', icon: '📦' },
   shopManager: { label: 'Начальник цеха', password: 'proplex', icon: '🏭' },
   director: { label: 'Директор', password: 'proplex', icon: '💼' },
-  accountant: { label: 'Бухгалтер', password: 'fer25', icon: '💰' },
+  vesta: { label: 'Веста', password: 'LG26', icon: '💰' },
   master: { label: 'Мастер', password: 'fer25', icon: '🔧' }
 };
 
@@ -14,7 +14,7 @@ export const SUPPLY_STATUSES = {
   new: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
   invoice_requested: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
   pending_management: { label: 'Согласование — руководство', color: 'bg-purple-500', textColor: 'text-purple-600', owner: 'shopManager,director' },
-  pending_payment: { label: 'Бухгалтерия — ожидает оплаты', color: 'bg-orange-500', textColor: 'text-orange-600', owner: 'accountant' },
+  pending_payment: { label: 'Веста — ожидает оплаты', color: 'bg-orange-500', textColor: 'text-orange-600', owner: 'vesta' },
   // Актуальные статусы
   with_supplier: { label: 'Снабжение — запрос счёта', color: 'bg-yellow-500', textColor: 'text-yellow-600', owner: 'supplier' },
   invoice_attached: { label: 'Снабжение — счёт получен', color: 'bg-yellow-600', textColor: 'text-yellow-700', owner: 'supplier' },
@@ -59,29 +59,31 @@ export const canPerformAction = (role, action) => {
 
   const permissions = {
     // Создание
-    createRequest: ['director', 'shopManager', 'technologist'],
-    
+    createRequest: ['director', 'shopManager', 'technologist', 'vesta'],
+    // Редактирование (до согласования директором)
+    editRequest: ['director', 'shopManager', 'technologist', 'vesta'],
+
     // Работа со счетами (только снабженец)
-    attachInvoice: ['supplier'],
-    submitForApproval: ['supplier'],
+    attachInvoice: ['supplier', 'vesta'],
+    submitForApproval: ['supplier', 'vesta'],
 
     // Согласование (каждый за себя)
-    approveTechnologist: ['technologist'],
-    approveShopManager: ['shopManager'],
-    approveDirector: ['director'],
+    approveTechnologist: ['technologist', 'vesta'],
+    approveShopManager: ['shopManager', 'vesta'],
+    approveDirector: ['director', 'vesta'],
 
-    // Оплата (только бухгалтер)
-    markPaid: ['accountant'],
+    // Оплата
+    markPaid: ['vesta'],
 
     // Доставка
-    setDeliveryDate: ['supplier'],
-    markDelivered: ['shopManager', 'master', 'director', 'technologist', 'accountant'],
+    setDeliveryDate: ['supplier', 'vesta'],
+    markDelivered: ['shopManager', 'master', 'director', 'technologist', 'vesta'],
 
     // Отклонение (все, кто согласовывает)
-    rejectRequest: ['director', 'shopManager', 'technologist', 'accountant'],
+    rejectRequest: ['director', 'shopManager', 'technologist', 'vesta'],
 
     // Удаление (руководство)
-    deleteRequest: ['director', 'shopManager']
+    deleteRequest: ['director', 'shopManager', 'vesta']
   };
 
   return permissions[action]?.includes(role) || false;
@@ -126,7 +128,7 @@ export const STATUS_DEADLINES = {
   pending_tech_approval: 4, // Технолог: 4 часа
   pending_shop_approval: 4, // Начальник цеха: 4 часа
   pending_director_approval: 4, // Директор: 4 часа
-  pending_payment: 2, // Бухгалтер: 2 часа (срочно)
+  pending_payment: 2, // Веста: 2 часа (срочно)
   paid: 8, // Снабженец: 8 часов на назначение срока доставки
   rejected: 24, // Снабженец: 24 часа на повторное прикрепление счета после отклонения
   awaiting_delivery: null // Зависит от deliveryDate

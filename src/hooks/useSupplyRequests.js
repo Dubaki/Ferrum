@@ -85,7 +85,7 @@ export const useSupplyRequests = () => {
           technologist: false, technologistAt: null,
           shopManager: false, shopManagerAt: null,
           director: false, directorAt: null,
-          accountant: false, accountantAt: null
+          vesta: false, vestaAt: null
         },
         deliveryDate: null,
         deliveredAt: null,
@@ -250,7 +250,7 @@ export const useSupplyRequests = () => {
       statusHistory: addStatusHistory(request, 'pending_payment', 'director', 'Директор согласовал, передано на оплату')
     });
     showSuccess('Согласовано');
-    notifyRoles(['accountant'], buildNotificationMessage(request, 'approved_director'));
+    notifyRoles(['vesta'], buildNotificationMessage(request, 'approved_director'));
   };
 
   const markPaid = async (id) => {
@@ -259,9 +259,9 @@ export const useSupplyRequests = () => {
     console.log('markPaid: Request ID:', id, 'Status set to: paid');
     await updateRequest(id, {
       status: 'paid',
-      'approvals.accountant': true,
-      'approvals.accountantAt': Date.now(),
-      statusHistory: addStatusHistory(request, 'paid', 'accountant', 'Оплачено')
+      'approvals.vesta': true,
+      'approvals.vestaAt': Date.now(),
+      statusHistory: addStatusHistory(request, 'paid', 'vesta', 'Оплачено')
     });
     showSuccess('Оплата подтверждена');
     notifyRoles(['supplier'], buildNotificationMessage(request, 'paid'));
@@ -340,6 +340,25 @@ export const useSupplyRequests = () => {
     notifyRoles(notifyRole, buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
+  const editRequest = async (id, data) => {
+    const request = requests.find(r => r.id === id);
+    if (!request) throw new Error('Заявка не найдена');
+
+    try {
+      await updateRequest(id, {
+        items: data.items || request.items,
+        orders: data.orders || request.orders,
+        desiredDate: data.desiredDate !== undefined ? data.desiredDate : request.desiredDate,
+        creatorComment: data.comment !== undefined ? data.comment : request.creatorComment,
+        statusHistory: addStatusHistory(request, request.status, data.createdBy || request.createdBy, 'Заявка отредактирована')
+      });
+      showSuccess('Заявка обновлена');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  };
+
   const detachInvoice = async (id, invoicePathToRemove) => { // Принимаем invoicePathToRemove
     const request = requests.find(r => r.id === id);
     if (!request) throw new Error('Заявка не найдена');
@@ -389,7 +408,7 @@ export const useSupplyRequests = () => {
     loading,
     hasSupplyAlert,
     actions: {
-      createRequest, updateRequest, deleteRequest, attachInvoice, submitForApproval,
+      createRequest, updateRequest, deleteRequest, editRequest, attachInvoice, submitForApproval,
       approveTechnologist, approveShopManager, approveDirector, markPaid, setDeliveryDate,
       markDelivered, rejectRequest, detachInvoice
     }

@@ -22,6 +22,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [editingRequest, setEditingRequest] = useState(null);
 
   const departmentFilteredRequests = useMemo(() => supplyRequests.filter(r => 
     activeDepartment === 'Химмаш' ? r.department === 'Химмаш' || !r.department : r.department === activeDepartment
@@ -72,6 +73,18 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const handleCreateRequest = async (data) => {
     await supplyActions.createRequest({ ...data, createdBy: userRole || 'technologist' });
     setShowCreateModal(false);
+  };
+
+  const handleEditRequest = async (data) => {
+    if (!editingRequest) return;
+    await supplyActions.editRequest(editingRequest.id, data);
+    setEditingRequest(null);
+    setShowCreateModal(false);
+  };
+
+  const handleOpenEdit = (request) => {
+    setEditingRequest(request);
+    setShowCreateModal(true);
   };
 
   const renderRequestList = (requests, emptyText) => {
@@ -158,8 +171,8 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       </div>
 
       {/* Modals */}
-      {showCreateModal && <CreateRequestModal orders={activeOrders} userRole={userRole} onClose={() => setShowCreateModal(false)} onCreate={handleCreateRequest} />}
-      {showDetailsModal && selectedRequest && <RequestDetailsModal request={selectedRequest} userRole={userRole} supplyActions={supplyActions} onClose={() => { setShowDetailsModal(false); setSelectedRequest(null); }} />}
+      {showCreateModal && <CreateRequestModal orders={activeOrders} userRole={userRole} onClose={() => { setShowCreateModal(false); setEditingRequest(null); }} onCreate={handleCreateRequest} editData={editingRequest} onEdit={handleEditRequest} />}
+      {showDetailsModal && selectedRequest && <RequestDetailsModal request={selectedRequest} userRole={userRole} supplyActions={supplyActions} onClose={() => { setShowDetailsModal(false); setSelectedRequest(null); }} onEditRequest={handleOpenEdit} />}
     </div>
   );
 }

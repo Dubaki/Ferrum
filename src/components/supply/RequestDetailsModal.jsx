@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
-import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown } from 'lucide-react';
+import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown, Edit } from 'lucide-react';
 import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue } from '../../utils/supplyRoles';
 
-export default function RequestDetailsModal({ request, userRole, supplyActions, onClose }) {
+const EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'pending_director_approval'];
+
+export default function RequestDetailsModal({ request, userRole, supplyActions, onClose, onEditRequest }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -60,6 +62,11 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   // Возможность отклонения
   const canReject = canPerformAction(userRole, 'rejectRequest') &&
     ['pending_tech_approval', 'pending_shop_approval', 'pending_director_approval', 'pending_payment'].includes(request.status);
+
+  // Возможность редактирования (только создатель, до согласования директором)
+  const canEdit = canPerformAction(userRole, 'editRequest') &&
+    request.createdBy === userRole &&
+    EDITABLE_STATUSES.includes(request.status);
 
   // Возможность удаления
   const canDelete = canPerformAction(userRole, 'deleteRequest');
@@ -149,7 +156,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
     return <Check size={18} />;
   }
 
-  const shortStatusLabel = statusInfo.label.replace('Снабжение — ', '').replace('Согласование — ', '').replace('Бухгалтерия — ', '');
+  const shortStatusLabel = statusInfo.label.replace('Снабжение — ', '').replace('Согласование — ', '').replace('Веста — ', '');
 
   console.log('RequestDetailsModal - Request ID:', request.id, 'Status:', request.status, 'canAttachInvoice:', canAttachInvoice);
 
@@ -167,9 +174,20 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                 <span className="hidden sm:inline">{statusInfo.label}</span>
               </span>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition shrink-0">
-              <X size={20} className="text-slate-500" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {canEdit && (
+                <button
+                  onClick={() => { onClose(); onEditRequest?.(request); }}
+                  className="p-2 hover:bg-slate-200 rounded-lg transition"
+                  title="Редактировать"
+                >
+                  <Edit size={20} className="text-cyan-600" />
+                </button>
+              )}
+              <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition">
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
           </div>
 
           {/* Кнопки действий */}
@@ -308,12 +326,12 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             <div className="bg-slate-50 p-2 rounded-lg"><div className="text-slate-400 mb-0.5">Создано</div><div className="font-medium text-slate-700">{formatDateTime(request.createdAt)}</div></div>
           </div>
 
-          {(request.approvals?.technologist || request.approvals?.shopManager || request.approvals?.director || request.approvals?.accountant) && (
+          {(request.approvals?.technologist || request.approvals?.shopManager || request.approvals?.director || request.approvals?.vesta) && (
             <div className="flex flex-wrap gap-1.5">
               {request.approvals?.technologist && <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium"><Check size={10} /> Технолог</span>}
               {request.approvals?.shopManager && <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium"><Check size={10} /> Нач. цеха</span>}
               {request.approvals?.director && <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium"><Check size={10} /> Директор</span>}
-              {request.approvals?.accountant && <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium"><Check size={10} /> Бухгалтер</span>}
+              {request.approvals?.vesta && <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium"><Check size={10} /> Веста</span>}
             </div>
           )}
 
