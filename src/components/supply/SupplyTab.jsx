@@ -19,7 +19,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const [activeTab, setActiveTab] = useState('all');
   const [activeDepartment, setActiveDepartment] = useState('Химмаш');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
@@ -65,8 +65,14 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     awaitingDelivery: departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
   }), [myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, departmentFilteredRequests]);
 
+  // Всегда берём свежие данные из Firestore по ID
+  const selectedRequest = useMemo(() => {
+    if (!selectedRequestId) return null;
+    return supplyRequests.find(r => r.id === selectedRequestId) || null;
+  }, [supplyRequests, selectedRequestId]);
+
   const handleOpenDetails = (request) => {
-    setSelectedRequest(request);
+    setSelectedRequestId(request.id);
     setShowDetailsModal(true);
   };
 
@@ -102,7 +108,8 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     return <div className="space-y-2.5">{requests.map(request => <SupplyRequestCard key={request.id} request={request} userRole={userRole} onOpenDetails={() => handleOpenDetails(request)} onOpenInvoice={(url) => url && window.open(url, '_blank')} onDelete={supplyActions.deleteRequest} />)}</div>;
   };
 
-      const canCreate = userRole && ['technologist', 'director', 'shopManager', 'master', 'supplier'].includes(userRole);  const roleLabel = getRoleLabel(userRole);
+  const canCreate = userRole && ['technologist', 'director', 'shopManager', 'master', 'supplier', 'vesta'].includes(userRole);
+  const roleLabel = getRoleLabel(userRole);
 
   const renderFilterButton = (tab, label, count, icon) => {
     const isActive = activeTab === tab;
@@ -172,7 +179,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
 
       {/* Modals */}
       {showCreateModal && <CreateRequestModal orders={activeOrders} userRole={userRole} onClose={() => { setShowCreateModal(false); setEditingRequest(null); }} onCreate={handleCreateRequest} editData={editingRequest} onEdit={handleEditRequest} />}
-      {showDetailsModal && selectedRequest && <RequestDetailsModal request={selectedRequest} userRole={userRole} supplyActions={supplyActions} onClose={() => { setShowDetailsModal(false); setSelectedRequest(null); }} onEditRequest={handleOpenEdit} />}
+      {showDetailsModal && selectedRequest && <RequestDetailsModal request={selectedRequest} userRole={userRole} supplyActions={supplyActions} onClose={() => { setShowDetailsModal(false); setSelectedRequestId(null); }} onEditRequest={handleOpenEdit} />}
     </div>
   );
 }

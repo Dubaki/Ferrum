@@ -159,7 +159,6 @@ export const useSupplyRequests = () => {
 
     try {
       const result = await uploadInvoice(file, request.requestNumber);
-      console.log('attachInvoice: Request ID:', id, 'New status: invoice_attached'); // Add this line
       const currentInvoices = request.invoices || [];
       const newInvoice = {
         url: result.url,
@@ -256,7 +255,6 @@ export const useSupplyRequests = () => {
   const markPaid = async (id) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-    console.log('markPaid: Request ID:', id, 'Status set to: paid');
     await updateRequest(id, {
       status: 'paid',
       'approvals.vesta': true,
@@ -373,8 +371,6 @@ export const useSupplyRequests = () => {
       const updatedInvoices = request.invoices.filter(inv => inv.path !== invoicePathToRemove);
 
       const newStatus = updatedInvoices.length === 0 ? 'with_supplier' : request.status; // Если счетов нет, статус 'with_supplier'
-      console.log('detachInvoice: Request ID:', id, 'New status set to:', newStatus, 'Invoices remaining:', updatedInvoices.length);
-
       await updateRequest(id, {
         invoices: updatedInvoices,
         status: newStatus,

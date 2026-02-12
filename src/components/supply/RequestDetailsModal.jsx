@@ -50,7 +50,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   };
 
   // Определение доступных действий на основе роли и статуса
-  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && !['paid', 'delivered'].includes(request.status);
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'invoice_attached', 'rejected'].includes(request.status);
   const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && ['invoice_attached', 'pending_tech_approval'].includes(request.status);
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
@@ -71,8 +71,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   // Возможность удаления
   const canDelete = canPerformAction(userRole, 'deleteRequest');
 
-  // Возможность открепить счет
-  const canDetachInvoice = userRole === 'supplier' && request.invoices && request.invoices.length > 0 && !['paid', 'delivered'].includes(request.status);
+  // Возможность открепить счет (только когда заявка у снабженца)
+  const canDetachInvoice = canPerformAction(userRole, 'attachInvoice') && request.invoices && request.invoices.length > 0 && ['with_supplier', 'invoice_attached', 'rejected'].includes(request.status);
 
   // Обработка загрузки файла счёта
   const handleFileUpload = async (e) => {
@@ -157,8 +157,6 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   }
 
   const shortStatusLabel = statusInfo.label.replace('Снабжение — ', '').replace('Согласование — ', '').replace('Веста — ', '');
-
-  console.log('RequestDetailsModal - Request ID:', request.id, 'Status:', request.status, 'canAttachInvoice:', canAttachInvoice);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
@@ -254,13 +252,17 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                     <span className="truncate">{invoice.name || `Счёт ${index + 1}`}</span>
                   </div>
                   <div className="flex gap-1">
-                    {canDetachInvoice && ( // canDetachInvoice должен быть адаптирован для каждого счета
+                    {canDetachInvoice && (
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
                           if (window.confirm(`Вы уверены, что хотите открепить счёт ${invoice.name}?`)) {
-                            supplyActions.detachInvoice(request.id, invoice.path);
-                            onClose();
+                            try {
+                              await supplyActions.detachInvoice(request.id, invoice.path);
+                              onClose();
+                            } catch (err) {
+                              // ошибка уже показана в detachInvoice через showError
+                            }
                           }
                         }}
                         className="px-2.5 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition flex items-center gap-1"
@@ -379,9 +381,9 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
               </button>
             </div>
             <div className="flex-1 overflow-auto p-2 bg-slate-100 flex items-center justify-center min-h-[400px]">
-              {previewInvoice.url?.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+              {(previewInvoice.name || previewInvoice.url)?.match(/\.(jpg|jpeg|png|gif)/i) ? (
                 <img src={previewInvoice.url} alt="Счёт" className="max-w-full max-h-[75vh] object-contain rounded shadow-lg" />
-              ) : previewInvoice.url?.match(/\.pdf$/i) ? (
+              ) : (previewInvoice.name || previewInvoice.url)?.match(/\.pdf/i) ? (
                 <iframe src={previewInvoice.url} className="w-full h-[75vh] rounded bg-white" title="Предпросмотр счёта" />
               ) : (
                 <div className="text-center text-slate-600 p-8">
