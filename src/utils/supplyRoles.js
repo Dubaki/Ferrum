@@ -5,7 +5,8 @@ export const SUPPLY_ROLES = {
   shopManager: { label: 'Начальник цеха', password: 'proplex', icon: '🏭' },
   director: { label: 'Директор', password: 'proplex', icon: '💼' },
   vesta: { label: 'Веста', password: 'LG26', icon: '💰' },
-  master: { label: 'Мастер', password: 'fer25', icon: '🔧' }
+  master: { label: 'Мастер', password: 'fer25', icon: '🔧' },
+  manager: { label: 'Менеджер', password: 'fer25', icon: '📋' }
 };
 
 // Статусы заявок (новый workflow с указанием роли)

@@ -206,7 +206,7 @@ export default function App() {
           <Route
             path="/products"
             element={
-              isAdmin || userRole === 'technologist' || userRole === 'vesta' ? (
+              isAdmin || userRole === 'technologist' || userRole === 'vesta' || userRole === 'manager' ? (
                 <ProductsTab
                   products={products}
                   resources={resources}
@@ -271,7 +271,7 @@ export default function App() {
           <Route
             path="/gantt"
             element={
-              isAdmin || userRole === 'technologist' || userRole === 'master' || userRole === 'vesta' ? (
+              isAdmin || userRole === 'technologist' || userRole === 'master' || userRole === 'vesta' || userRole === 'manager' ? (
                 <GanttTab
                   products={products}
                   resources={resources}
