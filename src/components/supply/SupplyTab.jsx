@@ -1,9 +1,48 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock, Inbox, Archive, AlertCircle, Truck } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock, Inbox, Archive, AlertCircle, Truck, ChevronDown, ChevronRight } from 'lucide-react';
 import { getRequestsForRole, isRequestOverdue, getRoleLabel } from '../../utils/supplyRoles';
 import SupplyRequestCard from './SupplyRequestCard';
 import CreateRequestModal from './CreateRequestModal';
 import RequestDetailsModal from './RequestDetailsModal';
+
+// Helper function for grouping requests
+const groupRequestsByDeliveredDate = (requests) => {
+    const months = {};
+    requests.forEach(request => {
+        if (!request.deliveredAt) return;
+        const deliveredDate = new Date(request.deliveredAt);
+        const yearMonthKey = deliveredDate.toISOString().substring(0, 7); // YYYY-MM
+        const fullDateKey = deliveredDate.toISOString().substring(0, 10); // YYYY-MM-DD
+
+        const monthLabel = deliveredDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        const dayLabel = deliveredDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', weekday: 'short' });
+
+        if (!months[yearMonthKey]) {
+            months[yearMonthKey] = {
+                label: monthLabel,
+                days: {}
+            };
+        }
+        if (!months[yearMonthKey].days[fullDateKey]) {
+            months[yearMonthKey].days[fullDateKey] = {
+                label: dayLabel,
+                requests: []
+            };
+        }
+        months[yearMonthKey].days[fullDateKey].requests.push(request);
+    });
+
+    const sortedMonths = Object.keys(months).sort((a, b) => b.localeCompare(a)).map(monthKey => {
+        const month = months[monthKey];
+        const sortedDays = Object.keys(month.days).sort((a, b) => b.localeCompare(a)).map(dayKey => ({
+            label: month.days[dayKey].label,
+            requests: month.days[dayKey].requests.sort((a,b) => new Date(b.deliveredAt) - new Date(a.deliveredAt)) // Sort requests within day
+        }));
+        return { label: month.label, days: sortedDays };
+    });
+
+    return sortedMonths;
+};
 
 const StatCard = ({ icon, label, value, colorClass, pulse = false }) => (
   <div className={`bg-white rounded-lg border border-neutral-200/80 px-4 py-3 flex items-center justify-between`}>
@@ -23,6 +62,8 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
+  const [expandedMonths, setExpandedMonths] = useState({}); // { 'YYYY-MM': true }
+  const [expandedDays, setExpandedDays] = useState({});     // { 'YYYY-MM-DD': true }
 
   const departmentFilteredRequests = useMemo(() => supplyRequests.filter(r => 
     activeDepartment === 'Химмаш' ? r.department === 'Химмаш' || !r.department : r.department === activeDepartment
@@ -33,6 +74,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const overdueRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r)), [departmentFilteredRequests]);
   const awaitingRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery'), [departmentFilteredRequests]);
   const archivedRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'delivered'), [departmentFilteredRequests]);
+  const groupedArchivedRequests = useMemo(() => groupRequestsByDeliveredDate(archivedRequests), [archivedRequests]);
 
   const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
 
@@ -105,6 +147,69 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
         </div>
       );
     }
+    
+    if (activeTab === 'archive') {
+        if (groupedArchivedRequests.length === 0) {
+            return (
+                <div className="bg-white rounded-lg p-8 text-center border border-dashed border-neutral-200">
+                    <Archive className="mx-auto text-neutral-300 mb-3" size={36} />
+                    <h3 className="font-semibold text-neutral-700">Архив пуст</h3>
+                    <p className="text-neutral-500 text-sm mt-1">
+                        Когда заявки будут доставлены, они появятся здесь.
+                    </p>
+                </div>
+            );
+        }
+        return (
+            <div className="space-y-4">
+                {groupedArchivedRequests.map(monthGroup => (
+                    <div key={monthGroup.label} className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        <button
+                            className="w-full flex items-center justify-between p-4 bg-neutral-50 hover:bg-neutral-100 transition"
+                            onClick={() => setExpandedMonths(prev => ({ ...prev, [monthGroup.label]: !prev[monthGroup.label] }))}
+                        >
+                            <h3 className="text-lg font-bold text-neutral-700 flex items-center gap-2">
+                                {expandedMonths[monthGroup.label] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                {monthGroup.label} <span className="text-sm font-normal text-neutral-400">({Object.values(monthGroup.days).reduce((acc, day) => acc + day.requests.length, 0)} заявок)</span>
+                            </h3>
+                        </button>
+                        {expandedMonths[monthGroup.label] && (
+                            <div className="divide-y divide-neutral-100">
+                                {monthGroup.days.map(dayGroup => (
+                                    <div key={`${monthGroup.label}-${dayGroup.label}`}>
+                                        <button
+                                            className="w-full flex items-center justify-between pl-8 pr-4 py-3 bg-white hover:bg-neutral-50 transition"
+                                            onClick={() => setExpandedDays(prev => ({ ...prev, [`${monthGroup.label}-${dayGroup.label}`]: !prev[`${monthGroup.label}-${dayGroup.label}`] }))}
+                                        >
+                                            <h4 className="text-md font-semibold text-neutral-600 flex items-center gap-2">
+                                                {expandedDays[`${monthGroup.label}-${dayGroup.label}`] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                {dayGroup.label} <span className="text-sm font-normal text-neutral-400">({dayGroup.requests.length} заявок)</span>
+                                            </h4>
+                                        </button>
+                                        {expandedDays[`${monthGroup.label}-${dayGroup.label}`] && (
+                                            <div className="space-y-2.5 p-4 pt-0 pl-12">
+                                                {dayGroup.requests.map(request => (
+                                                    <SupplyRequestCard 
+                                                        key={request.id} 
+                                                        request={request} 
+                                                        userRole={userRole} 
+                                                        onOpenDetails={() => handleOpenDetails(request)} 
+                                                        onOpenInvoice={(url) => url && window.open(url, '_blank')} 
+                                                        onDelete={supplyActions.deleteRequest} 
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
     return <div className="space-y-2.5">{requests.map(request => <SupplyRequestCard key={request.id} request={request} userRole={userRole} onOpenDetails={() => handleOpenDetails(request)} onOpenInvoice={(url) => url && window.open(url, '_blank')} onDelete={supplyActions.deleteRequest} />)}</div>;
   };
 

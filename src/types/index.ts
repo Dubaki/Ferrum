@@ -1,3 +1,67 @@
+// Supply types
+export interface SupplyRequestItem {
+  title: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface SupplyRequestOrder {
+  orderNumber: string;
+}
+
+export interface SupplyInvoice {
+  url: string;
+  name: string;
+  path: string;
+  uploadedAt: number;
+  uploadedBy: string; // e.g., 'supplier' or userRole
+}
+
+export interface SupplyApprovalStatus {
+  technologist: boolean;
+  technologistAt: number | null;
+  shopManager: boolean;
+  shopManagerAt: number | null;
+  director: boolean;
+  directorAt: number | null;
+  vesta: boolean;
+  vestaAt: number | null;
+}
+
+export interface SupplyStatusHistoryEntry {
+  status: string; // e.g., 'with_supplier', 'pending_tech_approval'
+  timestamp: number;
+  role: string; // e.g., 'supplier', 'technologist'
+  note?: string;
+}
+
+export interface SupplyRequest {
+  id: string;
+  requestNumber: string;
+  status: string; // e.g., 'with_supplier', 'awaiting_delivery', 'delivered'
+  items: SupplyRequestItem[];
+  orders: SupplyRequestOrder[];
+  department: string;
+  creatorComment?: string;
+  desiredDate?: string;
+  invoices: SupplyInvoice[];
+  approvals: SupplyApprovalStatus;
+  deliveryDate?: string;
+  deliveredAt?: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  rejectionReason?: string;
+  rejectedByRole?: string;
+  invoiceRequestCount?: number;
+  statusHistory: SupplyStatusHistoryEntry[];
+  
+  // New fields
+  supplierAddress?: string;
+  supplierPhone?: string;
+}
+
+
 // Основные типы для приложения ФЕРРУМ
 
 // Статусы заказа

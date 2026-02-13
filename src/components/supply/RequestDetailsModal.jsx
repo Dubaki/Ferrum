@@ -11,6 +11,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [showActionConfirm, setShowActionConfirm] = useState(null); // { label, onConfirm, color }
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState('');
+  const [supplierAddress, setSupplierAddress] = useState(request.supplierAddress || '');
+  const [supplierPhone, setSupplierPhone] = useState(request.supplierPhone || '');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [previewInvoice, setPreviewInvoice] = useState(null); // Будет хранить объект счета для предпросмотра
@@ -19,6 +21,30 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const fileInputRef = useRef(null);
 
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
+
+  const formatPhoneNumber = (value) => {
+    if (!value) return '';
+    const phoneNumber = value.replace(/\D/g, ''); // Remove non-digits
+    let formatted = '+7 ';
+    if (phoneNumber.length > 1) {
+        formatted += `(${phoneNumber.substring(1, 4)}`;
+    }
+    if (phoneNumber.length >= 5) {
+        formatted += `) ${phoneNumber.substring(4, 7)}`;
+    }
+    if (phoneNumber.length >= 8) {
+        formatted += `-${phoneNumber.substring(7, 9)}`;
+    }
+    if (phoneNumber.length >= 10) {
+        formatted += `-${phoneNumber.substring(9, 11)}`;
+    }
+    return formatted.substring(0, 18); // Max length for +7 (XXX) XXX-XX-XX
+  };
+
+  const handlePhoneChange = (e) => {
+    setSupplierPhone(formatPhoneNumber(e.target.value));
+  };
+
 
   // Получаем данные с учетом старого и нового формата
   const items = request.items || [];
@@ -110,9 +136,11 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   // Обработка назначения срока доставки
   const handleSetDeliveryDate = async () => {
     if (!deliveryDate) return;
-    await supplyActions.setDeliveryDate(request.id, deliveryDate);
+    await supplyActions.setDeliveryDate(request.id, deliveryDate, supplierAddress, supplierPhone);
     setShowDeliveryModal(false);
     setDeliveryDate('');
+    setSupplierAddress(''); // Clear state after setting
+    setSupplierPhone('');   // Clear state after setting
     onClose();
   };
 
@@ -387,7 +415,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
       )}
       {showRejectModal && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Причина отклонения</h3><textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Укажите причину..." rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none mb-4" /><div className="flex gap-2"><button onClick={() => setShowRejectModal(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleReject} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Отклонить</button></div></div></div>}
       {showDeleteConfirm && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-2">Удалить заявку?</h3><p className="text-slate-600 mb-4">Это действие нельзя отменить.</p><div className="flex gap-2"><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">Удалить</button></div></div></div>}
-      {showDeliveryModal && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Назначить срок доставки</h3><input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-4" /><div className="flex gap-2"><button onClick={() => { setShowDeliveryModal(false); setDeliveryDate(''); }} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleSetDeliveryDate} disabled={!deliveryDate} className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition font-medium disabled:opacity-50">Назначить</button></div></div></div>}
+      {showDeliveryModal && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-4"><h3 className="font-bold text-lg text-slate-800 mb-4">Назначить срок доставки</h3><input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent mb-4" /><div className="space-y-3 mb-4"><div><label htmlFor="supplierAddress" className="block text-sm font-medium text-slate-700 mb-1">Адрес контрагента</label><input id="supplierAddress" type="text" value={supplierAddress} onChange={(e) => setSupplierAddress(e.target.value)} placeholder="Например: г. Москва, ул. Ленина, д. 1" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent" /></div><div><label htmlFor="supplierPhone" className="block text-sm font-medium text-slate-700 mb-1">Телефон контрагента</label><input id="supplierPhone" type="tel" value={supplierPhone} onChange={handlePhoneChange} placeholder="+7 (XXX) XXX-XX-XX" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent" maxLength={18} /></div></div><div className="flex gap-2"><button onClick={() => { setShowDeliveryModal(false); setDeliveryDate(''); setSupplierAddress(''); setSupplierPhone(''); }} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium">Отмена</button><button onClick={handleSetDeliveryDate} disabled={!deliveryDate} className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition font-medium disabled:opacity-50">Назначить</button></div></div></div>}
       {previewInvoice && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80" onClick={() => setPreviewInvoice(null)}>
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>

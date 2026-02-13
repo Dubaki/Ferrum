@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X } from 'lucide-react';
+import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X, Info } from 'lucide-react';
 import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete }) {
@@ -124,6 +124,14 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
                   {deliveryAlert ? <Truck size={12} /> : <AlertTriangle size={12} />}
                   <span>{alertToShow.label}</span>
               </div>
+            )}
+            {(request.supplierAddress || request.supplierPhone) && (
+                <div
+                    className="relative flex items-center justify-center p-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition group"
+                    title={`Адрес: ${request.supplierAddress || 'не указан'}\nТелефон: ${request.supplierPhone || 'не указан'}`}
+                >
+                    <Info size={14} />
+                </div>
             )}
           </div>
 

@@ -268,13 +268,15 @@ export const useSupplyRequests = () => {
     notifyRoles(['supplier'], buildNotificationMessage(request, 'paid'));
   };
 
-  const setDeliveryDate = async (id, date) => {
+  const setDeliveryDate = async (id, date, supplierAddress = null, supplierPhone = null) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
       status: 'awaiting_delivery',
       deliveryDate: date,
-      statusHistory: addStatusHistory(request, 'awaiting_delivery', 'supplier', `Срок доставки: ${date}`)
+      supplierAddress: supplierAddress, // Store new field
+      supplierPhone: supplierPhone,     // Store new field
+      statusHistory: addStatusHistory(request, 'awaiting_delivery', 'supplier', `Срок доставки: ${date}. Адрес: ${supplierAddress || 'не указан'}. Телефон: ${supplierPhone || 'не указан'}`)
     });
     showSuccess('Срок доставки установлен');
     notifyRoles(['shopManager', 'master', 'technologist'], buildNotificationMessage(request, 'delivery_date_set', { date }));
