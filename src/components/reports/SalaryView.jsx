@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, DollarSign, TrendingUp, AlertCircle, FileText, Edit3 } from 'lucide-react';
-// ИСПРАВЛЕННЫЙ ИМПОРТ (одна точка = текущая папка)
 import SalaryMatrixModal from './SalaryMatrixModal';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 export default function SalaryView({ resources, actions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -10,11 +10,10 @@ export default function SalaryView({ resources, actions }) {
     const [advanceValue, setAdvanceValue] = useState('');
     const [editingWorkDays, setEditingWorkDays] = useState(false);
     const [workDaysValue, setWorkDaysValue] = useState('');
-    const [workDaysOverrides, setWorkDaysOverrides] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem('workDaysOverrides') || '{}');
-        } catch { return {}; }
-    });
+    
+    // --- NEW: Using useAppSettings hook ---
+    const { settings, updateSettings, loading: settingsLoading } = useAppSettings();
+    const workDaysOverrides = useMemo(() => settings?.workDaysOverrides || {}, [settings]);
 
     const changeMonth = (delta) => {
         const d = new Date(currentDate);
@@ -48,12 +47,12 @@ export default function SalaryView({ resources, actions }) {
         return today >= nextMonth;
     }, [currentDate]);
 
-    // Сохранение количества рабочих дней
+    // --- NEW: Saving work days to Firebase ---
     const handleSaveWorkDays = () => {
+        if (!updateSettings) return;
         const value = parseInt(workDaysValue) || defaultWorkingDays;
         const newOverrides = { ...workDaysOverrides, [monthKey]: value };
-        setWorkDaysOverrides(newOverrides);
-        localStorage.setItem('workDaysOverrides', JSON.stringify(newOverrides));
+        updateSettings({ workDaysOverrides: newOverrides });
         setEditingWorkDays(false);
         setWorkDaysValue('');
     };
@@ -166,16 +165,20 @@ export default function SalaryView({ resources, actions }) {
                     const violation = res.safetyViolations?.[dateStr];
                     const ktuPercent = (res.dailyEfficiency?.[dateStr]) || 0;
                     const isProbationPassed = dateObj > probationEnd;
+                    
+                    // --- NEW: Должности, которым не начисляются бонусы ---
+                    const noBonusPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
+                    const isExcludedFromBonuses = noBonusPositions.includes(res.position);
 
-                    // ТБ (22%) - если прошел исп. срок и нет нарушений в этот день
+                    // ТБ (22%) - если прошел исп. срок, нет нарушений и должность предполагает бонус
                     let dailyTb = 0;
-                    if (isProbationPassed && !violation) {
+                    if (isProbationPassed && !violation && !isExcludedFromBonuses) {
                         dailyTb = dailyBase * 0.22;
                     }
 
-                    // КТУ (процент от базы) - только если прошел исп. срок
+                    // КТУ (процент от базы) - только если прошел исп. срок и должность предполагает бонус
                     let dailyKtu = 0;
-                    if (isProbationPassed) {
+                    if (isProbationPassed && !isExcludedFromBonuses) {
                         dailyKtu = dailyBase * (ktuPercent / 100);
                     }
 
