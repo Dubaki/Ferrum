@@ -268,6 +268,16 @@ export const useSupplyRequests = () => {
     notifyRoles(['supplier'], buildNotificationMessage(request, 'paid'));
   };
 
+  const markAsInQueue = async (id) => {
+    const request = requests.find(r => r.id === id);
+    if (!request) return;
+    await updateRequest(id, {
+      status: 'in_queue_payment',
+      statusHistory: addStatusHistory(request, 'in_queue_payment', 'vesta', 'Поставлено в очередь на оплату')
+    });
+    showSuccess('Заявка поставлена в очередь на оплату');
+  };
+
   const setDeliveryDate = async (id, date, supplierAddress = null, supplierPhone = null) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
@@ -411,7 +421,7 @@ export const useSupplyRequests = () => {
     actions: {
       createRequest, updateRequest, deleteRequest, editRequest, attachInvoice, submitForApproval,
       approveTechnologist, approveShopManager, approveDirector, markPaid, setDeliveryDate,
-      markDelivered, rejectRequest, detachInvoice
+      markDelivered, rejectRequest, detachInvoice, markAsInQueue
     }
   };
 };

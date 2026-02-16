@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X, Info } from 'lucide-react';
+import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X, Info, ListChecks } from 'lucide-react';
 import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel } from '../../utils/supplyRoles';
 
-export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete }) {
+export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete, supplyActions }) {
   const [showRejectReason, setShowRejectReason] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
@@ -70,7 +70,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
         className={`rounded-lg transition-all duration-150 active:scale-[0.99] cursor-pointer hover:shadow-sm relative ${isRejected ? 'bg-red-50 border-2 border-red-400' : 'bg-white border border-slate-200 hover:border-slate-300'}`}
         onClick={onOpenDetails}
       >
-        <div className="grid grid-cols-[auto_auto_minmax(0,1.5fr)_minmax(0,1fr)_auto_auto_auto_auto] items-center gap-3 p-2">
+        <div className="grid grid-cols-[auto_auto_minmax(0,1.5fr)_minmax(0,1fr)_auto_auto_auto_auto_auto] items-center gap-3 p-2">
           {/* Col 1: Status Indicator */}
           <span className={`w-1.5 h-8 rounded-full ${statusInfo.color} flex-shrink-0`}></span>
 
@@ -161,7 +161,25 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
             )}
           </div>
 
-          {/* Col 8: Status Label */}
+          {/* Col 8: New Queue Button */}
+          <div className="w-8 h-8 flex items-center justify-center">
+            {userRole === 'vesta' && request.status === 'pending_payment' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm('Поставить заявку в очередь на оплату?')) {
+                    supplyActions.markAsInQueue(request.id);
+                  }
+                }}
+                className="h-full w-full rounded-md bg-sky-50 text-sky-600 hover:bg-sky-100 flex items-center justify-center transition"
+                title="В очередь на оплату"
+              >
+                <ListChecks size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Col 9: Status Label */}
           <div className="text-right">
             <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${statusInfo.color} whitespace-nowrap`}>
               {statusLabel}

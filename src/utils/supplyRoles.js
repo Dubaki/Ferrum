@@ -22,6 +22,7 @@ export const SUPPLY_STATUSES = {
   pending_tech_approval: { label: 'Согласование — технолог', color: 'bg-blue-500', textColor: 'text-blue-600', owner: 'technologist' },
   pending_shop_approval: { label: 'Согласование — нач. цеха', color: 'bg-indigo-500', textColor: 'text-indigo-600', owner: 'shopManager' },
   pending_director_approval: { label: 'Согласование — директор', color: 'bg-purple-500', textColor: 'text-purple-600', owner: 'director' },
+  in_queue_payment: { label: 'Веста — в очереди на оплату', color: 'bg-sky-500', textColor: 'text-sky-600', owner: 'vesta' },
   paid: { label: 'Оплачено', color: 'bg-emerald-500', textColor: 'text-emerald-600', owner: 'supplier' },
   awaiting_delivery: { label: 'Снабжение — ожидает доставки', color: 'bg-cyan-500', textColor: 'text-cyan-600', owner: null },
   delivered: { label: 'Доставлено', color: 'bg-green-600', textColor: 'text-green-600', owner: null },
