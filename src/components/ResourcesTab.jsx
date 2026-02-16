@@ -132,7 +132,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
       {/* --- ВИД: КТУ (НОВЫЙ) --- */}
       {activeView === 'ktu' && (
           <div className="fade-in">
-              <MasterEfficiencyView resources={activeResources} actions={actions} />
+              <MasterEfficiencyView resources={activeResources.filter(r => r.salaryEnabled !== false)} actions={actions} />
           </div>
       )}
 
@@ -205,8 +205,9 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       }
 
                                       // ВАЖНО: Проверяем КТУ только для должностей, у которых КТУ обязательно
+                                      // и только для сотрудников с расчетом ЗП.
                                       // Для Мастера, Технолога и Стажёра КТУ не требуется
-                                      if (!noKtuPositions.includes(res.position)) {
+                                      if (!noKtuPositions.includes(res.position) && res.salaryEnabled !== false) {
                                           const ktuValue = res.dailyEfficiency?.[dateStr];
                                           if (ktuValue === undefined) {
                                               dayHours = 0;
