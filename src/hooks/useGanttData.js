@@ -82,29 +82,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 let totalMinutes = 0;
 
                 // Определяем даты начала и конца изделия
-                let pStart = null;
+                // Даты операций (op.startDate, op.endDate) теперь игнорируются для Ганта
+                // и используются только для истории. Расчет Ганта идет от даты начала изделия.
+                let pStart = prod.startDate ? new Date(prod.startDate) : new Date();
                 let pEnd = null;
-
-                // Сначала определяем дату начала, она общая для обоих случаев
-                ops.forEach(op => {
-                    if (op.startDate) {
-                        const opStart = new Date(op.startDate);
-                        if (!pStart || opStart < pStart) pStart = opStart;
-                    }
-                    // Фоллбэк на старое поле plannedDate для обратной совместимости
-                    else if (op.plannedDate) {
-                        const opDate = new Date(op.plannedDate);
-                        if (!pStart || opDate < pStart) pStart = opDate;
-                    }
-                });
-
-                if (!pStart && prod.startDate) {
-                    pStart = new Date(prod.startDate);
-                }
-
-                if (!pStart) {
-                    pStart = new Date();
-                }
 
                 // Теперь определяем дату окончания и общее время с учетом приоритета
                 if (prod.estimatedHours && prod.estimatedHours > 0) {
@@ -113,26 +94,10 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                     const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
                     pEnd = addWorkingDays(pStart, workDaysNeeded);
                 } else {
-                    // ФОЛЛБЭК: Старая логика на основе операций
+                    // ФОЛЛБЭК: Старая логика на основе операций (только для подсчета времени)
                     totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
-
-                    ops.forEach(op => {
-                        if (op.endDate) {
-                            const opEnd = new Date(op.endDate);
-                            if (!pEnd || opEnd > pEnd) pEnd = opEnd;
-                        }
-                         // Фоллбэк на старое поле plannedDate
-                        else if (op.plannedDate) {
-                             const opDate = new Date(op.plannedDate);
-                             if (!pEnd || opDate > pEnd) pEnd = opDate;
-                        }
-                    });
-
-                    // Если после перебора операций дата окончания все еще не найдена, рассчитываем
-                    if (!pEnd) {
-                        const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
-                        pEnd = addWorkingDays(pStart, workDaysNeeded);
-                    }
+                    const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
+                    pEnd = addWorkingDays(pStart, workDaysNeeded);
                 }
 
                 // Считаем календарную длительность для визуализации
