@@ -193,7 +193,8 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                   const dateObj = new Date(dateStr);
                                   const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                   const isWorkDay = res.workWeekends ? true : !isWeekend;
-                                  const isBeforeStartDate = res.startDate && new Date(dateStr) < new Date(res.startDate);
+                                  const effectiveStartDate = res.startDate || res.employmentDate;
+                                  const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
 
                                   if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
                                       let dayHours = 0;
@@ -261,7 +262,8 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       const isWorkDay = res.workWeekends ? true : !isWeekend;
 
                                       // Проверяем дату начала работы сотрудника
-                                      const isBeforeStartDate = res.startDate && new Date(dateStr) < new Date(res.startDate);
+                                      const effectiveStartDate = res.startDate || res.employmentDate;
+                                      const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
 
                                       // Определяем был ли день отработан (для зеленой подсветки)
                                       let dayWorked = false;
@@ -290,9 +292,9 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                       }
 
                                       if (isBeforeStartDate) {
-                                          // Дата до начала работы - показываем 0 и блокируем редактирование
-                                          content = <span className="text-slate-300 text-[10px]">0</span>;
-                                          cellClass = 'bg-slate-100';
+                                          // Дата до начала работы - показываем как "Прогул/Отгул"
+                                          content = <X size={14} className="text-slate-400 mx-auto"/>;
+                                          cellClass = 'bg-slate-100 cursor-not-allowed';
                                       } else if (reason === 'sick') {
                                           content = <Thermometer size={14} className="text-red-500 mx-auto"/>;
                                           cellClass = 'bg-red-50';
