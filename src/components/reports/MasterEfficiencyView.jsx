@@ -22,12 +22,14 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const [editingCell, setEditingCell] = useState(null); // { resId, dateStr }
     const [editValue, setEditValue] = useState('');
 
-    const shiftDate = (days) => {
+    const changeMonth = (delta) => {
         const d = new Date(currentDate);
-        d.setDate(d.getDate() + days);
+        d.setDate(1); // Set to first day to avoid month skipping issues
+        d.setMonth(d.getMonth() + delta);
         setCurrentDate(d);
     };
 
+    const monthName = currentDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
     const dateStr = currentDate.toISOString().split('T')[0];
     const displayDate = currentDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -136,17 +138,16 @@ export default function MasterEfficiencyView({ resources, actions }) {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 relative">
+        <div className="space-y-6 relative">
             
             {/* Навигация */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => shiftDate(-1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronLeft size={20}/></button>
-                    <div className="text-center w-40">
-                         <div className="text-lg font-bold text-gray-800 capitalize leading-tight">{displayDate}</div>
-                         <div className="text-xs text-gray-400">{currentDate.getFullYear()}</div>
+                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronLeft size={20}/></button>
+                    <div className="text-center w-48">
+                         <div className="text-lg font-bold text-gray-800 capitalize leading-tight">{monthName}</div>
                     </div>
-                    <button onClick={() => shiftDate(1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronRight size={20}/></button>
+                    <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronRight size={20}/></button>
                 </div>
                 
                 <button 
