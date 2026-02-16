@@ -82,7 +82,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
   const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_director_approval';
-  const canMarkPaid = canPerformAction(userRole, 'markPaid') && request.status === 'pending_payment';
+  const canMarkPaid = canPerformAction(userRole, 'markPaid') && ['pending_payment', 'in_queue_payment'].includes(request.status);
   const canSetDelivery = canPerformAction(userRole, 'setDeliveryDate') && (request.status === 'paid' || isDeliveryOverdue(request));
   const canMarkDelivered = canPerformAction(userRole, 'markDelivered') && request.status === 'awaiting_delivery';
 
