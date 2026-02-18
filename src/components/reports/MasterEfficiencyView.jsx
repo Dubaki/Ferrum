@@ -22,6 +22,12 @@ export default function MasterEfficiencyView({ resources, actions }) {
     const [editingCell, setEditingCell] = useState(null); // { resId, dateStr }
     const [editValue, setEditValue] = useState('');
 
+    const shiftDate = (days) => {
+        const d = new Date(currentDate);
+        d.setDate(d.getDate() + days);
+        setCurrentDate(d);
+    };
+
     const changeMonth = (delta) => {
         const d = new Date(currentDate);
         d.setDate(1); // Set to first day to avoid month skipping issues
@@ -142,12 +148,17 @@ export default function MasterEfficiencyView({ resources, actions }) {
             
             {/* Навигация */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronLeft size={20}/></button>
+                <div className="flex items-center gap-3">
+                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-gray-100 border" title="Месяц назад"><ChevronLeft size={16}/><ChevronLeft size={16} className="-ml-2"/></button>
+                    <button onClick={() => shiftDate(-1)} className="p-2 rounded-full hover:bg-gray-100 border"><ChevronLeft size={20}/></button>
+                    
                     <div className="text-center w-48">
-                         <div className="text-lg font-bold text-gray-800 capitalize leading-tight">{monthName}</div>
+                         <div className="text-lg font-bold text-gray-800 capitalize leading-tight">{displayDate}</div>
+                         <div className="text-xs text-gray-400">{currentDate.getFullYear()}</div>
                     </div>
-                    <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100 border border-gray-200"><ChevronRight size={20}/></button>
+
+                    <button onClick={() => shiftDate(1)} className="p-2 rounded-full hover:bg-gray-100 border"><ChevronRight size={20}/></button>
+                    <button onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-gray-100 border" title="Месяц вперед"><ChevronRight size={16}/><ChevronRight size={16} className="-ml-2"/></button>
                 </div>
                 
                 <button 
