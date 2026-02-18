@@ -346,6 +346,7 @@ export const useSupplyRequests = () => {
       status: newStatus,
       rejectionReason: reason || 'Причина не указана',
       rejectedByRole: role,
+      creatorComment: request.creatorComment, // Preserve original comment
       ...clearApprovals,
       statusHistory: addStatusHistory(request, newStatus, role, `Отклонено (${getRoleLabel(role)}): ${reason || 'без причины'}${noteTarget}`)
     });
