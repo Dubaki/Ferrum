@@ -240,13 +240,20 @@ const OrderCard = memo(function OrderCard({
                         </button>
                     )}
 
-                    {/* Заметки (Mobile) */}
+                    {/* Заметки (Mobile) - Modern Corporate Design */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowNotesModal(true); }}
-                        className={`shrink-0 rounded-lg transition-all ${hasNotes ? 'p-1 bg-white text-slate-900 shadow-md border-2 border-slate-800' : 'p-1.5 text-slate-300 hover:text-slate-500'}`}
+                        className={`relative shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-110 active:scale-90 ${
+                            hasNotes 
+                            ? 'bg-slate-900 text-white shadow-lg shadow-slate-300 border-slate-900' 
+                            : 'bg-white text-slate-400 hover:text-slate-600 border border-slate-200 hover:border-slate-300 shadow-sm'
+                        }`}
                         title="Заметки"
                     >
-                        <MessageSquare size={hasNotes ? 18 : 14} strokeWidth={hasNotes ? 2.5 : 2} />
+                        <MessageSquare size={hasNotes ? 16 : 14} strokeWidth={hasNotes ? 2.5 : 2} />
+                        {hasNotes && (
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 border-2 border-white rounded-full shadow-sm animate-pulse"></span>
+                        )}
                     </button>
 
                     {/* DIVIDER */}
@@ -440,13 +447,23 @@ const OrderCard = memo(function OrderCard({
                         </button>
                     )}
 
-                    {/* Заметки — между статусом и дедлайном */}
+                    {/* Заметки — Modern Corporate Layout */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowNotesModal(true); }}
-                        className={`absolute right-[28%] top-1/2 -translate-y-1/2 rounded-lg transition-all z-30 ${hasNotes ? 'p-1 bg-white text-slate-900 shadow-md border-2 border-slate-800 hover:bg-slate-100' : 'p-1.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100'}`}
+                        className={`absolute right-[28%] top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-30 hover:scale-110 active:scale-90 group ${
+                            hasNotes 
+                            ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 border-none' 
+                            : 'bg-white/80 backdrop-blur-sm text-slate-400 hover:text-slate-600 border border-slate-200 hover:border-slate-400 shadow-sm'
+                        }`}
                         title="Заметки"
                     >
-                        <MessageSquare size={hasNotes ? 20 : 16} strokeWidth={hasNotes ? 2.5 : 2} />
+                        <MessageSquare size={hasNotes ? 18 : 16} strokeWidth={hasNotes ? 2.5 : 2} className="transition-transform duration-500 group-hover:rotate-12" />
+                        {hasNotes && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 border-2 border-white rounded-full shadow-md animate-ping"></span>
+                        )}
+                        {hasNotes && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 border-2 border-white rounded-full shadow-md"></span>
+                        )}
                     </button>
 
                     {/* 3. ПРАВАЯ ЧАСТЬ: Дедлайн, Оплата, Завершить */}
