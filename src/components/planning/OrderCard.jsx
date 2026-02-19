@@ -9,7 +9,6 @@ import OrderSupplyModal from './OrderSupplyModal';
 
 const OrderCard = memo(function OrderCard({
     order, products, orders, actions, resources, isExpanded, onToggle,
-    openExecutorDropdown, setOpenExecutorDropdown,
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
     onAddProduct, // Функция добавления изделия
     onCopyFromArchive, // Функция копирования из архива
@@ -589,10 +588,7 @@ const OrderCard = memo(function OrderCard({
                                 orders={orders}
                                 actions={actions}
                                 resources={resources}
-                                sortedResources={resources}
                                 isAdmin={isAdmin}
-                                openExecutorDropdown={openExecutorDropdown}
-                                setOpenExecutorDropdown={setOpenExecutorDropdown}
                             />
                         ))}
                     </div>

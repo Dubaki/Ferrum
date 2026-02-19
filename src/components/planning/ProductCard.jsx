@@ -3,7 +3,7 @@ import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy, ShoppingBag } from
 import OperationRow from './OperationRow';
 import SetProductStartDateModal from './SetProductStartDateModal'; // Import the new modal
 
-function ProductCard({ product, products, orders, actions, resources, sortedResources, openExecutorDropdown, setOpenExecutorDropdown, isAdmin }) {
+function ProductCard({ product, products, orders, actions, resources, isAdmin }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showStartDateModal, setShowStartDateModal] = useState(false); // State for the new modal
     
@@ -173,8 +173,6 @@ function ProductCard({ product, products, orders, actions, resources, sortedReso
                                         actions={actions}
                                         resources={resources}
                                         isAdmin={isAdmin}
-                                        isOpen={openExecutorDropdown === op.id}
-                                        onToggleDropdown={() => setOpenExecutorDropdown(openExecutorDropdown === op.id ? null : op.id)}
                                         isFirst={idx === 0}
                                         isLast={idx === sortedOps.length - 1}
                                         onMoveUp={() => actions.moveOperationUp(product.id, op.id)}

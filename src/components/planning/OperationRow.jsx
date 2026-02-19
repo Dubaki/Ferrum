@@ -1,22 +1,110 @@
-import React from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { Trash2, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown, Calendar, Check, UserPlus } from 'lucide-react';
 import { STANDARD_OPERATIONS } from '../../utils/constants';
 
-function OperationRow({ op, product, products, orders, productId, actions, resources, isOpen, onToggleDropdown, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
-    const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
+// Вынесенный компонент списка для максимальной производительности
+const ExecutorSelector = memo(({ isOpen, onClose, op, resources, onToggle, productId }) => {
+    if (!isOpen) return null;
 
-    // Операция считается выполненной если есть фактическое время
+    return createPortal(
+        <>
+            {/* Прозрачная подложка для мгновенного закрытия */}
+            <div
+                className="fixed inset-0 z-[9998] bg-slate-900/10 backdrop-blur-[2px] transition-opacity duration-300"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+            ></div>
+
+            {/* Меню с аппаратным ускорением анимации */}
+            <div
+                className="fixed z-[9999] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-[0_20px_70px_-10px_rgba(0,0,0,0.25)] border border-slate-200 rounded-2xl p-2 sm:p-3 overflow-hidden animate-in zoom-in-95 fade-in duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                style={{
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    willChange: 'transform, opacity'
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between mb-3 px-3 pt-2">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Исполнители</div>
+                    <div className="text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
+                        Выбрано: {op.resourceIds?.length || 0}
+                    </div>
+                </div>
+                
+                <div className="space-y-0.5 max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                    {resources.map(res => {
+                        const isSelected = op.resourceIds?.includes(res.id);
+                        return (
+                            <label
+                                key={res.id}
+                                className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all duration-200 group ${
+                                    isSelected 
+                                    ? 'bg-slate-900 text-white shadow-md shadow-slate-200 scale-[1.02]' 
+                                    : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                    isSelected ? 'bg-orange-500 border-orange-500' : 'border-slate-200 group-hover:border-slate-300 bg-white'
+                                }`}>
+                                    {isSelected && <Check size={12} strokeWidth={4} className="text-white" />}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-bold truncate">{res.name}</span>
+                                    <span className={`text-[10px] uppercase tracking-tight font-medium ${isSelected ? 'text-slate-400' : 'text-slate-400 opacity-70'}`}>
+                                        {res.position}
+                                    </span>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={isSelected || false}
+                                    onChange={() => onToggle(productId, op.id, res.id)}
+                                />
+                            </label>
+                        );
+                    })}
+                </div>
+                
+                <button 
+                    onClick={onClose}
+                    className="w-full mt-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-widest rounded-xl transition-colors"
+                >
+                    Готово
+                </button>
+            </div>
+        </>,
+        document.body
+    );
+});
+
+function OperationRow({ op, product, products, orders, productId, actions, resources, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
+    // ЛОКАЛЬНОЕ СОСТОЯНИЕ для мгновенного отклика
+    const [isLocalOpen, setIsLocalOpen] = useState(false);
+
+    const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
     const isCompleted = (op.actualMinutes || 0) > 0;
 
-    // Обработчик изменения даты (без проверки перегрузки - она выполняется при назначении ресурсов)
     const handleDateChange = (field, newDate) => {
         actions.updateOperation(productId, op.id, field, newDate);
     };
 
+    // Оптимизированный список имен исполнителей
+    const assignedNames = useMemo(() => {
+        if (!op.resourceIds?.length) return null;
+        return resources
+            .filter(r => op.resourceIds.includes(r.id))
+            .map(r => r.name.split(' ')[0])
+            .join(', ');
+    }, [op.resourceIds, resources]);
+
     const rowClass = isCompleted
-        ? "grid grid-cols-12 gap-2 items-center bg-emerald-100 p-2 rounded border border-emerald-300 relative shadow-sm transition-colors"
-        : "grid grid-cols-12 gap-2 items-center bg-white p-2 rounded border border-slate-200 relative shadow-sm hover:border-orange-200 transition-colors";
+        ? "grid grid-cols-12 gap-2 items-center bg-emerald-50 p-2 rounded-xl border border-emerald-200 relative transition-all duration-300"
+        : "grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-slate-100 relative shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300";
 
     return (
         <div className={rowClass}>
@@ -24,28 +112,18 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
             {isAdmin && (
                 <div className="col-span-1 flex flex-col gap-0.5">
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Move Up clicked:', op.name, 'isFirst:', isFirst);
-                            onMoveUp();
-                        }}
+                        onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
                         disabled={isFirst}
-                        className={`p-0.5 rounded transition-colors ${isFirst ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
-                        title="Переместить вверх"
+                        className={`p-1 rounded-lg transition-colors ${isFirst ? 'text-slate-100' : 'text-slate-300 hover:text-indigo-600 hover:bg-indigo-50'}`}
                     >
-                        <ChevronUp size={14} />
+                        <ChevronUp size={14} strokeWidth={3} />
                     </button>
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Move Down clicked:', op.name, 'isLast:', isLast);
-                            onMoveDown();
-                        }}
+                        onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
                         disabled={isLast}
-                        className={`p-0.5 rounded transition-colors ${isLast ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
-                        title="Переместить вниз"
+                        className={`p-1 rounded-lg transition-colors ${isLast ? 'text-slate-100' : 'text-slate-300 hover:text-indigo-600 hover:bg-indigo-50'}`}
                     >
-                        <ChevronDown size={14} />
+                        <ChevronDown size={14} strokeWidth={3} />
                     </button>
                 </div>
             )}
@@ -53,183 +131,106 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
 
             {/* Выбор названия */}
             <div className="col-span-3">
-                {STANDARD_OPERATIONS ? (
-                    <select 
-                        value={isStandard(op.name) ? op.name : 'other'} 
-                        onChange={(e) => actions.updateOperation(productId, op.id, 'name', e.target.value === 'other' ? 'Новая' : e.target.value)} 
-                        disabled={!isAdmin}
-                        className={`w-full text-xs font-bold text-slate-700 bg-transparent outline-none transition-colors ${isAdmin ? 'cursor-pointer hover:text-orange-600 focus:text-orange-600' : 'appearance-none'}`}
-                    >
-                        {STANDARD_OPERATIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                        <option value="other">Свой вариант...</option>
-                    </select>
-                ) : <input type="text" value={op.name} className="w-full text-xs"/>}
-                
+                <select 
+                    value={isStandard(op.name) ? op.name : 'other'} 
+                    onChange={(e) => actions.updateOperation(productId, op.id, 'name', e.target.value === 'other' ? 'Новая' : e.target.value)} 
+                    disabled={!isAdmin}
+                    className={`w-full text-xs font-black text-slate-700 bg-transparent outline-none transition-colors appearance-none ${isAdmin ? 'cursor-pointer hover:text-orange-600' : ''}`}
+                >
+                    {STANDARD_OPERATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="other">Свой вариант...</option>
+                </select>
                 {!isStandard(op.name) && (
                     <input 
                         type="text" 
                         value={op.name} 
                         onChange={e => actions.updateOperation(productId, op.id, 'name', e.target.value)} 
                         disabled={!isAdmin}
-                        className={`w-full text-xs border-b border-orange-200 mt-1 outline-none ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
+                        className="w-full text-[10px] font-bold border-b border-orange-100 mt-0.5 outline-none bg-transparent focus:border-orange-400 transition-colors"
                         placeholder="Название..." 
                     />
                 )}
             </div>
 
-            {/* Диапазон дат + Галочка готовности */}
-            <div className="col-span-2 flex flex-col gap-0.5">
-                <div className="flex items-center gap-0.5">
-                    <div className="flex-1 relative min-w-0">
-                        <Calendar size={14} className="absolute left-1 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none sm:hidden" />
-                        <input
-                            type="date"
-                            value={op.startDate || op.plannedDate || ''}
-                            onChange={(e) => handleDateChange('startDate', e.target.value)}
-                            disabled={!isAdmin}
-                            className={`w-full text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 pl-6 sm:pl-1 pr-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-indigo-300' : ''}`}
-                            placeholder="Начало"
-                            title="Дата начала"
-                        />
-                    </div>
-                    <span className="text-[10px] sm:text-[8px] text-slate-400 font-bold">—</span>
-                    <div className="flex-1 relative min-w-0">
-                        <Calendar size={14} className="absolute left-1 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none sm:hidden" />
-                        <input
-                            type="date"
-                            value={op.endDate || ''}
-                            onChange={(e) => handleDateChange('endDate', e.target.value)}
-                            disabled={!isAdmin}
-                            className={`w-full text-xs sm:text-[9px] font-medium text-slate-600 bg-slate-50 rounded py-1 sm:py-0.5 pl-6 sm:pl-1 pr-1 outline-none transition ${isAdmin ? 'focus:bg-white focus:ring-1 focus:ring-orange-300' : ''}`}
-                            placeholder="Конец"
-                            title="Дата окончания"
-                        />
-                    </div>
-                    {/* Галочка готовности - скрыта на мобильных */}
+            {/* Даты */}
+            <div className="col-span-2 flex flex-col items-center">
+                <div className="flex items-center gap-1">
                     <input
-                        type="checkbox"
-                        checked={isCompleted}
-                        readOnly
-                        disabled
-                        className="hidden sm:block w-3.5 h-3.5 rounded text-emerald-600 border-slate-300 shrink-0 cursor-default"
-                        title={isCompleted ? "Выполнено" : "Не выполнено"}
+                        type="date"
+                        value={op.startDate || op.plannedDate || ''}
+                        onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        disabled={!isAdmin}
+                        className="w-full text-[9px] font-bold text-slate-500 bg-slate-50 rounded-md py-1 px-1 outline-none border border-transparent focus:border-indigo-200 transition-all"
+                    />
+                    <span className="text-[10px] text-slate-300 font-bold">-</span>
+                    <input
+                        type="date"
+                        value={op.endDate || ''}
+                        onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        disabled={!isAdmin}
+                        className="w-full text-[9px] font-bold text-slate-500 bg-slate-50 rounded-md py-1 px-1 outline-none border border-transparent focus:border-orange-200 transition-all"
                     />
                 </div>
-                {/* Подсказка о длительности */}
-                {op.startDate && op.endDate && (
-                    <div className="text-[8px] text-slate-400 text-center font-mono">
-                        {(() => {
-                            const start = new Date(op.startDate);
-                            const end = new Date(op.endDate);
-                            const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-                            return `${diffDays} дн.`;
-                        })()}
-                    </div>
-                )}
             </div>
             
-            {/* Исполнитель (Выпадающий список) */}
-            <div className="col-span-3 relative">
+            {/* Исполнитель */}
+            <div className="col-span-3">
                 <button 
                     onClick={(e) => { 
-                        e.stopPropagation(); // Останавливаем клик, чтобы не свернулась карточка
-                        if (isAdmin) onToggleDropdown(); 
+                        e.stopPropagation(); 
+                        if (isAdmin) setIsLocalOpen(true); 
                     }} 
-                    className={`w-full text-left text-[10px] font-bold px-2 py-1.5 rounded border transition flex justify-between items-center uppercase tracking-wide
+                    className={`w-full h-8 px-2 rounded-xl border transition-all duration-300 flex items-center justify-between group/btn
                         ${op.resourceIds?.length > 0 
-                            ? 'bg-slate-800 text-white border-slate-800 hover:bg-slate-700' 
-                            : `bg-slate-50 border-slate-200 text-slate-500 ${isAdmin ? 'hover:border-slate-400 hover:text-slate-700' : ''}`
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-100 hover:shadow-lg' 
+                            : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300 hover:bg-white'
                         }
-                        ${!isAdmin && 'cursor-default'}
                     `}
                 >
-                    <span className="truncate">
-                        {op.resourceIds?.length > 0 
-                            ? resources.filter(r => op.resourceIds.includes(r.id)).map(r => r.name.split(' ')[0]).join(', ') 
-                            : 'НАЗНАЧИТЬ'}
+                    <span className="text-[10px] font-black uppercase tracking-tight truncate flex-1 text-left">
+                        {assignedNames || 'Назначить'}
                     </span>
+                    <UserPlus size={12} className={`shrink-0 transition-transform duration-300 ${op.resourceIds?.length ? 'text-orange-400' : 'text-slate-300 group-hover/btn:scale-110'}`} />
                 </button>
 
-                {isOpen && createPortal(
-                    <>
-                        {/* Прозрачная подложка для закрытия при клике вне */}
-                        <div
-                            className="fixed inset-0 z-[9998] bg-slate-900/20 backdrop-blur-sm cursor-default"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleDropdown();
-                            }}
-                        ></div>
-
-                        {/* Само меню */}
-                        <div
-                            className="fixed z-[9999] w-[calc(100vw-2rem)] sm:w-80 bg-white shadow-2xl border border-slate-200 rounded-xl p-3 sm:p-4 max-h-[70vh] sm:max-h-96 overflow-y-auto animate-in zoom-in-95"
-                            style={{
-                                left: '50%',
-                                top: '50%',
-                                transform: 'translate(-50%, -50%)'
-                            }}
-                            // ВАЖНО: Останавливаем всплытие кликов внутри самого меню
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="text-xs sm:text-[10px] font-black text-slate-400 uppercase mb-3 sm:mb-2 px-1 tracking-wider">Выберите исполнителей</div>
-                            <div className="space-y-1.5 sm:space-y-1">
-                                {resources.map(res => (
-                                    <label
-                                        key={res.id}
-                                        className="flex items-center gap-3 p-3 sm:p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group"
-                                        onClick={(e) => e.stopPropagation()} // Дополнительная защита
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={op.resourceIds?.includes(res.id) || false}
-                                            onChange={() => actions.toggleResourceForOp(productId, op.id, res.id)}
-                                            className="w-5 h-5 sm:w-4 sm:h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300 transition"
-                                        />
-                                        <span className="text-base sm:text-sm font-bold text-slate-700 group-hover:text-slate-900">{res.name}</span>
-                                        <span className="text-xs sm:text-[10px] text-slate-400 ml-auto">{res.position}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </>,
-                    document.body
-                )}
+                <ExecutorSelector 
+                    isOpen={isLocalOpen}
+                    onClose={() => setIsLocalOpen(false)}
+                    op={op}
+                    resources={resources}
+                    onToggle={actions.toggleResourceForOp}
+                    productId={productId}
+                />
             </div>
 
             {/* План */}
-            <div className="col-span-1 text-center">
+            <div className="col-span-1">
                 <input 
                     type="number" 
                     value={op.minutesPerUnit} 
                     onChange={e => actions.updateOperation(productId, op.id, 'minutesPerUnit', parseFloat(e.target.value))} 
                     disabled={!isAdmin}
-                    className={`w-full text-center text-xs bg-slate-50 rounded py-1 outline-none transition font-mono ${isAdmin ? 'focus:bg-white focus:ring-2 focus:ring-slate-200' : ''}`}
-                    placeholder="0" 
+                    className="w-full text-center text-xs font-bold bg-slate-50 rounded-lg py-1.5 outline-none border border-transparent focus:border-slate-200 transition-all font-mono"
                 />
             </div>
 
-            {/* Факт + Удаление */}
-            <div className="col-span-2 flex items-center gap-1">
+            {/* Факт */}
+            <div className="col-span-2 flex items-center gap-1.5 pl-1">
                 <input 
                     type="number" 
                     value={op.actualMinutes || 0} 
                     onChange={e => actions.updateOperation(productId, op.id, 'actualMinutes', parseFloat(e.target.value))} 
                     disabled={!isAdmin}
-                    className={`w-full text-center text-xs font-bold bg-orange-50 text-orange-700 rounded py-1 outline-none transition font-mono ${isAdmin ? 'focus:ring-2 focus:ring-orange-200' : ''}`}
-                    placeholder="0"
+                    className="w-full text-center text-xs font-black bg-orange-50 text-orange-700 rounded-lg py-1.5 outline-none border border-transparent focus:border-orange-200 transition-all font-mono shadow-inner"
                 />
-                {isAdmin && <button 
-                    onClick={() => actions.deleteOperation(productId, op.id)} 
-                    className="text-slate-300 hover:text-red-500 p-1 transition-colors" 
-                    title="Удалить операцию"
-                >
-                    <Trash2 size={14}/>
-                </button>}
+                {isAdmin && (
+                    <button onClick={() => actions.deleteOperation(productId, op.id)} className="text-slate-200 hover:text-red-500 p-1.5 transition-colors">
+                        <Trash2 size={14} strokeWidth={2.5}/>
+                    </button>
+                )}
             </div>
         </div>
     );
 }
 
-// Мемоизация для предотвращения лишних перерисовок
-export default React.memo(OperationRow);
+export default memo(OperationRow);

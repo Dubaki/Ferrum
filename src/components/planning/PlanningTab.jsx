@@ -10,7 +10,6 @@ import CopyFromArchiveModal from './CopyFromArchiveModal';
 
 export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, canManageDrawings, userRole, supplyRequests = [], supplyActions = {} }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
-  const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
   const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
   const [settingsOrder, setSettingsOrder] = useState(null);
 
@@ -87,41 +86,41 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
   }, []);
 
   return (
-    <div className="space-y-6 pb-20 fade-in font-sans text-slate-800">
+    <div className="space-y-3 pb-20 fade-in font-sans text-slate-800">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 pt-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-3 pt-2 mb-2">
          <div>
-            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
-                <FolderOpen className="text-orange-600" size={32} />
+            <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
+                <FolderOpen className="text-orange-600" size={24} />
                 Текущие заказы
             </h2>
          </div>
 
-         <div className="flex items-center gap-3 w-full md:w-auto">
+         <div className="flex items-center gap-2 w-full md:w-auto">
              <div className="relative flex-1 md:w-64 group">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" size={18} />
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" size={16} />
                  <input 
                     type="text" 
                     placeholder="Поиск..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-white border-2 border-slate-200 text-slate-700 pl-10 pr-4 py-2.5 rounded-lg focus:border-slate-500 focus:ring-0 outline-none transition-all shadow-sm font-bold text-sm"
+                    className="w-full bg-white border-2 border-slate-200 text-slate-700 pl-9 pr-4 py-1.5 rounded-lg focus:border-slate-500 focus:ring-0 outline-none transition-all shadow-sm font-bold text-xs"
                  />
              </div>
 
              {(isAdmin || userRole === 'manager') && (
                  <button 
                     onClick={() => setIsCreating(true)} 
-                    className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-xs"
+                    className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-[10px]"
                  >
-                   <Plus size={16} strokeWidth={3} /> Создать заказ
+                   <Plus size={14} strokeWidth={3} /> Создать заказ
                  </button>
              )}
          </div>
       </div>
 
       {/* Список заказов */}
-      <div className="grid gap-4">
+      <div className="grid gap-2">
         {activeOrders.map(order => (
             <OrderCard
                 key={order.id}
@@ -137,8 +136,6 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 onToggle={toggleOrder}
                 isAdmin={isAdmin}
                 canManageDrawings={canManageDrawings}
-                openExecutorDropdown={openExecutorDropdown}
-                setOpenExecutorDropdown={setOpenExecutorDropdown}
                 isStatusMenuOpen={openStatusMenuId === order.id}
                 onToggleStatusMenu={handleToggleStatusMenu}
                 onOpenSettings={handleOpenSettings}
@@ -163,11 +160,6 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                           orders={orders}
                           actions={actions}
                           resources={resources}
-                          ganttItem={ganttItems.find(g => g.productId === product.id)}
-                          sortedResources={resources}
-                          openExecutorDropdown={openExecutorDropdown}
-                          setOpenExecutorDropdown={setOpenExecutorDropdown}
-                          isOrphan={true}
                           isAdmin={isAdmin}
                       />
                   ))}
