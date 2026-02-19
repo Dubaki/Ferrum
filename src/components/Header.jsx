@@ -51,68 +51,109 @@ const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, user
   };
 
   return (
-    <header className="bg-white border-b border-neutral-200/75 sticky top-0 z-40 shadow-sm">
-      <div className="max-w-screen-2xl mx-auto px-4">
-        <div className="flex justify-between items-center h-14">
-          {/* Logo */}
-          <NavLink to="/" className="flex items-center gap-2 shrink-0">
-            <img
-              src="/pic/cropped-logo.png.webp"
-              alt="Феррум"
-              className="w-8 h-8 object-contain"
-            />
-            <span className="font-extrabold text-xl text-primary-600 tracking-tight">ФЕРРУМ</span>
+    <header className="bg-white/70 backdrop-blur-2xl border-b border-slate-200/50 sticky top-0 z-40 shadow-[0_2px_15px_-1px_rgba(0,0,0,0.05)] transition-all duration-500">
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6">
+        <div className="flex justify-between items-center h-16">
+          
+          {/* LOGO: Living Icon Design */}
+          <NavLink to="/" className="group flex items-center gap-3 shrink-0 outline-none">
+            <div className="relative">
+                <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <img
+                  src="/pic/cropped-logo.png.webp"
+                  alt="Феррум"
+                  className="w-9 h-9 object-contain relative transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:scale-110 group-hover:rotate-[10deg]"
+                />
+            </div>
+            <div className="flex flex-col">
+                <span className="font-black text-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tighter leading-none">
+                    ФЕРРУМ
+                </span>
+                <span className="text-[8px] font-black text-orange-500 tracking-[0.4em] uppercase leading-none mt-1 opacity-80 group-hover:tracking-[0.5em] transition-all duration-700">
+                    Production
+                </span>
+            </div>
           </NavLink>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1.5 flex-1 justify-center mx-4">
-            {tabs.map(tab => renderTab(tab))}
+          {/* DESKTOP NAVIGATION: Floating Tab Style */}
+          <nav className="hidden xl:flex items-center bg-slate-100/50 p-1 rounded-2xl border border-slate-200/30 gap-1 mx-8 shadow-inner">
+            {tabs.map(tab => {
+                const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
+                                (tab.path === '/supply' && hasSupplyAlert) || 
+                                (tab.path === '/resources' && hasWorkshopAlert);
+                
+                return (
+                    <NavLink
+                        key={tab.path}
+                        to={tab.path}
+                        end={tab.path === '/'}
+                        className={({ isActive }) =>
+                        `relative flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 group
+                        ${isActive 
+                            ? 'bg-white text-slate-900 shadow-md scale-[1.02]' 
+                            : 'text-slate-400 hover:text-slate-600 hover:bg-white/40'}`
+                        }
+                    >
+                        {({ isActive }) => (
+                            <>
+                                <tab.icon size={16} strokeWidth={isActive ? 3 : 2} className={isActive ? 'text-orange-500' : 'text-slate-400 group-hover:text-slate-500'} />
+                                <span>{tab.label}</span>
+                                {isAlert && (
+                                    <span className={`absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full ${isActive ? 'ring-2 ring-white' : ''} animate-pulse`}></span>
+                                )}
+                            </>
+                        )}
+                    </NavLink>
+                );
+            })}
           </nav>
 
-          {/* Right Group: Auth & Mobile Menu */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* RIGHT GROUP: Auth & Global Actions */}
+          <div className="flex items-center gap-3 shrink-0">
             {roleLabel && (
-              <span className="hidden lg:inline-block text-xs font-medium text-success-700 bg-success-50 px-2.5 py-1 rounded-full">
-                {roleLabel}
-              </span>
+              <div className="hidden sm:flex flex-col items-end mr-2">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest opacity-60">Доступ</span>
+                  <span className="text-xs font-bold text-slate-700">{roleLabel}</span>
+              </div>
             )}
+            
             <button
               onClick={onToggleAuth}
-              className={`p-2 rounded-full transition-colors ${userRole ? 'text-success-500 hover:bg-success-50' : 'text-neutral-400 hover:bg-neutral-100'}`}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 border
+                ${userRole 
+                    ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white shadow-emerald-100 shadow-lg' 
+                    : 'bg-white border-slate-200 text-slate-400 hover:border-slate-900 hover:text-slate-900 shadow-sm'}`}
               title={userRole ? `Выйти (${roleLabel})` : "Войти"}
             >
-              {userRole ? <Unlock size={20} /> : <Lock size={20} />}
+              {userRole ? <Unlock size={20} strokeWidth={2.5} /> : <Lock size={20} strokeWidth={2.5} />}
             </button>
             
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition"
-              aria-label="Toggle menu"
+              className="xl:hidden w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 active:scale-90 transition-all"
             >
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              {mobileMenuOpen ? <X size={22} strokeWidth={3} /> : <Menu size={22} strokeWidth={3} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation Menu Overlay */}
+      {/* MOBILE NAVIGATION: Bottom Sheet Style Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>
-            
-            {/* Menu Panel */}
-            <div className="absolute top-0 left-0 w-3/4 max-w-xs h-full bg-white shadow-2xl p-4 animate-in slide-in-from-left duration-300">
-                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                    <span className="font-black text-xl text-slate-800 tracking-tight flex items-center gap-2">
-                        <img src="/pic/cropped-logo.png.webp" alt="Logo" className="w-8 h-8 object-contain"/> ФЕРРУМ
-                    </span>
-                    <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
+        <div className="fixed inset-0 z-50 xl:hidden">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md transition-opacity duration-500" onClick={() => setMobileMenuOpen(false)}></div>
+            <div className="absolute top-0 right-0 w-4/5 max-w-sm h-full bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-6 animate-in slide-in-from-right duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                <div className="flex justify-between items-center mb-10">
+                    <div className="flex flex-col">
+                        <span className="font-black text-2xl text-slate-900 tracking-tighter">ФЕРРУМ</span>
+                        <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Navigation</span>
+                    </div>
+                    <button onClick={() => setMobileMenuOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 active:rotate-90 transition-all duration-500">
                         <X size={24} />
                     </button>
                 </div>
                 
-                <nav className="flex flex-col space-y-2">
+                <nav className="flex flex-col space-y-3">
                     {tabs.map(tab => {
                         const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
                                         (tab.path === '/supply' && hasSupplyAlert) || 
@@ -125,25 +166,28 @@ const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, user
                                 end={tab.path === '/'}
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-3.5 text-base font-bold rounded-xl transition-all ${
-                                    isActive 
-                                    ? 'bg-orange-50 text-orange-600 shadow-sm' 
-                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                                }`
+                                `flex items-center gap-4 px-5 py-4 text-sm font-black uppercase tracking-widest rounded-2xl transition-all duration-300
+                                ${isActive 
+                                    ? 'bg-slate-900 text-white shadow-2xl shadow-slate-300 scale-[1.02]' 
+                                    : 'text-slate-500 hover:bg-slate-50'}`
                                 }
                             >
-                                <tab.icon size={20} className={({ isActive }) => isActive ? 'text-orange-500' : 'text-slate-400'} />
-                                {tab.label}
-                                {isAlert && <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-sm shadow-red-200"></span>}
+                                <tab.icon size={20} />
+                                <span>{tab.label}</span>
+                                {isAlert && <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>}
                             </NavLink>
                         );
                     })}
                 </nav>
 
-                {/* Footer Info */}
-                <div className="absolute bottom-6 left-4 right-4 text-xs text-slate-400 text-center">
-                    {roleLabel && <div className="font-bold text-slate-500 mb-1">{roleLabel}</div>}
-                    <div className="opacity-50">v1.0.0 Alpha</div>
+                <div className="absolute bottom-8 left-6 right-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Version</span>
+                        <span className="text-xs font-bold text-slate-500 tracking-tight">1.0.0 Stable</span>
+                    </div>
+                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-200">
+                        <Layers size={18} />
+                    </div>
                 </div>
             </div>
         </div>

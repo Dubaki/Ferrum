@@ -146,28 +146,71 @@ export default function MasterEfficiencyView({ resources, actions }) {
     return (
         <div className="space-y-6 relative">
             
-            {/* Навигация */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-gray-100 border" title="Месяц назад"><ChevronLeft size={16}/><ChevronLeft size={16} className="-ml-2"/></button>
-                    <button onClick={() => shiftDate(-1)} className="p-2 rounded-full hover:bg-gray-100 border"><ChevronLeft size={20}/></button>
+            {/* Premium Control Deck */}
+            <div className="bg-gradient-to-br from-white/95 via-white/80 to-slate-50/90 backdrop-blur-xl p-2 sm:p-3 rounded-[24px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] border border-white/60 sticky top-0 z-30 transition-all duration-500 hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.12)]">
+                <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
                     
-                    <div className="text-center w-48">
-                         <div className="text-lg font-bold text-gray-800 capitalize leading-tight">{displayDate}</div>
-                         <div className="text-xs text-gray-400">{currentDate.getFullYear()}</div>
+                    {/* LEFT: Month Navigation (Capsule Style) */}
+                    <div className="flex bg-slate-200/40 p-1.5 rounded-[20px] items-center border border-slate-200/20 shadow-inner w-full lg:w-auto">
+                        <button 
+                            onClick={() => changeMonth(-1)} 
+                            className="flex-1 lg:flex-none flex items-center gap-2 px-4 py-2 rounded-[16px] text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-md transition-all duration-300 active:scale-95 group"
+                        >
+                            <ChevronLeft size={16} strokeWidth={3} className="group-hover:-translate-x-0.5 transition-transform" />
+                            <span className="text-[10px] font-black uppercase tracking-tighter">Пред. месяц</span>
+                        </button>
+                        
+                        <div className="h-6 w-px bg-slate-300/50 mx-1 hidden lg:block"></div>
+                        
+                        <button 
+                            onClick={() => changeMonth(1)} 
+                            className="flex-1 lg:flex-none flex items-center gap-2 px-4 py-2 rounded-[16px] text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-md transition-all duration-300 active:scale-95 group"
+                        >
+                            <span className="text-[10px] font-black uppercase tracking-tighter pl-1">След. месяц</span>
+                            <ChevronRight size={16} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
+                        </button>
                     </div>
 
-                    <button onClick={() => shiftDate(1)} className="p-2 rounded-full hover:bg-gray-100 border"><ChevronRight size={20}/></button>
-                    <button onClick={() => changeMonth(1)} className="p-2 rounded-lg hover:bg-gray-100 border" title="Месяц вперед"><ChevronRight size={16}/><ChevronRight size={16} className="-ml-2"/></button>
+                    {/* CENTER: Day & Date Dashboard */}
+                    <div className="flex items-center gap-1 sm:gap-6 bg-white/40 px-2 py-1 rounded-[20px] border border-white/40 shadow-sm">
+                        <button 
+                            onClick={() => shiftDate(-1)} 
+                            className="w-11 h-11 flex items-center justify-center rounded-[16px] bg-white text-slate-700 shadow-sm border border-slate-100 hover:border-orange-400 hover:text-orange-600 hover:shadow-orange-100 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-90"
+                        >
+                            <ChevronLeft size={24} strokeWidth={2.5}/>
+                        </button>
+                        
+                        <div className="text-center px-2 sm:px-6 min-w-[180px] sm:min-w-[240px]">
+                             <div className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-0.5 opacity-60">Текущий день</div>
+                             <div className="text-lg sm:text-2xl font-black text-slate-900 capitalize tracking-tighter leading-tight drop-shadow-sm">{displayDate}</div>
+                             <div className="inline-block mt-1 px-3 py-0.5 rounded-full bg-slate-900 text-white text-[9px] font-black tracking-[0.3em] uppercase">
+                                {currentDate.getFullYear()}
+                             </div>
+                        </div>
+
+                        <button 
+                            onClick={() => shiftDate(1)} 
+                            className="w-11 h-11 flex items-center justify-center rounded-[16px] bg-white text-slate-700 shadow-sm border border-slate-100 hover:border-orange-400 hover:text-orange-600 hover:shadow-orange-100 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-90"
+                        >
+                            <ChevronRight size={24} strokeWidth={2.5}/>
+                        </button>
+                    </div>
+
+                    {/* RIGHT: Table Toggle (Action Button) */}
+                    <button 
+                        onClick={() => setShowTable(!showTable)}
+                        className={`w-full lg:w-auto flex items-center justify-center gap-3 px-8 py-3.5 rounded-[20px] font-black text-xs uppercase tracking-widest transition-all duration-500 shadow-xl active:scale-95 group ${
+                            showTable 
+                            ? 'bg-slate-900 text-white shadow-slate-300 ring-4 ring-slate-900/10' 
+                            : 'bg-white text-indigo-600 border border-indigo-100 hover:border-indigo-200 hover:shadow-indigo-100 shadow-indigo-50'
+                        }`}
+                    >
+                        <div className={`p-1 rounded-md transition-colors ${showTable ? 'bg-white/20' : 'bg-indigo-50'}`}>
+                            {showTable ? <ChevronUp size={16} strokeWidth={3}/> : <ChevronDown size={16} strokeWidth={3}/>}
+                        </div>
+                        <span>{showTable ? 'Скрыть таблицу' : 'Показать сводку'}</span>
+                    </button>
                 </div>
-                
-                <button 
-                    onClick={() => setShowTable(!showTable)}
-                    className="flex items-center gap-2 text-sm font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition"
-                >
-                    {showTable ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                    {showTable ? 'Скрыть таблицу' : 'Показать сводку'}
-                </button>
             </div>
 
             {/* Сводная таблица */}

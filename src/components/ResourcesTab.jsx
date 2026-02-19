@@ -86,45 +86,70 @@ export default function ResourcesTab({ resources, setResources, actions }) {
   return (
     <div className="pb-20 fade-in font-sans text-slate-800">
       
-      {/* ЗАГОЛОВОК И НАВИГАЦИЯ */}
-      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-6 pt-2">
-          <div>
-              <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
-                  <User className="text-orange-600" size={32} />
-                  Цех: Персонал
-              </h2>
-              <p className="text-sm text-slate-500 font-medium tracking-wide border-l-2 border-orange-500 pl-2 mt-1">
-                  УПРАВЛЕНИЕ СМЕНАМИ И КАДРАМИ
-              </p>
+      {/* ЗАГОЛОВОК И НАВИГАЦИЯ — Modern IT Design */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-8 pt-2">
+          <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-200 transition-transform hover:scale-105 duration-500">
+                  <User className="text-white" size={28} />
+              </div>
+              <div>
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                      Персонал
+                  </h2>
+                  <p className="text-[10px] text-slate-400 font-black tracking-[0.2em] uppercase mt-1 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                      Управление кадрами цеха
+                  </p>
+              </div>
           </div>
           
-          <div className="flex bg-slate-100 p-1 rounded-lg shadow-inner overflow-x-auto">
+          <div className="flex bg-slate-100/80 backdrop-blur-sm p-1.5 rounded-[20px] shadow-inner border border-slate-200/50 w-full xl:w-auto overflow-x-auto no-scrollbar">
               <button 
                   onClick={() => setActiveView('table')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'table' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 xl:flex-none px-5 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
+                      activeView === 'table' 
+                      ? 'bg-white text-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.08)] scale-[1.02]' 
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
+                  }`}
               >
-                  <Calendar size={16}/> Таблица смен
+                  <Calendar size={14} strokeWidth={3} className={activeView === 'table' ? 'text-orange-500' : ''}/> 
+                  <span>Смены</span>
               </button>
               
               <button 
                   onClick={() => setActiveView('ktu')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'ktu' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 xl:flex-none px-5 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
+                      activeView === 'ktu' 
+                      ? 'bg-white text-indigo-600 shadow-[0_4px_12px_rgba(0,0,0,0.08)] scale-[1.02]' 
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
+                  }`}
               >
-                  <Percent size={16}/> КТУ / ТБ
+                  <Percent size={14} strokeWidth={3} className={activeView === 'ktu' ? 'text-indigo-500' : ''}/> 
+                  <span>КТУ / ТБ</span>
               </button>
 
               <button 
                   onClick={() => setActiveView('cards')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'cards' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 xl:flex-none px-5 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
+                      activeView === 'cards' 
+                      ? 'bg-white text-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.08)] scale-[1.02]' 
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
+                  }`}
               >
-                  <User size={16}/> Карточки
+                  <User size={14} strokeWidth={3} className={activeView === 'cards' ? 'text-blue-500' : ''}/> 
+                  <span>Карточки</span>
               </button>
               
               <button 
                   onClick={() => setActiveView('archive')} 
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${activeView === 'archive' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 xl:flex-none px-5 py-2.5 rounded-[16px] text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap ${
+                      activeView === 'archive' 
+                      ? 'bg-white text-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.08)] scale-[1.02]' 
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
+                  }`}
               >
-                  <Archive size={16}/> Архив
+                  <Archive size={14} strokeWidth={3} className={activeView === 'archive' ? 'text-slate-600' : ''}/> 
+                  <span>Архив</span>
               </button>
           </div>
       </div>
