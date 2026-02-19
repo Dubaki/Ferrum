@@ -26,7 +26,19 @@
       "Bash(ls:*)",
       "Bash(npm run deploy:*)",
       "Bash(npm run dev:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(cd:*)",
+      "Bash(git -C C:/planfer status:*)",
+      "Bash(git -C C:/planfer diff)",
+      "Bash(git -C C:/planfer log --oneline -5)",
+      "Bash(git -C:*)",
+      "Bash(dir:*)",
+      "Bash(npm run:*)",
+      "Bash(npx firebase deploy:*)",
+      "Bash(npx vercel:*)",
+      "Bash(npm list:*)",
+      "Bash(npx --yes sharp-cli:*)",
+      "Bash(npx sharp-cli:*)"
     ]
   }
 }
