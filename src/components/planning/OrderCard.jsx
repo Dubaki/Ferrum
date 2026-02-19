@@ -229,9 +229,9 @@ const OrderCard = memo(function OrderCard({
                     {hasActiveSupply && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowSupplyModal(true); }}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-xs border-2 transition-all active:scale-95 shrink-0 ${
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-xs border-2 transition-all active:scale-95 shrink-0 hover:scale-110 ${
                                 hasUrgentSupply 
-                                ? 'bg-red-500 text-white border-red-600 shadow-lg shadow-red-200 animate-pulse' 
+                                ? 'bg-red-500 text-white border-red-600 shadow-lg shadow-red-200' 
                                 : 'bg-cyan-500 text-white border-cyan-600 shadow-md shadow-cyan-100'
                             }`}
                             title="Снабжение"
@@ -431,7 +431,7 @@ const OrderCard = memo(function OrderCard({
                             onClick={(e) => { e.stopPropagation(); setShowSupplyModal(true); }}
                             className={`absolute right-[33%] top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg font-black text-sm border-2 transition-all hover:scale-110 active:scale-95 z-30 ${
                                 hasUrgentSupply 
-                                ? 'bg-red-500 text-white border-red-600 shadow-lg shadow-red-200 animate-bounce' 
+                                ? 'bg-red-500 text-white border-red-600 shadow-lg shadow-red-200' 
                                 : 'bg-cyan-500 text-white border-cyan-600 shadow-md shadow-cyan-100 hover:shadow-cyan-200'
                             }`}
                             title="Снабжение"
