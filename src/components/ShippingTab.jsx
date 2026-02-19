@@ -265,18 +265,20 @@ export default memo(function ShippingTab({ orders, products, actions, isAdmin })
   return (
     <div className="space-y-6">
       {/* Заголовок раздела */}
-      <div className="rounded-2xl p-6 bg-gradient-to-r from-slate-700 to-slate-800">
+      <div className="rounded-2xl p-4 sm:p-6 bg-gradient-to-r from-slate-700 to-slate-800 shadow-lg">
         <div className="flex items-center gap-3">
-          <Truck className="w-8 h-8 text-slate-300" />
+          <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+            <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-slate-100" />
+          </div>
           <div>
-            <h1 className="text-2xl font-black text-white">Отгрузки</h1>
-            <p className="text-sm text-slate-400">
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">Отгрузки</h1>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium flex flex-wrap items-center gap-2">
               {shippingOrders.length > 0
                 ? `${shippingOrders.length} заказов на складе`
                 : 'Нет заказов на складе'
               }
               {hasShippingToday && (
-                <span className="ml-2 px-2 py-0.5 bg-orange-500 rounded-full text-white font-bold text-xs">
+                <span className="px-2 py-0.5 bg-orange-500/90 backdrop-blur-sm rounded-full text-white font-bold text-[10px] sm:text-xs shadow-sm animate-pulse">
                   Отгрузка сегодня!
                 </span>
               )}
@@ -285,7 +287,7 @@ export default memo(function ShippingTab({ orders, products, actions, isAdmin })
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Список заказов на складе */}
         <div className="lg:col-span-2 space-y-4">
           {shippingOrders.length > 0 ? (

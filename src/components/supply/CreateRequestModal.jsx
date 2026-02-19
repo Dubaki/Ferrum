@@ -94,31 +94,33 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   const workshopOrder = { orderNumber: 'В цех' };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-          <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Package className="text-cyan-600" size={20} />
-            {isEditing ? 'Редактирование заявки' : 'Новая заявка'}
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-xl max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+        <div className="flex items-center justify-between p-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <div className="p-2 bg-cyan-50 rounded-lg">
+                <Package className="text-cyan-600" size={20} />
+            </div>
+            {isEditing ? 'Редактирование' : 'Новая заявка'}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition">
-            <X size={20} className="text-slate-400" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+            <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 space-y-5 overflow-y-auto custom-scrollbar flex-1">
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2"><Building size={14} className="inline mr-1" />Цех <span className="text-red-500">*</span></label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="department" value="Химмаш" checked={department === 'Химмаш'} onChange={(e) => setDepartment(e.target.value)} className="text-cyan-600 focus:ring-cyan-500" />
-                <span className="font-medium">Химмаш</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="department" value="РТИ" checked={department === 'РТИ'} onChange={(e) => setDepartment(e.target.value)} className="text-cyan-600 focus:ring-cyan-500" />
-                <span className="font-medium">РТИ</span>
-              </label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2"><Building size={14} className="inline mr-1" />Цех <span className="text-red-500">*</span></label>
+            <div className="flex gap-3">
+              {['Химмаш', 'РТИ'].map(dep => (
+                  <label key={dep} className={`flex-1 relative cursor-pointer group`}>
+                    <input type="radio" name="department" value={dep} checked={department === dep} onChange={(e) => setDepartment(e.target.value)} className="peer sr-only" />
+                    <div className="p-3 rounded-xl border-2 text-center font-bold text-sm transition-all peer-checked:border-cyan-500 peer-checked:bg-cyan-50 peer-checked:text-cyan-700 border-slate-200 text-slate-500 hover:bg-slate-50">
+                        {dep}
+                    </div>
+                  </label>
+              ))}
             </div>
           </div>
 

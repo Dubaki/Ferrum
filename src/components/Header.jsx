@@ -95,12 +95,57 @@ const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, user
         </div>
       </div>
 
-      {/* Mobile Navigation Menu */}
+      {/* Mobile Navigation Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-neutral-200/75 shadow-lg">
-          <nav className="flex flex-col p-2 space-y-1">
-            {tabs.map(tab => renderTab(tab, true))}
-          </nav>
+        <div className="fixed inset-0 z-50 md:hidden">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>
+            
+            {/* Menu Panel */}
+            <div className="absolute top-0 left-0 w-3/4 max-w-xs h-full bg-white shadow-2xl p-4 animate-in slide-in-from-left duration-300">
+                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <span className="font-black text-xl text-slate-800 tracking-tight flex items-center gap-2">
+                        <img src="/pic/cropped-logo.png.webp" alt="Logo" className="w-8 h-8 object-contain"/> ФЕРРУМ
+                    </span>
+                    <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <nav className="flex flex-col space-y-2">
+                    {tabs.map(tab => {
+                        const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
+                                        (tab.path === '/supply' && hasSupplyAlert) || 
+                                        (tab.path === '/resources' && hasWorkshopAlert);
+                        
+                        return (
+                            <NavLink
+                                key={tab.path}
+                                to={tab.path}
+                                end={tab.path === '/'}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={({ isActive }) =>
+                                `flex items-center gap-3 px-4 py-3.5 text-base font-bold rounded-xl transition-all ${
+                                    isActive 
+                                    ? 'bg-orange-50 text-orange-600 shadow-sm' 
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`
+                                }
+                            >
+                                <tab.icon size={20} className={({ isActive }) => isActive ? 'text-orange-500' : 'text-slate-400'} />
+                                {tab.label}
+                                {isAlert && <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-sm shadow-red-200"></span>}
+                            </NavLink>
+                        );
+                    })}
+                </nav>
+
+                {/* Footer Info */}
+                <div className="absolute bottom-6 left-4 right-4 text-xs text-slate-400 text-center">
+                    {roleLabel && <div className="font-bold text-slate-500 mb-1">{roleLabel}</div>}
+                    <div className="opacity-50">v1.0.0 Alpha</div>
+                </div>
+            </div>
         </div>
       )}
     </header>

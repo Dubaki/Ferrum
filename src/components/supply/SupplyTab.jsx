@@ -255,7 +255,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       </div>
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard icon={<Clock size={16} className="text-neutral-400"/>} label="В работе" value={stats.inProgress} colorClass="text-neutral-700" />
         <StatCard icon={<CheckCircle2 size={16} className="text-success-500"/>} label="Оплачено" value={stats.paid} colorClass="text-success-600" />
         <StatCard icon={<Truck size={16} className="text-primary-500"/>} label="Ожидает" value={stats.awaitingDelivery} colorClass="text-primary-600" />
@@ -264,7 +264,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
 
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
           {renderFilterButton('all', 'Все', stats.all, null)}
           {userRole && renderFilterButton('my', 'Моя папка', stats.my, <Inbox size={16}/>)}
           {renderFilterButton('awaiting', 'Ожидаем доставку', stats.awaiting, <Truck size={16}/>)}

@@ -139,21 +139,23 @@ export default function ResourcesTab({ resources, setResources, actions }) {
       {/* --- ВИД: ТАБЛИЦА СМЕН --- */}
       {activeView === 'table' && (
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col fade-in">
-              <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
-                  <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-b border-slate-200 bg-slate-50 gap-4">
+                  <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
                       <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-300 transition"><ChevronLeft/></button>
                       <h3 className="text-xl font-bold capitalize text-slate-800 w-48 text-center">{monthName}</h3>
                       <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-300 transition"><ChevronRight/></button>
                   </div>
-                  <div className="flex gap-4 text-[10px] uppercase font-bold text-slate-400">
+                  <div className="flex flex-wrap justify-center gap-3 text-[10px] uppercase font-bold text-slate-400">
                       <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Болеет</div>
                       <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Опоздал</div>
                       <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Переработка</div>
                   </div>
               </div>
 
-              <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-xs border-collapse">
+              <div className="overflow-x-auto custom-scrollbar relative">
+                  <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-black/5 to-transparent pointer-events-none z-20 md:hidden"></div>
+                  <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-black/5 to-transparent pointer-events-none z-20 md:hidden"></div>
+                  <table className="w-full text-xs border-collapse min-w-[800px]">
                       <thead>
                           <tr className="bg-slate-800 text-slate-300">
                               <th className="p-2 text-center sticky left-0 bg-slate-800 z-10 min-w-[50px] border-r border-slate-700 font-bold text-xs" title="Официальное трудоустройство">
