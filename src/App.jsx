@@ -57,7 +57,7 @@ export default function App() {
     return localStorage.getItem('userRole') || null;
   });
   const [showRoleModal, setShowRoleModal] = useState(false);
-  const isAdmin = userRole === 'director' || userRole === 'shopManager';
+  const isAdmin = userRole === 'director' || userRole === 'shopManager' || userRole === 'master';
   const canManageDrawings = isAdmin || userRole === 'technologist';
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
@@ -208,7 +208,7 @@ export default function App() {
           <Route
             path="/products"
             element={
-              isAdmin || userRole === 'technologist' || userRole === 'vesta' || userRole === 'manager' ? (
+              isAdmin || userRole === 'technologist' || userRole === 'vesta' || userRole === 'manager' || userRole === 'master' ? (
                 <ProductsTab
                   products={products}
                   resources={resources}
@@ -258,7 +258,7 @@ export default function App() {
           <Route
             path="/resources"
             element={
-              isAdmin || userRole === 'technologist' || userRole === 'vesta' ? (
+              isAdmin || userRole === 'technologist' || userRole === 'vesta' || userRole === 'master' ? (
                 <ResourcesTab
                   resources={resources}
                   setResources={actions.setResources}
