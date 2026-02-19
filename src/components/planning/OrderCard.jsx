@@ -5,6 +5,7 @@ import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 import DrawingsSection from './DrawingsSection';
 import NotesModal from './NotesModal';
+import OrderSupplyModal from './OrderSupplyModal';
 
 const OrderCard = memo(function OrderCard({
     order, products, orders, actions, resources, isExpanded, onToggle,
@@ -14,12 +15,43 @@ const OrderCard = memo(function OrderCard({
     onCopyFromArchive, // Функция копирования из архива
     isAdmin, // Права админа
     canManageDrawings, // Права на управление чертежами (админ + технолог)
-    userRole // Добавляем userRole
+    userRole, // Добавляем userRole
+    supplyRequests = [], // Список всех заявок
+    supplyActions = {} // Действия со снабжением
 }) {
     const orderPositions = useMemo(() => products.filter(p => p.orderId === order.id), [products, order.id]);
     const [showDeadlineDetails, setShowDeadlineDetails] = useState(false);
     const [showNotesModal, setShowNotesModal] = useState(false);
+    const [showSupplyModal, setShowSupplyModal] = useState(false);
     const hasNotes = Array.isArray(order.notes) ? order.notes.length > 0 : !!order.notes;
+
+    // --- ФИЛЬТРАЦИЯ СНАБЖЕНИЯ ---
+    const linkedSupplyRequests = useMemo(() => {
+        return supplyRequests.filter(r => 
+            r.orders?.some(o => o.orderId === order.id)
+        );
+    }, [supplyRequests, order.id]);
+
+    const activeSupplyRequests = useMemo(() => {
+        return linkedSupplyRequests.filter(r => r.status !== 'delivered');
+    }, [linkedSupplyRequests]);
+
+    const hasActiveSupply = activeSupplyRequests.length > 0;
+
+    // Проверка на срочность снабжения (для анимации)
+    const hasUrgentSupply = useMemo(() => {
+        return activeSupplyRequests.some(r => {
+            if (r.status === 'rejected') return true;
+            if (r.status === 'awaiting_delivery' && r.deliveryDate) {
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const delDate = new Date(r.deliveryDate);
+                delDate.setHours(0,0,0,0);
+                return delDate <= today;
+            }
+            return false;
+        });
+    }, [activeSupplyRequests]);
 
     // --- АНАЛИТИКА ТРУДОЧАСОВ ---
     const { totalPlanMins, totalFactMins, resaleCount, remainingManHours, progress, isResaleOrder } = useMemo(() => {
@@ -192,6 +224,21 @@ const OrderCard = memo(function OrderCard({
                         )}
                         {isStatusMenuOpen && <div className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm" onClick={(e) => onToggleStatusMenu(order.id, e)}></div>}
                     </div>
+
+                    {/* СНАБЖЕНИЕ (Mobile) */}
+                    {hasActiveSupply && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowSupplyModal(true); }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-xs border-2 transition-all active:scale-95 shrink-0 ${
+                                hasUrgentSupply 
+                                ? 'bg-red-500 text-white border-red-600 shadow-lg shadow-red-200 animate-pulse' 
+                                : 'bg-cyan-500 text-white border-cyan-600 shadow-md shadow-cyan-100'
+                            }`}
+                            title="Снабжение"
+                        >
+                            С
+                        </button>
+                    )}
 
                     {/* Заметки (Mobile) */}
                     <button
@@ -378,6 +425,21 @@ const OrderCard = memo(function OrderCard({
 
                     </div>
 
+                    {/* СНАБЖЕНИЕ — рядом с заметками */}
+                    {hasActiveSupply && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowSupplyModal(true); }}
+                            className={`absolute right-[33%] top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg font-black text-sm border-2 transition-all hover:scale-110 active:scale-95 z-30 ${
+                                hasUrgentSupply 
+                                ? 'bg-red-500 text-white border-red-600 shadow-lg shadow-red-200 animate-bounce' 
+                                : 'bg-cyan-500 text-white border-cyan-600 shadow-md shadow-cyan-100 hover:shadow-cyan-200'
+                            }`}
+                            title="Снабжение"
+                        >
+                            С
+                        </button>
+                    )}
+
                     {/* Заметки — между статусом и дедлайном */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowNotesModal(true); }}
@@ -485,6 +547,17 @@ const OrderCard = memo(function OrderCard({
             {/* МОДАЛКА ЗАМЕТОК */}
             {showNotesModal && (
                 <NotesModal order={order} actions={actions} onClose={() => setShowNotesModal(false)} />
+            )}
+
+            {/* МОДАЛКА СНАБЖЕНИЯ */}
+            {showSupplyModal && (
+                <OrderSupplyModal 
+                    order={order} 
+                    requests={activeSupplyRequests} 
+                    supplyActions={supplyActions}
+                    userRole={userRole}
+                    onClose={() => setShowSupplyModal(false)} 
+                />
             )}
 
             {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ */}

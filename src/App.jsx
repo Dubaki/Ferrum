@@ -197,6 +197,8 @@ export default function App() {
                 resources={resources}
                 orders={orders}
                 actions={actions}
+                supplyRequests={supplyRequests}
+                supplyActions={supplyActions}
                 isAdmin={isAdmin}
                 canManageDrawings={canManageDrawings}
                 userRole={userRole} // Pass userRole here

@@ -8,7 +8,7 @@ import NewOrderModal from './NewOrderModal';
 import AddProductModal from './AddProductModal';
 import CopyFromArchiveModal from './CopyFromArchiveModal'; 
 
-export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, canManageDrawings, userRole }) {
+export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, canManageDrawings, userRole, supplyRequests = [], supplyActions = {} }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState([]);
   const [openExecutorDropdown, setOpenExecutorDropdown] = useState(null);
   const [openStatusMenuId, setOpenStatusMenuId] = useState(null);
@@ -131,6 +131,8 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 actions={actions}
                 resources={resources}
                 ganttItems={ganttItems}
+                supplyRequests={supplyRequests}
+                supplyActions={supplyActions}
                 isExpanded={expandedOrderIds.includes(order.id)}
                 onToggle={toggleOrder}
                 isAdmin={isAdmin}
