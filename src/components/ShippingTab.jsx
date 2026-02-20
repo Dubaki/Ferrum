@@ -4,10 +4,12 @@ import { Package, Truck, CheckCircle2, Clock, ArrowLeft, Calendar, BarChart3, Ch
 // =================================================================================
 // ЭЛИТНАЯ КАРТОЧКА ЗАКАЗА (ВЕРСИЯ 5 - КЛИК НА ВСЮ КАРТОЧКУ)
 // =================================================================================
-const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onToggleToday, onCompleteShipping, onReturn, isAdmin }) {
+const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onToggleToday, onCompleteShipping, onReturn, isAdmin, userRole }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const orderProducts = products.filter(p => p.orderId === order.id);
   const totalProducts = orderProducts.length;
+
+  const canManage = isAdmin || userRole === 'manager';
 
   // Функции с подтверждением
   const handleToggleToday = (e) => {
@@ -53,7 +55,7 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
         </div>
 
         {/* 3. Кнопки действий */}
-        {isAdmin && (
+        {canManage && (
           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
             <button
               onClick={handleReturn}
@@ -241,7 +243,7 @@ const MonthlyStats = memo(function MonthlyStats({ orders, products, selectedMont
   );
 });
 
-export default memo(function ShippingTab({ orders, products, actions, isAdmin }) {
+export default memo(function ShippingTab({ orders, products, actions, isAdmin, userRole }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -301,6 +303,7 @@ export default memo(function ShippingTab({ orders, products, actions, isAdmin })
                   onCompleteShipping={actions.completeShipping}
                   onReturn={actions.returnFromShipping}
                   isAdmin={isAdmin}
+                  userRole={userRole}
                 />
               ))}
             </div>
