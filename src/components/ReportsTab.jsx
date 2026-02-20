@@ -6,14 +6,14 @@ import { TabButton } from './reports/SharedComponents';
 import CombinedArchiveView from './reports/CombinedArchiveView';
 import SalaryView from './reports/SalaryView';
 
-export default function ReportsTab({ reports, actions, products, orders, resources }) {
+export default function ReportsTab({ reports, actions, products, orders, resources, userRole }) {
   const [activeSubTab, setActiveSubTab] = useState('salary'); 
 
   return (
     <div className="fade-in space-y-6">
        
        {/* Навигация */}
-       <div className="bg-slate-100 p-1.5 rounded-xl flex overflow-x-auto shadow-inner max-w-2xl mx-auto">
+       <div className="bg-slate-100/80 backdrop-blur-md p-1.5 rounded-2xl flex overflow-x-auto shadow-inner max-w-2xl mx-auto border border-slate-200/50">
           <TabButton 
              id="salary" label="Зарплатная ведомость" icon={DollarSign} 
              active={activeSubTab} set={setActiveSubTab} 
@@ -25,13 +25,14 @@ export default function ReportsTab({ reports, actions, products, orders, resourc
        </div>
 
        {/* Контент */}
-       <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100 p-6 min-h-[600px]">
+       <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/60 border border-slate-100 p-6 min-h-[600px]">
           {activeSubTab === 'costing' && (
               <CombinedArchiveView 
                   orders={orders} 
                   products={products} 
                   resources={resources} 
                   actions={actions} 
+                  userRole={userRole}
               />
           )}
           {activeSubTab === 'salary' && (

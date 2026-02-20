@@ -192,6 +192,20 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
   const shortStatusLabel = statusInfo.label.replace('Снабжение — ', '').replace('Согласование — ', '').replace('Веста — ', '');
 
+  const getRoleBadge = (role) => {
+    const roles = {
+      technologist: 'bg-blue-100 text-blue-700',
+      supplier: 'bg-yellow-100 text-yellow-700',
+      shopManager: 'bg-indigo-100 text-indigo-700',
+      director: 'bg-purple-100 text-purple-700',
+      vesta: 'bg-orange-100 text-orange-700',
+      master: 'bg-slate-100 text-slate-700',
+      manager: 'bg-cyan-100 text-cyan-700',
+      admin: 'bg-red-100 text-red-700'
+    };
+    return roles[role] || 'bg-slate-50 text-slate-500';
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
       <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[90vh] flex flex-col">
@@ -294,7 +308,7 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                             label: `Открепить счёт ${invoice.name}?`,
                             onConfirm: async () => {
                               try {
-                                await supplyActions.detachInvoice(request.id, invoice.path);
+                                await supplyActions.detachInvoice(request.id, invoice.path, userRole);
                                 onClose();
                               } catch (err) {
                                 // ошибка уже показана в detachInvoice через showError
@@ -381,10 +395,18 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                 <ChevronDown size={16} className={`text-slate-400 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
               </button>
               {showHistory && (
-                <div className="p-2 space-y-1 bg-white border-t border-slate-100 max-h-32 overflow-y-auto">
+                <div className="p-2 space-y-1 bg-white border-t border-slate-100 max-h-48 overflow-y-auto">
                   {request.statusHistory.slice().reverse().map((entry, idx) => (
-                    <div key={idx} className="text-xs text-slate-600 p-1.5 bg-slate-50 rounded">
-                      <span className="text-slate-400">{formatDateTime(entry.timestamp)}</span><span className="mx-1">—</span><span>{entry.note || SUPPLY_STATUSES[entry.status]?.label || entry.status}</span>
+                    <div key={idx} className="text-[10px] text-slate-600 p-2 bg-slate-50 rounded border border-slate-100 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 font-medium">{formatDateTime(entry.timestamp)}</span>
+                        <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[8px] ${getRoleBadge(entry.role)}`}>
+                          {getRoleLabel(entry.role)}
+                        </span>
+                      </div>
+                      <div className="font-medium text-slate-700 leading-tight">
+                        {entry.note || SUPPLY_STATUSES[entry.status]?.label || entry.status}
+                      </div>
                     </div>
                   ))}
                 </div>

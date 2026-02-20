@@ -71,17 +71,36 @@ export const useProductionData = () => {
     }
   }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
-  const updateOrder = useCallback(async (id, field, value) => {
+  const addStatusHistory = (order, status, role, note = '') => {
+    const history = order.statusHistory || [];
+    return [...history, { status, timestamp: Date.now(), role, note }];
+  };
+
+  const updateOrder = useCallback(async (id, field, value, userRole = 'admin') => {
     try {
+      const order = orders.find(o => o.id === id);
+      if (!order) return;
+
       if (field === 'customStatus') {
-        const order = orders.find(o => o.id === id);
-        if (order) {
-          const history = order.statusHistory || [];
-          const newHistory = [...history, { status: value, timestamp: Date.now() }];
-          await updateDoc(doc(db, 'orders', id), { [field]: value, statusHistory: newHistory });
-          return;
-        }
+        const newHistory = addStatusHistory(order, value, userRole, `Статус изменён на: ${value}`);
+        await updateDoc(doc(db, 'orders', id), { [field]: value, statusHistory: newHistory });
+        return;
       }
+      
+      // Для других важных полей тоже можем писать в историю
+      const importantFields = {
+        'isImportant': value ? 'Отмечен как важный' : 'Снята отметка важности',
+        'drawingsArrived': value ? 'КМД получены' : 'Отметка КМД снята',
+        'materialsArrived': value ? 'Металл получен' : 'Отметка металла снята',
+        'paintArrived': value ? 'Краска получена' : 'Отметка краски снята'
+      };
+
+      if (importantFields[field]) {
+        const newHistory = addStatusHistory(order, order.customStatus, userRole, importantFields[field]);
+        await updateDoc(doc(db, 'orders', id), { [field]: value, statusHistory: newHistory });
+        return;
+      }
+
       await updateDoc(doc(db, 'orders', id), { [field]: value });
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
@@ -126,12 +145,18 @@ export const useProductionData = () => {
   // --- ОТГРУЗКИ ---
 
   // Переместить заказ в раздел отгрузок
-  const moveToShipping = useCallback(async (id) => {
+  const moveToShipping = useCallback(async (id, userRole = 'admin') => {
     try {
+      const order = orders.find(o => o.id === id);
+      if (!order) return;
+
+      const newHistory = addStatusHistory(order, order.customStatus, userRole, 'Перемещён в отгрузки (на склад)');
+
       // Помечаем заказ как в отгрузке
       await updateDoc(doc(db, 'orders', id), {
         inShipping: true,
-        shippingToday: false
+        shippingToday: false,
+        statusHistory: newHistory
       });
 
       // Автоматически завершаем все незавершённые операции
@@ -159,29 +184,40 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [products, showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [orders, products, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Вернуть заказ из отгрузок в заказы
-  const returnFromShipping = useCallback(async (id) => {
+  const returnFromShipping = useCallback(async (id, userRole = 'admin') => {
     try {
+      const order = orders.find(o => o.id === id);
+      if (!order) return;
+
+      const newHistory = addStatusHistory(order, order.customStatus, userRole, 'Возвращён из отгрузок в работу');
+
       await updateDoc(doc(db, 'orders', id), {
         inShipping: false,
-        shippingToday: false
+        shippingToday: false,
+        statusHistory: newHistory
       });
       showSuccess('Заказ возвращён в работу');
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [orders, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Отметить/снять отметку "отгрузка сегодня"
-  const toggleShippingToday = useCallback(async (id) => {
+  const toggleShippingToday = useCallback(async (id, userRole = 'admin') => {
     try {
       const order = orders.find(o => o.id === id);
       if (!order) return;
+
+      const note = !order.shippingToday ? 'Отмечен к отгрузке на сегодня' : 'Отметка "на сегодня" снята';
+      const newHistory = addStatusHistory(order, order.customStatus, userRole, note);
+
       await updateDoc(doc(db, 'orders', id), {
-        shippingToday: !order.shippingToday
+        shippingToday: !order.shippingToday,
+        statusHistory: newHistory
       });
     } catch (error) {
       showError(getFirebaseErrorMessage(error));
@@ -189,15 +225,20 @@ export const useProductionData = () => {
     }
   }, [orders, showError, getFirebaseErrorMessage, db]);
 
-  const completeShipping = useCallback(async (id) => {
+  const completeShipping = useCallback(async (id, userRole = 'admin') => {
     try {
       const order = orders.find(o => o.id === id);
+      if (!order) return;
+
+      const newHistory = addStatusHistory(order, 'completed', userRole, 'Заказ отгружен (Архив)');
+
       const updates = {
         status: 'completed',
         inShipping: false,
         shippingToday: false,
         shippedAt: new Date().toISOString(),
-        finishedAt: new Date().toISOString()
+        finishedAt: new Date().toISOString(),
+        statusHistory: newHistory
       };
 
       // Удаляем чертежи из Supabase Storage и помечаем как удалённые

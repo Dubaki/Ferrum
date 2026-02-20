@@ -153,7 +153,7 @@ export const useSupplyRequests = () => {
     return [...history, { status, timestamp: Date.now(), role, note }];
   };
 
-  const attachInvoice = async (id, file) => {
+  const attachInvoice = async (id, file, userRole = 'supplier') => {
     const request = requests.find(r => r.id === id);
     if (!request) throw new Error('Заявка не найдена');
 
@@ -165,7 +165,7 @@ export const useSupplyRequests = () => {
         name: result.name,
         path: result.path,
         uploadedAt: Date.now(),
-        uploadedBy: 'supplier' // Или userRole
+        uploadedBy: userRole
       };
       const updatedInvoices = [...currentInvoices, newInvoice];
 
@@ -179,7 +179,7 @@ export const useSupplyRequests = () => {
         invoiceFile: null,
         invoiceFileName: null,
         invoicePath: null,
-        statusHistory: addStatusHistory(request, 'invoice_attached', 'supplier', `Счёт прикреплён: ${result.name}`)
+        statusHistory: addStatusHistory(request, 'invoice_attached', userRole, `Счёт прикреплён: ${result.name}`)
       });
       showSuccess('Счёт прикреплён');
     } catch (error) {
@@ -188,7 +188,7 @@ export const useSupplyRequests = () => {
     }
   };
 
-  const submitForApproval = async (id) => {
+  const submitForApproval = async (id, userRole = 'supplier') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     if (!request.invoices || request.invoices.length === 0) {
@@ -201,13 +201,13 @@ export const useSupplyRequests = () => {
       rejectionReason: null, // Clear rejection reason
       rejectedByRole: null,  // Clear rejected by role
       invoiceRequestCount: newInvoiceRequestCount,
-      statusHistory: addStatusHistory(request, 'pending_tech_approval', 'supplier', 'Отправлено на согласование технологу')
+      statusHistory: addStatusHistory(request, 'pending_tech_approval', userRole, 'Отправлено на согласование технологу')
     });
     showSuccess('Заявка отправлена на согласование');
     notifyRoles(['technologist'], buildNotificationMessage(request, 'submitted_for_approval'));
   };
 
-  const approveTechnologist = async (id) => {
+  const approveTechnologist = async (id, userRole = 'technologist') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
@@ -217,13 +217,13 @@ export const useSupplyRequests = () => {
       rejectionReason: null, // Clear rejection reason
       rejectedByRole: null,  // Clear rejected by role
       invoiceRequestCount: 1, // Reset count on approval
-      statusHistory: addStatusHistory(request, 'pending_shop_approval', 'technologist', 'Технолог согласовал')
+      statusHistory: addStatusHistory(request, 'pending_shop_approval', userRole, 'Технолог согласовал')
     });
     showSuccess('Согласовано');
     notifyRoles(['shopManager'], buildNotificationMessage(request, 'approved_technologist'));
   };
 
-  const approveShopManager = async (id) => {
+  const approveShopManager = async (id, userRole = 'shopManager') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
@@ -233,13 +233,13 @@ export const useSupplyRequests = () => {
       rejectionReason: null, // Clear rejection reason
       rejectedByRole: null,  // Clear rejected by role
       invoiceRequestCount: 1, // Reset count on approval
-      statusHistory: addStatusHistory(request, 'pending_director_approval', 'shopManager', 'Начальник цеха согласовал')
+      statusHistory: addStatusHistory(request, 'pending_director_approval', userRole, 'Начальник цеха согласовал')
     });
     showSuccess('Согласовано');
     notifyRoles(['director'], buildNotificationMessage(request, 'approved_shop_manager'));
   };
 
-  const approveDirector = async (id) => {
+  const approveDirector = async (id, userRole = 'director') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
@@ -249,36 +249,36 @@ export const useSupplyRequests = () => {
       rejectionReason: null, // Clear rejection reason
       rejectedByRole: null,  // Clear rejected by role
       invoiceRequestCount: 1, // Reset count on approval
-      statusHistory: addStatusHistory(request, 'pending_payment', 'director', 'Директор согласовал, передано на оплату')
+      statusHistory: addStatusHistory(request, 'pending_payment', userRole, 'Директор согласовал, передано на оплату')
     });
     showSuccess('Согласовано');
     notifyRoles(['vesta'], buildNotificationMessage(request, 'approved_director'));
   };
 
-  const markPaid = async (id) => {
+  const markPaid = async (id, userRole = 'vesta') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
       status: 'paid',
       'approvals.vesta': true,
       'approvals.vestaAt': Date.now(),
-      statusHistory: addStatusHistory(request, 'paid', 'vesta', 'Оплачено')
+      statusHistory: addStatusHistory(request, 'paid', userRole, 'Оплачено')
     });
     showSuccess('Оплата подтверждена');
     notifyRoles(['supplier'], buildNotificationMessage(request, 'paid'));
   };
 
-  const markAsInQueue = async (id) => {
+  const markAsInQueue = async (id, userRole = 'vesta') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
       status: 'in_queue_payment',
-      statusHistory: addStatusHistory(request, 'in_queue_payment', 'vesta', 'Поставлено в очередь на оплату')
+      statusHistory: addStatusHistory(request, 'in_queue_payment', userRole, 'Поставлено в очередь на оплату')
     });
     showSuccess('Заявка поставлена в очередь на оплату');
   };
 
-  const setDeliveryDate = async (id, date, supplierAddress = null, supplierPhone = null) => {
+  const setDeliveryDate = async (id, date, supplierAddress = null, supplierPhone = null, userRole = 'supplier') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     await updateRequest(id, {
@@ -286,13 +286,13 @@ export const useSupplyRequests = () => {
       deliveryDate: date,
       supplierAddress: supplierAddress, // Store new field
       supplierPhone: supplierPhone,     // Store new field
-      statusHistory: addStatusHistory(request, 'awaiting_delivery', 'supplier', `Срок доставки: ${date}. Адрес: ${supplierAddress || 'не указан'}. Телефон: ${supplierPhone || 'не указан'}`)
+      statusHistory: addStatusHistory(request, 'awaiting_delivery', userRole, `Срок доставки: ${date}. Адрес: ${supplierAddress || 'не указан'}. Телефон: ${supplierPhone || 'не указан'}`)
     });
     showSuccess('Срок доставки установлен');
     notifyRoles(['shopManager', 'master', 'technologist'], buildNotificationMessage(request, 'delivery_date_set', { date }));
   };
 
-  const markDelivered = async (id) => {
+  const markDelivered = async (id, userRole = 'supplier') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
     const now = new Date().toISOString().split('T')[0];
@@ -320,7 +320,7 @@ export const useSupplyRequests = () => {
       invoiceFile: null, // Для обратной совместимости
       invoiceFileName: null, // Для обратной совместимости
       invoicePath: null, // Для обратной совместимости
-      statusHistory: addStatusHistory(request, 'delivered', 'supplier', 'Доставлено')
+      statusHistory: addStatusHistory(request, 'delivered', userRole, 'Доставлено')
     });
     showSuccess('Доставка подтверждена');
     const createdByRole = request.createdBy || 'technologist';

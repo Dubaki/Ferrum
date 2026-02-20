@@ -215,7 +215,9 @@ export default function App() {
                   orders={orders}
                   actions={actions}
                   isAdmin={isAdmin}
-                  userRole={userRole} // Pass userRole here
+                  userRole={userRole}
+                  supplyRequests={supplyRequests}
+                  supplyActions={supplyActions}
                 />
               ) : (
                 <AccessDenied navigate={navigate} />
@@ -298,6 +300,7 @@ export default function App() {
                   orders={orders}
                   resources={resources}
                   isAdmin={isAdmin}
+                  userRole={userRole}
                 />
               ) : (
                 <AccessDenied navigate={navigate} />

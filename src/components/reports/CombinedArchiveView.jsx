@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User } from 'lucide-react';
+import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User, History } from 'lucide-react';
+import { getRoleLabel } from '../../utils/supplyRoles';
+import { ORDER_STATUSES } from '../../utils/constants';
 
-export default function CombinedArchiveView({ orders, products, resources, actions }) {
+export default function CombinedArchiveView({ orders, products, resources, actions, userRole }) {
     const completedOrders = useMemo(() => orders
         .filter(o => o.status === 'completed')
         .sort((a, b) => new Date(b.finishedAt || 0) - new Date(a.finishedAt || 0)), [orders]);
@@ -46,6 +48,7 @@ export default function CombinedArchiveView({ orders, products, resources, actio
                                 products={products} 
                                 resources={resources} 
                                 actions={actions}
+                                userRole={userRole}
                              />
                         ))}
                     </div>
@@ -55,8 +58,35 @@ export default function CombinedArchiveView({ orders, products, resources, actio
     );
 }
 
-function ArchiveOrderRow({ order, products, resources, actions }) {
+function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+
+    const formatDateTime = (timestamp) => {
+        if (!timestamp) return '-';
+        const date = new Date(timestamp);
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    const getRoleBadge = (role) => {
+        const roles = {
+            technologist: 'bg-blue-100 text-blue-700',
+            supplier: 'bg-yellow-100 text-yellow-700',
+            shopManager: 'bg-indigo-100 text-indigo-700',
+            director: 'bg-purple-100 text-purple-700',
+            vesta: 'bg-orange-100 text-orange-700',
+            master: 'bg-slate-100 text-slate-700',
+            manager: 'bg-cyan-100 text-cyan-700',
+            admin: 'bg-red-100 text-red-700'
+        };
+        return roles[role] || 'bg-slate-50 text-slate-500';
+    };
     
     // Детальный расчет по операциям
     const { orderLaborCost, orderTotalMinutes, productDetails } = useMemo(() => {
@@ -142,7 +172,7 @@ function ArchiveOrderRow({ order, products, resources, actions }) {
                         <div className="font-bold text-blue-700 text-lg">{Math.round(orderLaborCost).toLocaleString()} ₽</div>
                     </div>
                     <button 
-                        onClick={(e) => { e.stopPropagation(); if (window.confirm(`Вернуть заказ ${order.orderNumber} в работу?`)) actions.restoreOrder(order.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (window.confirm(`Вернуть заказ ${order.orderNumber} в работу?`)) actions.restoreOrder(order.id, userRole); }}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" 
                         title="Вернуть в работу"
                     >
@@ -184,6 +214,48 @@ function ArchiveOrderRow({ order, products, resources, actions }) {
                                  </div>
                              </div>
                         ))}
+
+                        {/* ИСТОРИЯ ДЕЙСТВИЙ В АРХИВЕ */}
+                        {order.statusHistory && order.statusHistory.length > 0 && (
+                            <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden bg-white/50">
+                                <button 
+                                    onClick={() => setShowHistory(!showHistory)} 
+                                    className="w-full flex items-center justify-between p-3 hover:bg-slate-100 transition text-left"
+                                >
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <History size={14} strokeWidth={3} />
+                                        История заказа ({order.statusHistory.length})
+                                    </span>
+                                    <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${showHistory ? 'rotate-180' : ''}`} />
+                                </button>
+                                {showHistory && (
+                                    <div className="p-3 space-y-2 border-t border-slate-100 max-h-48 overflow-y-auto custom-scrollbar bg-white/30 backdrop-blur-sm">
+                                        {order.statusHistory.slice().reverse().map((entry, idx) => (
+                                            <div key={idx} className="text-[10px] p-2.5 bg-white/80 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-1.5 transition-all hover:border-slate-200">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-slate-400 font-bold">{formatDateTime(entry.timestamp)}</span>
+                                                        <span className={`px-2 py-0.5 rounded-full font-black uppercase text-[8px] tracking-tighter ${getRoleBadge(entry.role)}`}>
+                                                            {getRoleLabel(entry.role)}
+                                                        </span>
+                                                    </div>
+                                                    {entry.status && (
+                                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter border ${ORDER_STATUSES.find(s => s.id === entry.status)?.color || 'text-slate-400 border-slate-200'}`}>
+                                                            {ORDER_STATUSES.find(s => s.id === entry.status)?.label || entry.status}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {entry.note && (
+                                                    <div className="font-bold text-slate-700 leading-tight border-l-2 border-slate-200 pl-2 ml-1">
+                                                        {entry.note}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                      </div>
                 </div>
             )}
