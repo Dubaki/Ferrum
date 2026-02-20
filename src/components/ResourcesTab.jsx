@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
   Plus, User, MapPin, Phone, Calendar, Archive,
   X, Save, ShieldAlert, ChevronLeft, ChevronRight, Clock,
@@ -9,27 +9,229 @@ import {
 // ИМПОРТ КОМПОНЕНТА КТУ (из папки reports, куда мы его сохраняли ранее)
 import MasterEfficiencyView from './reports/MasterEfficiencyView';
 
+// --- МЕМОИЗИРОВАННАЯ ЯЧЕЙКА ---
+const ShiftCell = memo(({ 
+    day, 
+    dateStr, 
+    res, 
+    isWeekend, 
+    isBeforeStartDate, 
+    reason, 
+    override, 
+    standardHours, 
+    isWorkDay, 
+    onOpenModal 
+}) => {
+    // Определяем был ли день отработан
+    let dayWorked = false;
+    const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
+
+    if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
+        if (override !== undefined && override > 0) {
+            dayWorked = true;
+        } else if (isWorkDay && override === undefined) {
+            if (!noKtuPositions.includes(res.position)) {
+                const ktuValue = res.dailyEfficiency?.[dateStr];
+                if (ktuValue !== undefined) dayWorked = true;
+            } else {
+                dayWorked = true;
+            }
+        }
+    }
+
+    let content = null;
+    let cellClass = isWeekend ? 'bg-slate-50/50' : 'bg-white';
+    let innerClass = "w-full h-full flex items-center justify-center transition-all duration-300";
+
+    if (dayWorked) {
+        cellClass = 'bg-emerald-400/20 ring-1 ring-inset ring-emerald-500/20';
+    }
+
+    if (isBeforeStartDate) {
+        content = <X size={12} className="text-slate-300 mx-auto"/>;
+        cellClass = 'bg-slate-50 opacity-40 cursor-not-allowed';
+    } else if (reason === 'sick') {
+        content = (
+            <div className="flex flex-col items-center">
+                <Thermometer size={14} className="text-red-500 drop-shadow-sm animate-pulse"/>
+                <span className="text-[8px] font-black text-red-700 mt-0.5">БОЛ</span>
+            </div>
+        );
+        cellClass = 'bg-red-100/80 shadow-inner ring-1 ring-inset ring-red-200';
+    } else if (reason === 'absent') {
+        content = <X size={14} className="text-slate-400 mx-auto"/>;
+        cellClass = 'bg-slate-100';
+    } else if (reason === 'late') {
+        content = (
+            <div className="flex flex-col items-center">
+                <span className="font-black text-orange-600 text-sm leading-none">{override}</span>
+                <span className="text-[7px] font-black text-orange-500 tracking-tighter">ОПОЗД</span>
+            </div>
+        );
+        cellClass = 'bg-orange-100/90 shadow-inner ring-1 ring-inset ring-orange-200';
+    } else if (reason === 'overtime') {
+        content = (
+            <div className="flex flex-col items-center">
+                <span className="font-black text-blue-700 text-sm leading-none">{override}</span>
+                <span className="text-[7px] font-black text-blue-500 tracking-tighter">ПЕРЕР</span>
+            </div>
+        );
+        cellClass = 'bg-blue-100/90 shadow-inner ring-1 ring-inset ring-blue-200';
+    } else if (override !== undefined) {
+        content = <span className="font-bold text-slate-700 text-sm">{override}</span>;
+        if(override === 0) cellClass = 'bg-slate-100';
+        else cellClass = 'bg-emerald-400/20 ring-1 ring-inset ring-emerald-500/20 shadow-sm';
+    } else {
+        content = isWorkDay 
+            ? <span className="text-slate-400 font-medium text-[10px] opacity-40">{standardHours}</span> 
+            : <span className="text-slate-200">-</span>;
+    }
+
+    return (
+        <td
+            className={`border-r border-slate-100 text-center transition-all p-0 h-12 relative ${cellClass} ${isBeforeStartDate ? 'cursor-not-allowed' : 'cursor-pointer hover:ring-2 hover:ring-orange-500 hover:z-20 hover:scale-[1.15] hover:shadow-xl hover:rounded-sm group'}`}
+            onClick={() => !isBeforeStartDate && onOpenModal(res, dateStr, override ?? (isWorkDay ? standardHours : 0))}
+        >
+            <div className={innerClass}>
+                {content}
+            </div>
+        </td>
+    );
+});
+
+// --- МЕМОИЗИРОВАННАЯ СТРОКА ---
+const ResourceRow = memo(({ res, daysArray, currentDate, actions, onOpenModal, onSelectResource }) => {
+    const isOfficial = res.isOfficiallyEmployed ?? false;
+    
+    // Подсчет часов (мемоизируем внутри строки)
+    const totalHours = useMemo(() => {
+        let total = 0;
+        const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
+
+        daysArray.forEach(day => {
+            const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const override = res.scheduleOverrides?.[dateStr];
+            const reason = res.scheduleReasons?.[dateStr];
+            const rawStandardHours = res.hoursPerDay || 8;
+            const standardHours = Math.min(Math.max(rawStandardHours, 0), 24);
+
+            const dateObj = new Date(dateStr);
+            const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+            const isWorkDay = res.workWeekends ? true : !isWeekend;
+            const effectiveStartDate = res.startDate || res.employmentDate;
+            const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
+
+            if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
+                let dayHours = 0;
+                if (override !== undefined) {
+                    dayHours = Math.min(Math.max(override, 0), 24);
+                } else if (isWorkDay) {
+                    dayHours = standardHours;
+                }
+
+                // Проверяем КТУ
+                if (!noKtuPositions.includes(res.position) && res.salaryEnabled !== false) {
+                    const ktuValue = res.dailyEfficiency?.[dateStr];
+                    if (ktuValue === undefined && dayHours > 0) {
+                        dayHours = 0;
+                    }
+                }
+                total += dayHours;
+            }
+        });
+        return total;
+    }, [res, daysArray, currentDate]);
+
+    return (
+        <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+            <td className="p-2 sticky left-0 bg-white border-r border-slate-200 z-10 text-center">
+                <input
+                    type="checkbox"
+                    checked={isOfficial}
+                    onChange={(e) => actions.updateResource(res.id, 'isOfficiallyEmployed', e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                />
+            </td>
+
+            <td
+                className={`p-3 sticky left-[50px] border-r z-10 font-black text-sm cursor-pointer hover:text-orange-600 truncate transition-all shadow-[5px_0_10px_rgba(0,0,0,0.02)] ${
+                    isOfficial
+                        ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                        : 'bg-white text-slate-700 border-slate-200'
+                }`}
+                onClick={() => onSelectResource(res)}
+            >
+                <div className="flex flex-col">
+                    <span className="truncate tracking-tight">{res.name}</span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest leading-none mt-1 ${isOfficial ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {res.position}
+                    </span>
+                </div>
+            </td>
+            
+            {daysArray.map(day => {
+                const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const dateObj = new Date(dateStr);
+                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                const effectiveStartDate = res.startDate || res.employmentDate;
+                const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
+                
+                return (
+                    <ShiftCell 
+                        key={day}
+                        day={day}
+                        dateStr={dateStr}
+                        res={res}
+                        isWeekend={isWeekend}
+                        isBeforeStartDate={isBeforeStartDate}
+                        reason={res.scheduleReasons?.[dateStr]}
+                        override={res.scheduleOverrides?.[dateStr]}
+                        standardHours={res.hoursPerDay || 8}
+                        isWorkDay={res.workWeekends ? true : !isWeekend}
+                        onOpenModal={onOpenModal}
+                    />
+                );
+            })}
+
+            <td className={`p-3 text-center font-black sticky right-0 z-10 shadow-[-10px_0_15px_rgba(0,0,0,0.05)] ${totalHours > 0 ? 'bg-slate-900 text-orange-500' : 'bg-slate-100 text-slate-400'} border-l-2 border-orange-500/50`}>
+                <span className="text-xl tracking-tighter">{totalHours}</span>
+            </td>
+        </tr>
+    );
+});
+
 export default function ResourcesTab({ resources, setResources, actions }) {
-  // Добавлена вкладка 'ktu'
-  const [activeView, setActiveView] = useState('table'); // 'table' | 'cards' | 'archive' | 'ktu'
+  const [activeView, setActiveView] = useState('table'); 
   const [currentDate, setCurrentDate] = useState(new Date());
-  
   const [selectedResource, setSelectedResource] = useState(null); 
   const [shiftModal, setShiftModal] = useState(null); 
 
-  const changeMonth = (delta) => {
-      const d = new Date(currentDate);
-      d.setMonth(d.getMonth() + delta);
-      setCurrentDate(d);
-  };
+  // Стабильные коллбэки для оптимизации
+  const handleOpenShiftModal = useCallback((resource, dateStr, currentHours) => {
+      setShiftModal({ resource, dateStr, currentHours });
+  }, []);
+
+  const handleSelectResource = useCallback((res) => {
+      setSelectedResource(res);
+  }, []);
+
+  const changeMonth = useCallback((delta) => {
+      setCurrentDate(prev => {
+          const d = new Date(prev);
+          d.setMonth(d.getMonth() + delta);
+          return d;
+      });
+  }, []);
+
   const monthName = currentDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-  const daysArray = Array.from({length: daysInMonth}, (_, i) => i + 1);
+  const daysArray = useMemo(() => Array.from({length: daysInMonth}, (_, i) => i + 1), [daysInMonth]);
 
-  const activeResources = resources.filter(r => r.status !== 'fired');
-  const firedResources = resources.filter(r => r.status === 'fired');
+  const activeResources = useMemo(() => resources.filter(r => r.status !== 'fired'), [resources]);
+  const firedResources = useMemo(() => resources.filter(r => r.status === 'fired'), [resources]);
 
-  // Уволенные за последний месяц — для блока "К расчёту" в архиве
+  // Уволенные за последний месяц
   const recentlyFiredWithSalary = useMemo(() => {
       const now = new Date();
       return firedResources.filter(r => {
@@ -86,7 +288,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
   return (
     <div className="pb-20 fade-in font-sans text-slate-800">
       
-      {/* ЗАГОЛОВОК И НАВИГАЦИЯ — Modern IT Design */}
+      {/* ЗАГОЛОВОК И НАВИГАЦИЯ */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-8 pt-2">
           <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-200 transition-transform hover:scale-105 duration-500">
@@ -154,7 +356,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
           </div>
       </div>
 
-      {/* --- ВИД: КТУ (НОВЫЙ) --- */}
+      {/* --- ВИД: КТУ --- */}
       {activeView === 'ktu' && (
           <div className="fade-in">
               <MasterEfficiencyView resources={activeResources.filter(r => r.salaryEnabled !== false)} actions={actions} />
@@ -170,10 +372,23 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                       <h3 className="text-xl font-bold capitalize text-slate-800 w-48 text-center">{monthName}</h3>
                       <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-300 transition"><ChevronRight/></button>
                   </div>
-                  <div className="flex flex-wrap justify-center gap-3 text-[10px] uppercase font-bold text-slate-400">
-                      <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Болеет</div>
-                      <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Опоздал</div>
-                      <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Переработка</div>
+                  <div className="flex flex-wrap justify-center gap-3">
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-100 shadow-sm transition-all hover:shadow-md">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse"></span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-red-700">Болеет</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-100 shadow-sm transition-all hover:shadow-md">
+                          <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-700">Опоздал</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 shadow-sm transition-all hover:shadow-md">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.5)]"></span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">Переработка</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm transition-all hover:shadow-md">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Отработано</span>
+                      </div>
                   </div>
               </div>
 
@@ -182,183 +397,45 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                   <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-black/5 to-transparent pointer-events-none z-20 md:hidden"></div>
                   <table className="w-full text-xs border-collapse min-w-[800px]">
                       <thead>
-                          <tr className="bg-slate-800 text-slate-300">
-                              <th className="p-2 text-center sticky left-0 bg-slate-800 z-10 min-w-[50px] border-r border-slate-700 font-bold text-xs" title="Официальное трудоустройство">
-                                  ✓
+                          <tr className="bg-slate-900 text-slate-300">
+                              <th className="p-2 text-center sticky left-0 bg-slate-900 z-10 min-w-[50px] border-r border-slate-800 font-bold text-xs" title="Официальное трудоустройство">
+                                  <ShieldAlert size={14} className="mx-auto text-slate-500" />
                               </th>
-                              <th className="p-3 text-left sticky left-[50px] bg-slate-800 z-10 min-w-[180px] border-r border-slate-700 font-bold uppercase tracking-wider">Сотрудник</th>
+                              <th className="p-4 text-left sticky left-[50px] bg-slate-900 z-10 min-w-[200px] border-r border-slate-800 font-black uppercase tracking-[0.1em] text-[10px]">Сотрудник</th>
                               {daysArray.map(day => {
                                   const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                                   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                                  const isToday = new Date().toDateString() === date.toDateString();
+                                  
                                   return (
-                                      <th key={day} className={`p-1 min-w-[34px] border-r border-slate-700 text-center ${isWeekend ? 'bg-slate-700/50 text-orange-400' : ''}`}>
-                                          <div className="font-bold text-sm text-white">{day}</div>
-                                          <div className="text-[9px] uppercase opacity-70">{date.toLocaleDateString('ru-RU', {weekday: 'short'})}</div>
+                                      <th key={day} className={`p-1.5 min-w-[38px] border-r border-slate-800 text-center transition-colors ${
+                                          isToday ? 'bg-orange-500/20 ring-1 ring-inset ring-orange-500/30' : 
+                                          isWeekend ? 'bg-slate-800/50 text-orange-400' : ''
+                                      }`}>
+                                          <div className={`font-black text-sm ${isToday ? 'text-orange-500' : 'text-white'}`}>{day}</div>
+                                          <div className={`text-[8px] font-bold uppercase tracking-tighter ${isToday ? 'text-orange-400' : 'opacity-50'}`}>
+                                              {date.toLocaleDateString('ru-RU', {weekday: 'short'})}
+                                          </div>
                                       </th>
                                   );
                               })}
-                              <th className="p-3 text-center bg-emerald-700 border-l-2 border-emerald-500 min-w-[80px] font-bold uppercase tracking-wider sticky right-0 z-10">
-                                  <Clock size={14} className="inline mr-1"/>
-                                  Часов
+                              <th className="p-4 text-center bg-slate-950 border-l-2 border-orange-500/30 min-w-[90px] font-black uppercase tracking-widest text-[10px] sticky right-0 z-10 text-orange-500">
+                                  Итого
                               </th>
                           </tr>
                       </thead>
                       <tbody>
-                          {activeResources.map(res => {
-                              // Подсчет общего количества часов за месяц
-                              let totalHours = 0;
-                              const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
-
-                              daysArray.forEach(day => {
-                                  const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                                  const override = res.scheduleOverrides?.[dateStr];
-                                  const reason = res.scheduleReasons?.[dateStr];
-                                  // ЗАЩИТА: ограничиваем standardHours разумными пределами (1-24 часа)
-                                  const rawStandardHours = res.hoursPerDay || 8;
-                                  const standardHours = Math.min(Math.max(rawStandardHours, 0), 24);
-
-                                  const dateObj = new Date(dateStr);
-                                  const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                                  const isWorkDay = res.workWeekends ? true : !isWeekend;
-                                  const effectiveStartDate = res.startDate || res.employmentDate;
-                                  const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
-
-                                  if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
-                                      let dayHours = 0;
-                                      if (override !== undefined) {
-                                          // ЗАЩИТА: ограничиваем override разумными пределами
-                                          dayHours = Math.min(Math.max(override, 0), 24);
-                                      } else if (isWorkDay) {
-                                          dayHours = standardHours;
-                                      }
-
-                                      // ВАЖНО: Проверяем КТУ только для должностей, у которых КТУ обязательно
-                                      // и только для сотрудников с расчетом ЗП.
-                                      // Для Мастера, Технолога и Стажёра КТУ не требуется
-                                      if (!noKtuPositions.includes(res.position) && res.salaryEnabled !== false) {
-                                          const ktuValue = res.dailyEfficiency?.[dateStr];
-                                          if (ktuValue === undefined) {
-                                              dayHours = 0;
-                                          }
-                                      }
-
-                                      totalHours += dayHours;
-                                  }
-                              });
-
-                              const isOfficial = res.isOfficiallyEmployed ?? false;
-
-                              return (
-                              <tr key={res.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                  {/* Чекбокс официального трудоустройства */}
-                                  <td className="p-2 sticky left-0 bg-white border-r border-slate-200 z-10 text-center">
-                                      <input
-                                          type="checkbox"
-                                          checked={isOfficial}
-                                          onChange={(e) => actions.updateResource(res.id, 'isOfficiallyEmployed', e.target.checked)}
-                                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
-                                          title="Официальное трудоустройство"
-                                          onClick={(e) => e.stopPropagation()}
-                                      />
-                                  </td>
-
-                                  {/* Фамилия сотрудника */}
-                                  <td
-                                    className={`p-3 sticky left-[50px] border-r z-10 font-bold cursor-pointer hover:text-orange-600 truncate transition-colors ${
-                                        isOfficial
-                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                            : 'bg-white text-slate-700 border-slate-200'
-                                    }`}
-                                    onClick={() => setSelectedResource(res)}
-                                  >
-                                      {res.name}
-                                      <div className={`text-[9px] font-normal flex items-center gap-1 ${isOfficial ? 'text-emerald-700' : 'text-slate-400'}`}>
-                                          {res.position}
-                                      </div>
-                                  </td>
-                                  
-                                  {daysArray.map(day => {
-                                      const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-
-                                      const override = res.scheduleOverrides?.[dateStr];
-                                      const reason = res.scheduleReasons?.[dateStr];
-                                      const standardHours = res.hoursPerDay || 8;
-
-                                      const dateObj = new Date(dateStr);
-                                      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                                      const isWorkDay = res.workWeekends ? true : !isWeekend;
-
-                                      // Проверяем дату начала работы сотрудника
-                                      const effectiveStartDate = res.startDate || res.employmentDate;
-                                      const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
-
-                                      // Определяем был ли день отработан (для зеленой подсветки)
-                                      let dayWorked = false;
-                                      if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
-                                          if (override !== undefined && override > 0) {
-                                              dayWorked = true;
-                                          } else if (isWorkDay && override === undefined) {
-                                              // Стандартный рабочий день
-                                              // Для должностей с КТУ проверяем наличие КТУ
-                                              if (!noKtuPositions.includes(res.position)) {
-                                                  const ktuValue = res.dailyEfficiency?.[dateStr];
-                                                  if (ktuValue !== undefined) dayWorked = true;
-                                              } else {
-                                                  // Для должностей без КТУ - день считается отработанным
-                                                  dayWorked = true;
-                                              }
-                                          }
-                                      }
-
-                                      let content = null;
-                                      let cellClass = isWeekend ? 'bg-slate-50' : 'bg-white';
-
-                                      // Зеленая подсветка для отработанных дней
-                                      if (dayWorked) {
-                                          cellClass = 'bg-emerald-50';
-                                      }
-
-                                      if (isBeforeStartDate) {
-                                          // Дата до начала работы - показываем как "Прогул/Отгул"
-                                          content = <X size={14} className="text-slate-400 mx-auto"/>;
-                                          cellClass = 'bg-slate-100 cursor-not-allowed';
-                                      } else if (reason === 'sick') {
-                                          content = <Thermometer size={14} className="text-red-500 mx-auto"/>;
-                                          cellClass = 'bg-red-50';
-                                      } else if (reason === 'absent') {
-                                          content = <X size={14} className="text-slate-400 mx-auto"/>;
-                                          cellClass = 'bg-slate-100';
-                                      } else if (reason === 'late') {
-                                          content = <span className="font-bold text-orange-600">{override}</span>;
-                                          cellClass = 'bg-orange-50';
-                                      } else if (reason === 'overtime') {
-                                          content = <span className="font-black text-blue-600">{override}</span>;
-                                          cellClass = 'bg-blue-50';
-                                      } else if (override !== undefined) {
-                                          content = <span className="font-medium text-slate-700">{override}</span>;
-                                          if(override === 0) cellClass = 'bg-slate-100';
-                                      } else {
-                                          content = isWorkDay ? <span className="text-slate-300 text-[10px]">{standardHours}</span> : <span className="text-slate-200">-</span>;
-                                      }
-
-                                      return (
-                                          <td
-                                            key={day}
-                                            className={`border-r border-slate-100 text-center transition-all p-0 h-10 ${cellClass} ${isBeforeStartDate ? 'cursor-not-allowed' : 'cursor-pointer hover:ring-2 hover:ring-orange-300 hover:z-20'}`}
-                                            onClick={() => !isBeforeStartDate && setShiftModal({ resource: res, dateStr, currentHours: override ?? (isWorkDay ? standardHours : 0) })}
-                                          >
-                                              {content}
-                                          </td>
-                                      );
-                                  })}
-
-                                  {/* Итоговая ячейка с часами */}
-                                  <td className={`p-3 text-center font-black text-lg ${totalHours > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'} border-l-2 border-emerald-500 sticky right-0 z-10`}>
-                                      {totalHours}
-                                  </td>
-                              </tr>
-                              );
-                          })}
+                          {activeResources.map(res => (
+                              <ResourceRow 
+                                  key={res.id}
+                                  res={res}
+                                  daysArray={daysArray}
+                                  currentDate={currentDate}
+                                  actions={actions}
+                                  onOpenModal={handleOpenShiftModal}
+                                  onSelectResource={handleSelectResource}
+                              />
+                          ))}
                       </tbody>
                   </table>
               </div>
@@ -379,7 +456,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                   )}
               </div>
 
-              {/* Блок "К расчёту" для недавно уволенных */}
+              {/* Блок "К расчёту" */}
               {activeView === 'archive' && recentlyFiredWithSalary.length > 0 && (
                   <div className="mb-6 bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
@@ -432,7 +509,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                   {(activeView === 'cards' ? activeResources : firedResources).map(res => (
                       <div 
                         key={res.id} 
-                        onClick={() => setSelectedResource(res)}
+                        onClick={() => handleSelectResource(res)}
                         className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden"
                       >
                           {res.status === 'fired' && <div className="absolute top-0 left-0 w-full bg-slate-200 text-slate-500 text-[10px] font-bold uppercase text-center py-1">Уволен: {new Date(res.firedAt).toLocaleDateString()}</div>}
@@ -455,34 +532,15 @@ export default function ResourcesTab({ resources, setResources, actions }) {
           </div>
       )}
 
-      {/* Модалки (те же самые) */}
       {selectedResource && <EmployeeModal resource={selectedResource} onClose={() => setSelectedResource(null)} actions={actions} />}
       {shiftModal && <ShiftEditModal data={shiftModal} onClose={() => setShiftModal(null)} onSave={actions.updateResourceSchedule} />}
     </div>
   );
 }
 
-// ... EmployeeModal и ShiftEditModal (вставь их код из предыдущего ответа, он не менялся) ...
-// Для полноты картины, вот они:
-
 function EmployeeModal({ resource, onClose, actions }) {
     const isNew = !resource.id;
-
-    // Список должностей
-    const POSITIONS = [
-        'Стажёр',
-        'Мастер',
-        'Технолог',
-        'Плазморез',
-        'Слесарь',
-        'Разнорабочий',
-        'Кладовщик',
-        'Маляр',
-        'Сварщик',
-        'Электрик',
-        'Лентопил'
-    ];
-
+    const POSITIONS = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез', 'Слесарь', 'Разнорабочий', 'Кладовщик', 'Маляр', 'Сварщик', 'Электрик', 'Лентопил'];
     const [formData, setFormData] = useState({
         name: resource.name || '',
         position: resource.position || '',
@@ -490,7 +548,7 @@ function EmployeeModal({ resource, onClose, actions }) {
         address: resource.address || '',
         dob: resource.dob || '',
         employmentDate: resource.employmentDate || new Date().toISOString().split('T')[0],
-        probationEndDate: resource.probationEndDate || '', // Дата окончания испытательного срока
+        probationEndDate: resource.probationEndDate || '',
         baseRate: resource.baseRate || '',
         hoursPerDay: resource.hoursPerDay || 8,
         workWeekends: resource.workWeekends || false,
@@ -500,28 +558,17 @@ function EmployeeModal({ resource, onClose, actions }) {
     });
 
     const handleChange = (field, value) => {
-        // Автоматически рассчитываем дату окончания испытательного срока при изменении даты трудоустройства или должности
         if (field === 'employmentDate' || field === 'position') {
             const empDate = field === 'employmentDate' ? value : formData.employmentDate;
             const pos = field === 'position' ? value : formData.position;
-
             if (empDate) {
                 const probationEnd = new Date(empDate);
-                // Плазморез - 30 дней, Стажёр - 7 дней (максимум), остальные - 7 дней
                 const probationDays = pos === 'Плазморез' ? 30 : 7;
                 probationEnd.setDate(probationEnd.getDate() + probationDays);
-
-                // Обновляем formData со всеми изменениями сразу
-                setFormData(prev => ({
-                    ...prev,
-                    [field]: value,
-                    probationEndDate: probationEnd.toISOString().split('T')[0]
-                }));
+                setFormData(prev => ({ ...prev, [field]: value, probationEndDate: probationEnd.toISOString().split('T')[0] }));
                 return;
             }
         }
-
-        // Для остальных полей - обычное обновление
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
@@ -539,199 +586,34 @@ function EmployeeModal({ resource, onClose, actions }) {
         onClose();
     };
 
-    const handleDelete = () => {
-        if (window.confirm(`Вы уверены, что хотите УДАЛИТЬ сотрудника ${formData.name}? Это действие необратимо!`)) {
-            actions.deleteResource(resource.id);
-            onClose();
-        }
-    };
-
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                {/* Заголовок */}
                 <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
-                    <div>
-                        <h2 className="text-2xl font-bold">{isNew ? 'Новый сотрудник' : formData.name}</h2>
-                    </div>
-                    <button onClick={onClose} className="text-white hover:text-slate-300 transition">
-                        <X size={20}/>
-                    </button>
+                    <h2 className="text-2xl font-bold">{isNew ? 'Новый сотрудник' : formData.name}</h2>
+                    <button onClick={onClose} className="text-white hover:text-slate-300 transition"><X size={20}/></button>
                 </div>
-
-                {/* Форма */}
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
-                    {/* ФИО и Должность */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">ФИО</label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={e => handleChange('name', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
-                        <div className="relative z-[70]">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Должность</label>
-                            <select
-                                value={formData.position}
-                                onChange={e => handleChange('position', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition bg-white cursor-pointer"
-                            >
-                                <option value="">Выберите должность</option>
-                                {POSITIONS.map(pos => (
-                                    <option key={pos} value={pos}>{pos}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase">ФИО</label><input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none"/></div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase">Должность</label><select value={formData.position} onChange={e => handleChange('position', e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none">{POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
                     </div>
-
-                    {/* Дата начала работы и Дата окончания испытательного срока */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Дата начала работы</label>
-                            <input
-                                type="date"
-                                value={formData.employmentDate}
-                                onChange={e => handleChange('employmentDate', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                                Окончание исп. срока
-                                <span className="text-[9px] text-slate-400 ml-1 normal-case">({formData.position === 'Плазморез' ? '30' : '7'} дн.)</span>
-                            </label>
-                            <input
-                                type="date"
-                                value={formData.probationEndDate}
-                                onChange={e => handleChange('probationEndDate', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase">Начало работы</label><input type="date" value={formData.employmentDate} onChange={e => handleChange('employmentDate', e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none"/></div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase">Исп. срок</label><input type="date" value={formData.probationEndDate} onChange={e => handleChange('probationEndDate', e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none"/></div>
                     </div>
-
-                    {/* Телефон и Адрес */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Телефон</label>
-                            <input
-                                type="tel"
-                                value={formData.phone}
-                                onChange={e => handleChange('phone', e.target.value)}
-                                placeholder="+7 (___) ___-__-__"
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Адрес</label>
-                            <input
-                                type="text"
-                                value={formData.address}
-                                onChange={e => handleChange('address', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase">Ставка (₽)</label><input type="number" value={formData.baseRate} onChange={e => handleChange('baseRate', e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none"/></div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase">Часов в день</label><input type="number" value={formData.hoursPerDay} onChange={e => handleChange('hoursPerDay', e.target.value)} className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none"/></div>
                     </div>
-
-                    {/* Ставка и Часов */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Ставка (₽)</label>
-                            <input
-                                type="number"
-                                value={formData.baseRate}
-                                onChange={e => handleChange('baseRate', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Часов в день</label>
-                            <input
-                                type="number"
-                                value={formData.hoursPerDay}
-                                onChange={e => handleChange('hoursPerDay', e.target.value)}
-                                className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm font-medium focus:border-orange-500 outline-none transition"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Переключатель расчета зарплаты */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={formData.salaryEnabled}
-                                onChange={e => handleChange('salaryEnabled', e.target.checked)}
-                                className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500 border-slate-300"
-                            />
-                            <div>
-                                <div className="text-sm font-bold text-slate-700">Расчет зарплаты</div>
-                                <div className="text-xs text-slate-500">Включите для постоянных сотрудников</div>
-                            </div>
-                        </label>
-                    </div>
-
-                    {/* Переключатель официального трудоустройства */}
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={formData.isOfficiallyEmployed}
-                                onChange={e => handleChange('isOfficiallyEmployed', e.target.checked)}
-                                className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                            />
-                            <div>
-                                <div className="text-sm font-bold text-emerald-700">Официальное трудоустройство</div>
-                                <div className="text-xs text-slate-500">Отображается зеленым в таблице смен</div>
-                            </div>
-                        </label>
+                    <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl cursor-pointer"><input type="checkbox" checked={formData.salaryEnabled} onChange={e => handleChange('salaryEnabled', e.target.checked)} className="w-5 h-5 rounded text-orange-600"/> <span className="text-sm font-bold">Расчет зарплаты</span></label>
+                        <label className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl cursor-pointer"><input type="checkbox" checked={formData.isOfficiallyEmployed} onChange={e => handleChange('isOfficiallyEmployed', e.target.checked)} className="w-5 h-5 rounded text-emerald-600"/> <span className="text-sm font-bold">Официальное трудоустройство</span></label>
                     </div>
                 </div>
-
-                {/* Футер */}
-                <div className="p-6 border-t border-slate-100 flex justify-between bg-slate-50">
-                    <div className="flex gap-2">
-                        {!isNew && resource.status !== 'fired' && (
-                            <button
-                                onClick={() => { actions.fireResource(resource.id); onClose(); }}
-                                className="px-4 py-2 text-orange-600 hover:bg-orange-50 rounded-lg font-bold text-xs uppercase transition"
-                            >
-                                Уволить
-                            </button>
-                        )}
-                        {!isNew && resource.status === 'fired' && (
-                            <button
-                                onClick={() => { actions.updateResource(resource.id, 'status', 'active'); onClose(); }}
-                                className="px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold text-xs uppercase transition"
-                            >
-                                Восстановить
-                            </button>
-                        )}
-                        {!isNew && (
-                            <button
-                                onClick={handleDelete}
-                                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-bold text-xs uppercase transition"
-                            >
-                                Удалить
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition"
-                        >
-                            Отмена
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            className="px-6 py-2 bg-slate-900 hover:bg-orange-600 text-white rounded-lg font-bold transition"
-                        >
-                            Сохранить
-                        </button>
-                    </div>
+                <div className="p-6 border-t flex justify-end gap-3 bg-slate-50">
+                    <button onClick={onClose} className="px-4 py-2 font-bold text-slate-500">Отмена</button>
+                    <button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold">Сохранить</button>
                 </div>
             </div>
         </div>
