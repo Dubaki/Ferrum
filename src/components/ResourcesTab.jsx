@@ -3,7 +3,7 @@ import {
   Plus, User, MapPin, Phone, Calendar, Archive,
   X, Save, ShieldAlert, ChevronLeft, ChevronRight, Clock,
   Thermometer, MinusCircle, CheckCircle, Briefcase, Percent,
-  DollarSign, AlertCircle
+  DollarSign, AlertCircle, MessageSquare
 } from 'lucide-react';
 
 // ИМПОРТ КОМПОНЕНТА КТУ (из папки reports, куда мы его сохраняли ранее)
@@ -201,11 +201,12 @@ const ResourceRow = memo(({ res, daysArray, currentDate, actions, onOpenModal, o
     );
 });
 
-export default function ResourcesTab({ resources, setResources, actions }) {
+export default function ResourcesTab({ resources, setResources, actions, isAdmin }) {
   const [activeView, setActiveView] = useState('table'); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedResource, setSelectedResource] = useState(null); 
   const [shiftModal, setShiftModal] = useState(null); 
+  const [noteModal, setNoteModal] = useState(null); // { resourceId, name, note }
 
   // Стабильные коллбэки для оптимизации
   const handleOpenShiftModal = useCallback((resource, dateStr, currentHours) => {
@@ -231,11 +232,11 @@ export default function ResourcesTab({ resources, setResources, actions }) {
   const activeResources = useMemo(() => resources.filter(r => r.status !== 'fired'), [resources]);
   const firedResources = useMemo(() => resources.filter(r => r.status === 'fired'), [resources]);
 
-  // Уволенные за последний месяц
+  // Уволенные за последний месяц — для блока "К расчёту"
   const recentlyFiredWithSalary = useMemo(() => {
       const now = new Date();
       return firedResources.filter(r => {
-          if (!r.firedAt) return false;
+          if (!r.firedAt || r.isSettled) return false;
           const firedDate = new Date(r.firedAt);
           const cutoff = new Date(firedDate);
           cutoff.setMonth(cutoff.getMonth() + 1);
@@ -456,7 +457,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                   )}
               </div>
 
-              {/* Блок "К расчёту" */}
+              {/* Блок "К расчёту" для недавно уволенных */}
               {activeView === 'archive' && recentlyFiredWithSalary.length > 0 && (
                   <div className="mb-6 bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
@@ -465,7 +466,12 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {recentlyFiredWithSalary.map(res => (
-                              <div key={res.id} className="bg-white rounded-xl p-4 border border-red-100 shadow-sm">
+                              <div key={res.id} className="bg-white rounded-xl p-4 border border-red-100 shadow-sm relative overflow-hidden">
+                                  {res.archiveNote && (
+                                      <div className="mb-3 p-2 bg-amber-50 border-l-4 border-amber-400 rounded text-[10px] font-bold text-amber-800 italic">
+                                          "{res.archiveNote}"
+                                      </div>
+                                  )}
                                   <div className="flex items-center justify-between mb-3">
                                       <div>
                                           <div className="font-bold text-slate-800">{res.name}</div>
@@ -499,6 +505,26 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                                           <span className="font-black text-lg text-emerald-600">{Math.round(res.toPay).toLocaleString()} ₽</span>
                                       </div>
                                   </div>
+                                  
+                                  {/* КНОПКИ ДЕЙСТВИЯ (РАСЧЁТ И КОММЕНТАРИЙ) */}
+                                  <div className="mt-4 flex gap-2 pt-3 border-t border-slate-100">
+                                      <button 
+                                          onClick={() => setNoteModal({ resourceId: res.id, name: res.name, note: res.archiveNote || '' })}
+                                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all font-bold text-[10px] uppercase"
+                                      >
+                                          <MessageSquare size={14} /> Коммент
+                                      </button>
+                                      <button 
+                                          onClick={() => {
+                                              if (window.confirm(`Подтверждаете, что сотрудник ${res.name} полностью рассчитан? Он будет скрыт из этого списка.`)) {
+                                                  actions.settleResource(res.id);
+                                              }
+                                          }}
+                                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-[10px] uppercase shadow-md shadow-emerald-100"
+                                      >
+                                          <CheckCircle size={14} /> Рассчитан
+                                      </button>
+                                  </div>
                               </div>
                           ))}
                       </div>
@@ -513,6 +539,7 @@ export default function ResourcesTab({ resources, setResources, actions }) {
                         className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden"
                       >
                           {res.status === 'fired' && <div className="absolute top-0 left-0 w-full bg-slate-200 text-slate-500 text-[10px] font-bold uppercase text-center py-1">Уволен: {new Date(res.firedAt).toLocaleDateString()}</div>}
+                          {res.isSettled && <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-bl-lg uppercase tracking-tighter">Рассчитан</div>}
                           <div className="flex items-start gap-4 mt-2">
                               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-2xl group-hover:bg-orange-50 group-hover:text-orange-500 transition-colors shrink-0 overflow-hidden border border-slate-200">
                                   {res.photoUrl ? <img src={res.photoUrl} alt={res.name} className="w-full h-full object-cover"/> : <User size={32}/>}
@@ -534,8 +561,46 @@ export default function ResourcesTab({ resources, setResources, actions }) {
 
       {selectedResource && <EmployeeModal resource={selectedResource} onClose={() => setSelectedResource(null)} actions={actions} />}
       {shiftModal && <ShiftEditModal data={shiftModal} onClose={() => setShiftModal(null)} onSave={actions.updateResourceSchedule} />}
+      {noteModal && (
+          <ArchiveNoteModal 
+              data={noteModal} 
+              onClose={() => setNoteModal(null)} 
+              onSave={(id, note) => {
+                  actions.updateResourceNote(id, note);
+                  setNoteModal(null);
+              }} 
+          />
+      )}
     </div>
   );
+}
+
+function ArchiveNoteModal({ data, onClose, onSave }) {
+    const [note, setNote] = useState(data.note || '');
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in zoom-in-95">
+            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest mb-1">Комментарий к расчёту</h3>
+                <p className="text-slate-400 text-sm mb-4 font-bold">{data.name}</p>
+                <textarea 
+                    value={note} 
+                    onChange={e => setNote(e.target.value)} 
+                    className="w-full h-32 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-orange-500 transition-all font-medium text-slate-700 text-sm"
+                    placeholder="Укажите точную сумму, причину увольнения или другие детали..."
+                    autoFocus
+                />
+                <div className="flex gap-2 mt-6">
+                    <button onClick={onClose} className="flex-1 py-3 font-black text-slate-400 hover:text-slate-600 transition uppercase text-[10px] tracking-widest">Отмена</button>
+                    <button 
+                        onClick={() => onSave(data.resourceId, note)} 
+                        className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-black hover:bg-orange-600 transition-all uppercase text-[10px] tracking-widest"
+                    >
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function EmployeeModal({ resource, onClose, actions }) {
@@ -632,7 +697,7 @@ function ShiftEditModal({ data, onClose, onSave }) {
                 <h3 className="font-bold text-lg text-slate-800 mb-4">{resource.name}</h3>
                 <div className="grid grid-cols-2 gap-2 mb-4">{statusOptions.map(opt => (<button key={opt.id || 'std'} onClick={() => { setType(opt.id); if (opt.setHours !== undefined) setHours(opt.setHours); }} className={`p-3 rounded-lg text-xs font-bold flex items-center gap-2 border-2 ${type === opt.id ? 'border-slate-800 ring-1 ring-slate-800 ' + opt.color : 'border-transparent hover:bg-slate-50 ' + opt.color.replace('text-', 'text-opacity-70 text-')}`}><opt.icon size={16}/> {opt.label}</button>))}</div>
                 <div className="mb-6"><label className="text-[10px] font-bold text-slate-400 uppercase">Часов</label><input type="number" value={hours} onChange={(e) => setHours(e.target.value)} className="w-full text-center text-4xl font-black text-slate-800 border-b-2 border-slate-100 outline-none py-2" autoFocus/></div>
-                <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl">Отмена</button><button onClick={handleSave} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-orange-600">Сохранить</button></div>
+                <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-3 font-bold text-slate-400 hover:bg-slate-50 rounded-xl">Отмена</button><button onClick={handleSave} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-black hover:bg-orange-600">Сохранить</button></div>
             </div>
         </div>
     );

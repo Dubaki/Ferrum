@@ -728,6 +728,25 @@ export const useProductionData = () => {
     }
   }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
+  const settleResource = useCallback(async (id) => {
+    try {
+      await updateDoc(doc(db, 'resources', id), { isSettled: true, settledAt: new Date().toISOString() });
+      showSuccess('Сотрудник рассчитан');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
+
+  const updateResourceNote = useCallback(async (id, note) => {
+    try {
+      await updateDoc(doc(db, 'resources', id), { archiveNote: note });
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  }, [showError, getFirebaseErrorMessage, db]);
+
   const memoizedActions = useMemo(() => ({
     addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
@@ -736,7 +755,8 @@ export const useProductionData = () => {
     addOperation, updateOperation, toggleResourceForOp, deleteOperation,
     moveOperationUp, moveOperationDown,
     addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
-    fireResource, deleteResource, addReport, deleteReport
+    fireResource, deleteResource, addReport, deleteReport,
+    settleResource, updateResourceNote
   }), [
     addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
@@ -745,7 +765,8 @@ export const useProductionData = () => {
     addOperation, updateOperation, toggleResourceForOp, deleteOperation,
     moveOperationUp, moveOperationDown,
     addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
-    fireResource, deleteResource, addReport, deleteReport
+    fireResource, deleteResource, addReport, deleteReport,
+    settleResource, updateResourceNote
   ]);
 
   return {
