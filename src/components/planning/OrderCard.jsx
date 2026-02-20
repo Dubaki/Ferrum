@@ -168,7 +168,7 @@ const OrderCard = memo(function OrderCard({
                 <div className="flex items-center justify-between gap-1.5 sm:hidden">
                     {/* Left: Settings + Star + Info */}
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                        {isAdmin && (
+                        {(isAdmin || userRole === 'manager') && (
                             <button onClick={(e) => onOpenSettings(order, e)} className="w-7 h-7 bg-slate-800 rounded flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-sm shrink-0 border border-slate-700">
                                 <Settings size={14} />
                             </button>
@@ -208,7 +208,7 @@ const OrderCard = memo(function OrderCard({
                 <div className="flex items-center gap-1.5 sm:hidden w-full" onClick={e => e.stopPropagation()}>
                     {/* GROUP 1: Status */}
                     <div className="relative flex-1">
-                        <button onClick={isAdmin ? (e) => onToggleStatusMenu(order.id, e) : undefined} className={`w-full flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[9px] ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
+                        <button onClick={(isAdmin || userRole === 'manager') ? (e) => onToggleStatusMenu(order.id, e) : undefined} className={`w-full flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border-2 transition-all shadow-sm active:scale-95 text-[9px] ${currentStatus.color} ${!(isAdmin || userRole === 'manager') && 'cursor-default active:scale-100'}`}>
                             <span className="font-black uppercase tracking-wider truncate">{currentStatus.label}</span>
                             <ChevronDown size={10} className="shrink-0"/>
                         </button>
@@ -256,12 +256,12 @@ const OrderCard = memo(function OrderCard({
                     </button>
 
                     {/* DIVIDER */}
-                    {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                    {(isAdmin || userRole === 'manager') && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
                         <div className="h-8 w-px bg-slate-200"></div>
                     )}
 
                     {/* GROUP 2: Delivery Buttons (Compact Group) */}
-                    {isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                    {(isAdmin || userRole === 'manager') && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg border border-slate-200">
                             {order.drawingsDeadline && !order.drawingsArrived && (
                                 <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
@@ -285,10 +285,10 @@ const OrderCard = memo(function OrderCard({
                     )}
 
                     {/* DIVIDER */}
-                    {isAdmin && <div className="h-8 w-px bg-slate-200"></div>}
+                    {(isAdmin || userRole === 'manager') && <div className="h-8 w-px bg-slate-200"></div>}
 
                     {/* GROUP 3: Complete Button */}
-                    {isAdmin && (
+                    {(isAdmin || userRole === 'manager') && (
                     <button
                         onClick={() => {
                             if (window.confirm('Завершить заказ и переместить на склад?')) {
@@ -314,7 +314,7 @@ const OrderCard = memo(function OrderCard({
                         </button>
 
                         {/* Settings */}
-                        {isAdmin && (
+                        {(isAdmin || userRole === 'manager') && (
                             <button onClick={(e) => onOpenSettings(order, e)} className="w-6 h-6 bg-slate-800 rounded flex items-center justify-center text-slate-400 hover:text-orange-500 hover:rotate-90 transition-all duration-500 shadow-sm shrink-0 border border-slate-700">
                                 <Settings size={12} />
                             </button>
@@ -349,7 +349,7 @@ const OrderCard = memo(function OrderCard({
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 z-20" onClick={e => e.stopPropagation()}>
 
                         {/* Кнопки поставок (слева от статуса) */}
-                        {isAdmin && <div className="flex items-center gap-1">
+                        {(isAdmin || userRole === 'manager') && <div className="flex items-center gap-1">
                     {order.drawingsDeadline && !order.drawingsArrived && (
                         <button
                             onClick={() => {
@@ -413,7 +413,7 @@ const OrderCard = memo(function OrderCard({
 
                         {/* Статус (по центру) */}
                         <div className="relative">
-                        <button onClick={isAdmin ? (e) => onToggleStatusMenu(order.id, e) : undefined} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color} ${!isAdmin && 'cursor-default active:scale-100'}`}>
+                        <button onClick={(isAdmin || userRole === 'manager') ? (e) => onToggleStatusMenu(order.id, e) : undefined} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 transition-all shadow-sm active:scale-95 ${currentStatus.color} ${!(isAdmin || userRole === 'manager') && 'cursor-default active:scale-100'}`}>
                             <span className="text-[10px] font-black uppercase tracking-wider">{currentStatus.label}</span>
                             <ChevronDown size={12}/>
                         </button>
@@ -543,7 +543,7 @@ const OrderCard = memo(function OrderCard({
                         </div>
 
                         {/* Завершить → перемещает в отгрузки */}
-                        {isAdmin && (
+                        {(isAdmin || userRole === 'manager') && (
                         <button
                             onClick={() => {
                                 if (window.confirm('Завершить заказ и переместить на склад?')) {
@@ -588,13 +588,14 @@ const OrderCard = memo(function OrderCard({
                                 orders={orders}
                                 actions={actions}
                                 resources={resources}
-                                isAdmin={isAdmin}
+                                isAdmin={isAdmin || userRole === 'manager'}
+                                userRole={userRole}
                             />
                         ))}
                     </div>
 
                     {/* УПРАВЛЕНИЕ ПОСТАВКАМИ - только для производственных заказов */}
-                    {!order.isProductOrder && isAdmin && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
+                    {!order.isProductOrder && (isAdmin || userRole === 'manager') && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
                         <div className="mt-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 p-3">
                             <div className="flex items-center gap-3 flex-wrap">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Поставки:</span>
@@ -676,7 +677,7 @@ const OrderCard = memo(function OrderCard({
                         <DrawingsSection
                             order={order}
                             actions={actions}
-                            isAdmin={canManageDrawings}
+                            isAdmin={canManageDrawings || userRole === 'manager'}
                         />
                     )}
 

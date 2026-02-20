@@ -82,9 +82,11 @@ const ExecutorSelector = memo(({ isOpen, onClose, op, resources, onToggle, produ
     );
 });
 
-function OperationRow({ op, product, products, orders, productId, actions, resources, isAdmin, isFirst, isLast, onMoveUp, onMoveDown }) {
+function OperationRow({ op, product, products, orders, productId, actions, resources, isAdmin, userRole, isFirst, isLast, onMoveUp, onMoveDown }) {
     // ЛОКАЛЬНОЕ СОСТОЯНИЕ для мгновенного отклика
     const [isLocalOpen, setIsLocalOpen] = useState(false);
+
+    const canEdit = isAdmin || userRole === 'manager';
 
     const isStandard = (name) => STANDARD_OPERATIONS.includes(name);
     const isCompleted = (op.actualMinutes || 0) > 0;
@@ -109,7 +111,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
     return (
         <div className={rowClass}>
             {/* Кнопки порядка */}
-            {isAdmin && (
+            {canEdit && (
                 <div className="col-span-1 flex flex-col gap-0.5">
                     <button
                         onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
@@ -127,15 +129,15 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                     </button>
                 </div>
             )}
-            {!isAdmin && <div className="col-span-1"></div>}
+            {!canEdit && <div className="col-span-1"></div>}
 
             {/* Выбор названия */}
             <div className="col-span-3">
                 <select 
                     value={isStandard(op.name) ? op.name : 'other'} 
                     onChange={(e) => actions.updateOperation(productId, op.id, 'name', e.target.value === 'other' ? 'Новая' : e.target.value)} 
-                    disabled={!isAdmin}
-                    className={`w-full text-xs font-black text-slate-700 bg-transparent outline-none transition-colors appearance-none ${isAdmin ? 'cursor-pointer hover:text-orange-600' : ''}`}
+                    disabled={!canEdit}
+                    className={`w-full text-xs font-black text-slate-700 bg-transparent outline-none transition-colors appearance-none ${canEdit ? 'cursor-pointer hover:text-orange-600' : ''}`}
                 >
                     {STANDARD_OPERATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                     <option value="other">Свой вариант...</option>
@@ -145,7 +147,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                         type="text" 
                         value={op.name} 
                         onChange={e => actions.updateOperation(productId, op.id, 'name', e.target.value)} 
-                        disabled={!isAdmin}
+                        disabled={!canEdit}
                         className="w-full text-[10px] font-bold border-b border-orange-100 mt-0.5 outline-none bg-transparent focus:border-orange-400 transition-colors"
                         placeholder="Название..." 
                     />
@@ -159,7 +161,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                         type="date"
                         value={op.startDate || op.plannedDate || ''}
                         onChange={(e) => handleDateChange('startDate', e.target.value)}
-                        disabled={!isAdmin}
+                        disabled={!canEdit}
                         className="w-full text-[9px] font-bold text-slate-500 bg-slate-50 rounded-md py-1 px-1 outline-none border border-transparent focus:border-indigo-200 transition-all"
                     />
                     <span className="text-[10px] text-slate-300 font-bold">-</span>
@@ -167,7 +169,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                         type="date"
                         value={op.endDate || ''}
                         onChange={(e) => handleDateChange('endDate', e.target.value)}
-                        disabled={!isAdmin}
+                        disabled={!canEdit}
                         className="w-full text-[9px] font-bold text-slate-500 bg-slate-50 rounded-md py-1 px-1 outline-none border border-transparent focus:border-orange-200 transition-all"
                     />
                 </div>
@@ -178,7 +180,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                 <button 
                     onClick={(e) => { 
                         e.stopPropagation(); 
-                        if (isAdmin) setIsLocalOpen(true); 
+                        if (canEdit) setIsLocalOpen(true); 
                     }} 
                     className={`w-full h-8 px-2 rounded-xl border transition-all duration-300 flex items-center justify-between group/btn
                         ${op.resourceIds?.length > 0 
@@ -209,7 +211,7 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                     type="number" 
                     value={op.minutesPerUnit} 
                     onChange={e => actions.updateOperation(productId, op.id, 'minutesPerUnit', parseFloat(e.target.value))} 
-                    disabled={!isAdmin}
+                    disabled={!canEdit}
                     className="w-full text-center text-xs font-bold bg-slate-50 rounded-lg py-1.5 outline-none border border-transparent focus:border-slate-200 transition-all font-mono"
                 />
             </div>
@@ -220,10 +222,10 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
                     type="number" 
                     value={op.actualMinutes || 0} 
                     onChange={e => actions.updateOperation(productId, op.id, 'actualMinutes', parseFloat(e.target.value))} 
-                    disabled={!isAdmin}
+                    disabled={!canEdit}
                     className="w-full text-center text-xs font-black bg-orange-50 text-orange-700 rounded-lg py-1.5 outline-none border border-transparent focus:border-orange-200 transition-all font-mono shadow-inner"
                 />
-                {isAdmin && (
+                {canEdit && (
                     <button onClick={() => actions.deleteOperation(productId, op.id)} className="text-slate-200 hover:text-red-500 p-1.5 transition-colors">
                         <Trash2 size={14} strokeWidth={2.5}/>
                     </button>

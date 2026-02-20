@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy, ShoppingBag } from 'lucide-react'; // Добавил Copy
+import { Clock, CheckCircle, Trash2, ChevronDown, Plus, Copy, ShoppingBag } from 'lucide-react'; 
 import OperationRow from './OperationRow';
-import SetProductStartDateModal from './SetProductStartDateModal'; // Import the new modal
+import SetProductStartDateModal from './SetProductStartDateModal'; 
 
-function ProductCard({ product, products, orders, actions, resources, isAdmin }) {
+function ProductCard({ product, products, orders, actions, resources, isAdmin, userRole }) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [showStartDateModal, setShowStartDateModal] = useState(false); // State for the new modal
+    const [showStartDateModal, setShowStartDateModal] = useState(false);
     
+    const canEdit = isAdmin || userRole === 'manager';
+
     // Расчет статуса по операциям
     let totalOps = 0; 
     let doneOps = 0;
@@ -46,10 +48,10 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                     <div className="flex items-center gap-2 flex-1 flex-wrap">
                         <ShoppingBag size={14} className="text-blue-500 shrink-0" />
                         <span 
-                            className={`break-normal ${isAdmin ? 'underline decoration-dotted cursor-pointer hover:text-orange-500' : ''}`}
+                            className={`break-normal ${canEdit ? 'underline decoration-dotted cursor-pointer hover:text-orange-500' : ''}`}
                             onClick={e => {
                                 e.stopPropagation();
-                                if (isAdmin) setShowStartDateModal(true);
+                                if (canEdit) setShowStartDateModal(true);
                             }}
                         >
                             {product.name}
@@ -111,8 +113,8 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                                 type="text" 
                                 value={product.name} 
                                 onChange={e => actions.updateProduct(product.id, 'name', e.target.value)} 
-                                disabled={!isAdmin}
-                                className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
+                                disabled={!canEdit}
+                                className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-slate-800 outline-none transition-colors ${canEdit ? 'focus:border-orange-500' : 'bg-transparent'}`}
                                 placeholder="Название детали" 
                             />
                         </div>
@@ -122,8 +124,8 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                                 type="number" 
                                 value={product.quantity} 
                                 onChange={e => actions.updateProduct(product.id, 'quantity', parseInt(e.target.value))} 
-                                disabled={!isAdmin}
-                                className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
+                                disabled={!canEdit}
+                                className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${canEdit ? 'focus:border-orange-500' : 'bg-transparent'}`}
                             />
                         </div>
 
@@ -134,8 +136,8 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                                     type="number"
                                     value={product.estimatedHours || ''}
                                     onChange={e => actions.updateProduct(product.id, 'estimatedHours', parseInt(e.target.value, 10) || 0)}
-                                    disabled={!isAdmin}
-                                    className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${isAdmin ? 'focus:border-orange-500' : 'bg-transparent'}`}
+                                    disabled={!canEdit}
+                                    className={`w-full border-b border-slate-200 py-1 text-xs font-bold text-center text-slate-800 outline-none transition-colors ${canEdit ? 'focus:border-orange-500' : 'bg-transparent'}`}
                                     placeholder="Часы"
                                 />
                             </div>
@@ -145,9 +147,9 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                         <div className="flex flex-col items-center">
                              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1">Тип</label>
                              <button
-                                onClick={() => isAdmin && actions.updateProduct(product.id, 'isResale', !product.isResale)}
-                                disabled={!isAdmin}
-                                className={`h-[26px] px-2 rounded flex items-center gap-1 transition-colors border ${product.isResale ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-slate-50 border-slate-200 text-slate-400'} ${isAdmin ? 'hover:text-slate-600' : 'cursor-default'}`}
+                                onClick={() => canEdit && actions.updateProduct(product.id, 'isResale', !product.isResale)}
+                                disabled={!canEdit}
+                                className={`h-[26px] px-2 rounded flex items-center gap-1 transition-colors border ${product.isResale ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-slate-50 border-slate-200 text-slate-400'} ${canEdit ? 'hover:text-slate-600' : 'cursor-default'}`}
                                 title={product.isResale ? "Товар (перепродажа)" : "Изделие (производство)"}
                             >
                                 <ShoppingBag size={14} />
@@ -172,7 +174,8 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                                         productId={product.id}
                                         actions={actions}
                                         resources={resources}
-                                        isAdmin={isAdmin}
+                                        isAdmin={canEdit}
+                                        userRole={userRole}
                                         isFirst={idx === 0}
                                         isLast={idx === sortedOps.length - 1}
                                         onMoveUp={() => actions.moveOperationUp(product.id, op.id)}
@@ -188,7 +191,7 @@ function ProductCard({ product, products, orders, actions, resources, isAdmin })
                     )}
                     
                     {/* КНОПКИ ДЕЙСТВИЙ */}
-                    {isAdmin && <div className="flex gap-2 pt-2">
+                    {canEdit && <div className="flex gap-2 pt-2">
                         {!product.isResale && (
                             <button
                                 onClick={() => actions.addOperation(product.id)} 
