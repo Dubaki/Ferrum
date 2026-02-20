@@ -75,10 +75,10 @@ export const canPerformAction = (role, action) => {
     approveDirector: ['director', 'vesta'],
 
     // Оплата
-    markPaid: ['vesta'],
+    markPaid: ['vesta', 'director'],
 
     // Доставка
-    setDeliveryDate: ['supplier', 'vesta'],
+    setDeliveryDate: ['supplier', 'vesta', 'director'],
     markDelivered: ['shopManager', 'master', 'director', 'technologist', 'vesta', 'manager'],
 
     // Отклонение (все, кто согласовывает)
