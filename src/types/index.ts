@@ -279,6 +279,18 @@ export interface ProductionData {
   actions: ProductionActions;
 }
 
+// Складская позиция (неснижаемый остаток)
+export interface WarehouseItem {
+  id: string;
+  title: string;
+  unit: string;
+  minStock: number;
+  monthlyVolume: number;
+  note: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Simulation данные
 export interface SimulationData {
   ganttItems: GanttItem[];

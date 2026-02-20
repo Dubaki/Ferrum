@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useProductionData } from './hooks/useProductionData';
 
 import { useSupplyRequests } from './hooks/useSupplyRequests';
+import { useWarehouse } from './hooks/useWarehouse';
 import { getRoleLabel } from './utils/supplyRoles';
 
 // --- Компоненты ---
@@ -51,6 +52,7 @@ export default function App() {
   const { resources, products, orders, reports, loading, actions } = useProductionData();
 
   const { requests: supplyRequests, hasSupplyAlert, actions: supplyActions } = useSupplyRequests();
+  const { items: warehouseItems, actions: warehouseActions } = useWarehouse();
   const [isWorkshopMode, setIsWorkshopMode] = useState(false);
   const [userRole, setUserRole] = useState(() => {
     // Восстанавливаем роль из localStorage при загрузке
@@ -301,6 +303,9 @@ export default function App() {
                   resources={resources}
                   isAdmin={isAdmin}
                   userRole={userRole}
+                  supplyRequests={supplyRequests}
+                  warehouseItems={warehouseItems}
+                  warehouseActions={warehouseActions}
                 />
               ) : (
                 <AccessDenied navigate={navigate} />
