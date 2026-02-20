@@ -66,8 +66,8 @@ export const canPerformAction = (role, action) => {
     editRequest: ['director', 'shopManager', 'technologist', 'vesta'],
 
     // Работа со счетами (только снабженец)
-    attachInvoice: ['supplier', 'vesta'],
-    submitForApproval: ['supplier', 'vesta'],
+    attachInvoice: ['supplier', 'vesta', 'technologist'],
+    submitForApproval: ['supplier', 'vesta', 'technologist'],
 
     // Согласование (каждый за себя)
     approveTechnologist: ['technologist', 'vesta'],

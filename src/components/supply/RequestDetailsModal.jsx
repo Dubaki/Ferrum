@@ -3,6 +3,7 @@ import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, Histor
 import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue } from '../../utils/supplyRoles';
 
 const EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'pending_director_approval'];
+const INVOICE_EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'rejected'];
 
 export default function RequestDetailsModal({ request, userRole, supplyActions, onClose, onEditRequest }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -77,8 +78,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   };
 
   // Определение доступных действий на основе роли и статуса
-  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && ['with_supplier', 'invoice_attached', 'rejected'].includes(request.status);
-  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && ['invoice_attached', 'rejected'].includes(request.status) && request.invoices?.length > 0;
+  const canAttachInvoice = canPerformAction(userRole, 'attachInvoice') && INVOICE_EDITABLE_STATUSES.includes(request.status);
+  const canSubmitForApproval = canPerformAction(userRole, 'submitForApproval') && INVOICE_EDITABLE_STATUSES.includes(request.status) && request.invoices?.length > 0;
   const canApproveTechnologist = canPerformAction(userRole, 'approveTechnologist') && request.status === 'pending_tech_approval';
   const canApproveShopManager = canPerformAction(userRole, 'approveShopManager') && request.status === 'pending_shop_approval';
   const canApproveDirector = canPerformAction(userRole, 'approveDirector') && request.status === 'pending_director_approval';
@@ -98,8 +99,8 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   // Возможность удаления
   const canDelete = canPerformAction(userRole, 'deleteRequest');
 
-  // Возможность открепить счет (только когда заявка у снабженца)
-  const canDetachInvoice = canPerformAction(userRole, 'attachInvoice') && request.invoices && request.invoices.length > 0 && ['with_supplier', 'invoice_attached', 'rejected'].includes(request.status);
+  // Возможность открепить счет (только когда заявка у снабженца или на этапах до согласования директором)
+  const canDetachInvoice = canPerformAction(userRole, 'attachInvoice') && request.invoices && request.invoices.length > 0 && INVOICE_EDITABLE_STATUSES.includes(request.status);
 
   // Обработка загрузки файла счёта
   const handleFileUpload = async (e) => {
