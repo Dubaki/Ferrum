@@ -15,21 +15,21 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
   const handleToggleToday = (e) => {
     e.stopPropagation();
     if (window.confirm(`Вы уверены, что хотите ${order.shippingToday ? 'снять отметку' : 'отметить'} "Отгрузка сегодня" для заказа ${order.orderNumber}?`)) {
-      onToggleToday(order.id);
+      onToggleToday(order.id, userRole);
     }
   };
 
   const handleCompleteShipping = (e) => {
     e.stopPropagation();
     if (window.confirm(`Вы уверены, что хотите отметить заказ ${order.orderNumber} как отгруженный? Это действие переместит заказ в архив.`)) {
-      onCompleteShipping(order.id);
+      onCompleteShipping(order.id, userRole);
     }
   };
 
   const handleReturn = (e) => {
     e.stopPropagation();
     if (window.confirm(`Вы уверены, что хотите вернуть заказ ${order.orderNumber} обратно в работу?`)) {
-      onReturn(order.id);
+      onReturn(order.id, userRole);
     }
   };
 

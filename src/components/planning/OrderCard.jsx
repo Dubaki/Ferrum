@@ -178,8 +178,8 @@ const OrderCard = memo(function OrderCard({
     const handleStatusChange = useCallback((statusId) => {
         if (statusId === 'metal' && !order.materialsDeadline) return alert("Сначала укажите дату поставки металла в настройках!");
         if (statusId === 'drawings' && !order.drawingsDeadline) return alert("Сначала укажите дату готовности КМД в настройках!");
-        actions.updateOrder(order.id, 'customStatus', statusId);
-    }, [order.id, order.materialsDeadline, order.drawingsDeadline, actions]);
+        actions.updateOrder(order.id, 'customStatus', statusId, userRole);
+    }, [order.id, order.materialsDeadline, order.drawingsDeadline, actions, userRole]);
 
     // Подсветка важного заказа
     const importantHighlight = order.isImportant
@@ -292,19 +292,19 @@ const OrderCard = memo(function OrderCard({
                     {(isAdmin || userRole === 'manager') && (order.drawingsDeadline || order.materialsDeadline || order.paintDeadline) && (
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg border border-slate-200">
                             {order.drawingsDeadline && !order.drawingsArrived && (
-                                <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true)}
+                                <button onClick={() => window.confirm('Подтвердить прибытие КМД?') && actions.updateOrder(order.id, 'drawingsArrived', true, userRole)}
                                     className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold transition ${drawDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
                                     <PenTool size={9}/> {drawDiff}д
                                 </button>
                             )}
                             {order.materialsDeadline && !order.materialsArrived && (
-                                <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true)}
+                                <button onClick={() => window.confirm('Подтвердить прибытие материалов?') && actions.updateOrder(order.id, 'materialsArrived', true, userRole)}
                                     className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold transition ${matDiff < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                                     <Truck size={9}/> {matDiff}д
                                 </button>
                             )}
                             {order.paintDeadline && !order.paintArrived && (
-                                <button onClick={() => window.confirm('Подтвердить прибытие краски?') && actions.updateOrder(order.id, 'paintArrived', true)}
+                                <button onClick={() => window.confirm('Подтвердить прибытие краски?') && actions.updateOrder(order.id, 'paintArrived', true, userRole)}
                                     className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-bold transition ${getCountdown(order.paintDeadline) < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
                                     <Droplet size={9}/> {getCountdown(order.paintDeadline)}д
                                 </button>
@@ -320,7 +320,7 @@ const OrderCard = memo(function OrderCard({
                     <button
                         onClick={() => {
                             if (window.confirm('Завершить заказ и переместить на склад?')) {
-                                actions.moveToShipping(order.id);
+                                actions.moveToShipping(order.id, userRole);
                             }
                         }}
                         className="p-1 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all shrink-0"
@@ -382,7 +382,7 @@ const OrderCard = memo(function OrderCard({
                         <button
                             onClick={() => {
                                 if (window.confirm('Подтвердить прибытие КМД?')) {
-                                    actions.updateOrder(order.id, 'drawingsArrived', true);
+                                    actions.updateOrder(order.id, 'drawingsArrived', true, userRole);
                                 }
                             }}
                             className={`flex flex-col items-center justify-center w-14 py-1 rounded border transition-all hover:scale-105 active:scale-95 ${
@@ -400,7 +400,7 @@ const OrderCard = memo(function OrderCard({
                         <button
                             onClick={() => {
                                 if (window.confirm('Подтвердить прибытие материалов?')) {
-                                    actions.updateOrder(order.id, 'materialsArrived', true);
+                                    actions.updateOrder(order.id, 'materialsArrived', true, userRole);
                                 }
                             }}
                             className={`flex flex-col items-center justify-center w-14 py-1 rounded border transition-all hover:scale-105 active:scale-95 ${
@@ -418,7 +418,7 @@ const OrderCard = memo(function OrderCard({
                         <button
                             onClick={() => {
                                 if (window.confirm('Подтвердить прибытие краски?')) {
-                                    actions.updateOrder(order.id, 'paintArrived', true);
+                                    actions.updateOrder(order.id, 'paintArrived', true, userRole);
                                 }
                             }}
                             className={`flex flex-col items-center justify-center w-14 py-1 rounded border transition-all hover:scale-105 active:scale-95 ${
@@ -575,7 +575,7 @@ const OrderCard = memo(function OrderCard({
                         <button
                             onClick={() => {
                                 if (window.confirm('Завершить заказ и переместить на склад?')) {
-                                    actions.moveToShipping(order.id);
+                                    actions.moveToShipping(order.id, userRole);
                                 }
                             }}
                             className="p-1.5 text-slate-400 hover:text-white hover:bg-emerald-500 rounded-lg transition-all"
@@ -637,10 +637,10 @@ const OrderCard = memo(function OrderCard({
                                             onChange={(e) => {
                                                 if (e.target.checked) {
                                                     if (window.confirm('Подтвердить прибытие КМД?')) {
-                                                        actions.updateOrder(order.id, 'drawingsArrived', true);
+                                                        actions.updateOrder(order.id, 'drawingsArrived', true, userRole);
                                                     }
                                                 } else {
-                                                    actions.updateOrder(order.id, 'drawingsArrived', false);
+                                                    actions.updateOrder(order.id, 'drawingsArrived', false, userRole);
                                                 }
                                             }}
                                             className="w-4 h-4 rounded"
@@ -660,10 +660,10 @@ const OrderCard = memo(function OrderCard({
                                             onChange={(e) => {
                                                 if (e.target.checked) {
                                                     if (window.confirm('Подтвердить прибытие материалов?')) {
-                                                        actions.updateOrder(order.id, 'materialsArrived', true);
+                                                        actions.updateOrder(order.id, 'materialsArrived', true, userRole);
                                                     }
                                                 } else {
-                                                    actions.updateOrder(order.id, 'materialsArrived', false);
+                                                    actions.updateOrder(order.id, 'materialsArrived', false, userRole);
                                                 }
                                             }}
                                             className="w-4 h-4 rounded"
@@ -683,10 +683,10 @@ const OrderCard = memo(function OrderCard({
                                             onChange={(e) => {
                                                 if (e.target.checked) {
                                                     if (window.confirm('Подтвердить прибытие краски?')) {
-                                                        actions.updateOrder(order.id, 'paintArrived', true);
+                                                        actions.updateOrder(order.id, 'paintArrived', true, userRole);
                                                     }
                                                 } else {
-                                                    actions.updateOrder(order.id, 'paintArrived', false);
+                                                    actions.updateOrder(order.id, 'paintArrived', false, userRole);
                                                 }
                                             }}
                                             className="w-4 h-4 rounded"
