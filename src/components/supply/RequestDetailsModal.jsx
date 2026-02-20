@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown, Edit } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue, getRoleLabel } from '../../utils/supplyRoles';
 
 const EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'pending_director_approval'];
 const INVOICE_EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'rejected'];
