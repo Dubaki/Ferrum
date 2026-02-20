@@ -61,13 +61,13 @@ export const canPerformAction = (role, action) => {
 
   const permissions = {
     // Создание
-    createRequest: ['director', 'shopManager', 'technologist', 'vesta'],
+    createRequest: ['director', 'shopManager', 'technologist', 'vesta', 'manager'],
     // Редактирование (до согласования директором)
-    editRequest: ['director', 'shopManager', 'technologist', 'vesta'],
+    editRequest: ['director', 'shopManager', 'technologist', 'vesta', 'manager'],
 
-    // Работа со счетами (только снабженец)
-    attachInvoice: ['supplier', 'vesta', 'technologist'],
-    submitForApproval: ['supplier', 'vesta', 'technologist'],
+    // Работа со счетами (снабженец, веста, технолог, менеджер)
+    attachInvoice: ['supplier', 'vesta', 'technologist', 'manager'],
+    submitForApproval: ['supplier', 'vesta', 'technologist', 'manager'],
 
     // Согласование (каждый за себя)
     approveTechnologist: ['technologist', 'vesta'],
@@ -79,7 +79,7 @@ export const canPerformAction = (role, action) => {
 
     // Доставка
     setDeliveryDate: ['supplier', 'vesta'],
-    markDelivered: ['shopManager', 'master', 'director', 'technologist', 'vesta'],
+    markDelivered: ['shopManager', 'master', 'director', 'technologist', 'vesta', 'manager'],
 
     // Отклонение (все, кто согласовывает)
     rejectRequest: ['director', 'shopManager', 'technologist', 'vesta'],
