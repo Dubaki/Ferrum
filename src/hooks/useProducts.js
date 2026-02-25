@@ -3,6 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch }
 import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
+import { generateRoute } from '../utils/routeGenerator';
 
 export const useProducts = () => {
   const [products, setProducts] = useState([]);
@@ -17,17 +18,49 @@ export const useProducts = () => {
     return () => unsubscribe();
   }, []);
 
-  const addProduct = async (orderId = null, initialDate = null) => {
+  const addProduct = async (orderId = null, initialDate = null, planningParams = null) => {
     try {
       const startDate = initialDate || formatDate(new Date());
+      let operations = [];
+
+      // Если переданы параметры планирования — генерируем техмаршрут автоматически
+      if (planningParams) {
+        const route = generateRoute({
+          id: planningParams.id || 'new_mark',
+          weight_kg: parseFloat(planningParams.weight_kg) || 0,
+          quantity: parseInt(planningParams.quantity) || 1,
+          complexity: planningParams.complexity || 'medium',
+          sizeCategory: planningParams.sizeCategory || 'medium',
+          hasProfileCut: planningParams.hasProfileCut !== false,
+          hasSheetCut: planningParams.hasSheetCut === true,
+          needsCrane: parseFloat(planningParams.weight_kg) > 50,
+          needsRolling: planningParams.needsRolling === true
+        });
+
+        operations = route.map(op => ({
+          id: Date.now() + Math.random(),
+          name: op.label,
+          minutesPerUnit: Math.round(op.hours * 60),
+          actualMinutes: 0,
+          resourceIds: [op.preferredResourceId],
+          sequence: op.sequence,
+          stage: op.stage,
+          plannedHours: op.hours
+        }));
+      }
+
       const docRef = await addDoc(collection(db, 'products'), {
         orderId,
-        name: 'Новое изделие',
-        quantity: 1,
+        name: planningParams?.id || 'Новое изделие',
+        quantity: planningParams?.quantity || 1,
         startDate: startDate,
         status: 'active',
-        operations: [],
-        createdAt: Date.now()
+        operations: operations,
+        createdAt: Date.now(),
+        // Сохраняем параметры для AI
+        weight_kg: planningParams?.weight_kg || 0,
+        sizeCategory: planningParams?.sizeCategory || 'medium',
+        complexity: planningParams?.complexity || 'medium'
       });
       return docRef.id;
     } catch (error) {
@@ -41,23 +74,54 @@ export const useProducts = () => {
       const startDate = formatDate(new Date());
 
       for (const item of presetItems) {
-        const ops = item.ops.map((op, index) => ({
-          id: Date.now() + index + Math.random(),
-          name: op.name,
-          minutesPerUnit: op.minutes,
-          actualMinutes: 0,
-          resourceIds: [],
-          sequence: index + 1
-        }));
+        let ops = [];
+        
+        if (item.ops && item.ops.length > 0) {
+          // Старый формат пресетов
+          ops = item.ops.map((op, index) => ({
+            id: Date.now() + index + Math.random(),
+            name: op.name,
+            minutesPerUnit: op.minutes,
+            actualMinutes: 0,
+            resourceIds: [],
+            sequence: index + 1
+          }));
+        } else if (item.weight_kg) {
+          // Новый формат КМД (AI-планирование)
+          const route = generateRoute({
+            id: item.name,
+            weight_kg: item.weight_kg,
+            quantity: item.quantity || 1,
+            complexity: item.complexity || 'medium',
+            sizeCategory: item.sizeCategory || 'medium',
+            hasProfileCut: item.hasProfileCut !== false,
+            hasSheetCut: item.hasSheetCut === true,
+            needsCrane: item.weight_kg > 50
+          });
+          
+          ops = route.map(op => ({
+            id: Date.now() + Math.random(),
+            name: op.label,
+            minutesPerUnit: Math.round(op.hours * 60),
+            actualMinutes: 0,
+            resourceIds: [op.preferredResourceId],
+            sequence: op.sequence,
+            stage: op.stage,
+            plannedHours: op.hours
+          }));
+        }
 
         await addDoc(collection(db, 'products'), {
           orderId,
           name: item.name,
-          quantity: 1,
+          quantity: item.quantity || 1,
           startDate: startDate,
           status: 'active',
           operations: ops,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          weight_kg: item.weight_kg || 0,
+          sizeCategory: item.sizeCategory || 'medium',
+          complexity: item.complexity || 'medium'
         });
       }
       showSuccess(`Добавлено изделий: ${presetItems.length}`);

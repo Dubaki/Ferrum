@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
 import { deleteDrawing } from '../utils/supabaseStorage';
+import { generateRoute } from '../utils/routeGenerator';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
@@ -32,7 +33,22 @@ export const useProductionData = () => {
     const reportsPromise = createSnapshotPromise('reports', setReports, (a,b) => b.createdAt - a.createdAt);
 
     Promise.all([resourcePromise, productsPromise, ordersPromise, reportsPromise])
-      .then(() => setLoading(false))
+      .then(() => {
+        setLoading(false);
+        // ВРЕМЕННЫЙ ФИКС ДЛЯ ЗАКАЗА 20620
+        // (восстанавливаем январскую дату отгрузки)
+        setTimeout(() => {
+          const order20620 = orders.find(o => o.orderNumber === '20620');
+          if (order20620 && order20620.status === 'completed' && order20620.finishedAt?.startsWith('2026-02')) {
+            console.log('🩹 Восстанавливаем январскую дату для заказа 20620');
+            const janDate = '2026-01-20T12:00:00.000Z'; // 20 января
+            updateDoc(doc(db, 'orders', order20620.id), { 
+              finishedAt: janDate, 
+              shippedAt: janDate 
+            });
+          }
+        }, 3000);
+      })
       .catch(error => {
         console.error("Error loading initial data:", error);
         showError("Ошибка при загрузке данных.");
@@ -231,13 +247,17 @@ export const useProductionData = () => {
       if (!order) return;
 
       const newHistory = addStatusHistory(order, 'completed', userRole, 'Заказ отгружен (Архив)');
+      
+      // ИСПРАВЛЕНИЕ: Если дата уже была (случай возврата из архива), сохраняем её
+      const finishedDate = order.finishedAt || new Date().toISOString();
+      const shippedDate = order.shippedAt || new Date().toISOString();
 
       const updates = {
         status: 'completed',
         inShipping: false,
         shippingToday: false,
-        shippedAt: new Date().toISOString(),
-        finishedAt: new Date().toISOString(),
+        shippedAt: shippedDate,
+        finishedAt: finishedDate,
         statusHistory: newHistory
       };
 
@@ -356,30 +376,62 @@ export const useProductionData = () => {
     }
   }, [formatDate, showError, getFirebaseErrorMessage, db]);
 
-  // Пакетное добавление из пресетов
+  // Пакетное добавление из пресетов или AI
   const addProductsBatch = useCallback(async (orderId, presetItems) => {
     try {
       const startDate = formatDate(new Date());
 
       for (const item of presetItems) {
-        const ops = item.ops.map((op, index) => ({
-          id: Date.now() + index + Math.random(),
-          name: op.name,
-          minutesPerUnit: op.minutes,
-          actualMinutes: 0,
-          resourceIds: [],
-          sequence: index + 1
-        }));
+        let ops = [];
+        
+        // 1. Если это старый формат пресетов (есть массив ops)
+        if (item.ops && Array.isArray(item.ops)) {
+          ops = item.ops.map((op, index) => ({
+            id: Date.now() + index + Math.random(),
+            name: op.name,
+            minutesPerUnit: op.minutes || 0,
+            actualMinutes: 0,
+            resourceIds: [],
+            sequence: index + 1
+          }));
+        } 
+        // 2. Если это новый формат AI/КМД (есть weight_kg)
+        else if (item.weight_kg) {
+          const route = generateRoute({
+            id: item.name,
+            weight_kg: item.weight_kg,
+            quantity: item.quantity || 1,
+            complexity: item.complexity || 'medium',
+            sizeCategory: item.sizeCategory || 'medium',
+            hasProfileCut: item.hasProfileCut !== false,
+            hasSheetCut: item.hasSheetCut === true,
+            needsCrane: item.weight_kg > 50
+          });
+          
+          ops = route.map(op => ({
+            id: Date.now() + Math.random(),
+            name: op.label,
+            minutesPerUnit: Math.round(op.hours * 60),
+            actualMinutes: 0,
+            resourceIds: [op.preferredResourceId],
+            sequence: op.sequence,
+            stage: op.stage,
+            plannedHours: op.hours
+          }));
+        }
 
         await addDoc(collection(db, 'products'), {
           orderId,
           name: item.name,
-          quantity: 1,
+          quantity: item.quantity || 1,
           startDate: startDate,
           status: 'active',
           operations: ops,
-          isResale: item.isResale || false, // ИСПРАВЛЕНИЕ: Учитываем флаг товара из item
-          createdAt: Date.now()
+          isResale: item.isResale || false,
+          createdAt: Date.now(),
+          weight_kg: item.weight_kg || 0,
+          sizeCategory: item.sizeCategory || 'medium',
+          complexity: item.complexity || 'medium'
         });
       }
       showSuccess(`Добавлено изделий: ${presetItems.length}`);
@@ -760,7 +812,7 @@ export const useProductionData = () => {
   }), [
     addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
-    addDrawingToOrder, deleteDrawingFromOrder,
+    addDrawingToOrder, deleteDrawingFromOrder, // Теперь эти функции в зависимостях
     addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
     addOperation, updateOperation, toggleResourceForOp, deleteOperation,
     moveOperationUp, moveOperationDown,

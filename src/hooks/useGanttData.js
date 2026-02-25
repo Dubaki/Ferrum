@@ -42,7 +42,7 @@ const countWorkingDays = (startDate, endDate) => {
     return Math.max(1, count);
 };
 
-export const useGanttData = (orders = [], products = [], resources = [], daysToRender = 60) => {
+export const useGanttData = (orders = [], products = [], resources = [], schedulerResults = null, daysToRender = 60) => {
     // 1. Настройка календаря (начинаем за 3 дня до сегодня)
     const startDate = useMemo(() => {
         const date = new Date();
@@ -59,8 +59,6 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
         });
     }, [daysToRender, startDate]);
 
-
-
     // 3. Структура для Ганта
     const ganttRows = useMemo(() => {
         const activeOrders = orders
@@ -72,30 +70,68 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 return new Date(a.deadline) - new Date(b.deadline);
             });
 
+        const scheduledOps = schedulerResults?.scheduledOps || [];
+        const loadMatrix = schedulerResults?.loadMatrix || {};
+
         return activeOrders.map(order => {
             const orderProducts = products.filter(p => p.orderId === order.id);
             
             // Собираем изделия
             const children = orderProducts.map(prod => {
-                const ops = prod.operations || [];
+                // Пытаемся найти операции этого изделия в плане
+                const prodOps = scheduledOps.filter(op => op.prodId === prod.id);
+                
+                let pStart, pEnd, totalMinutes;
+                let shopResourceId = null;
+                let shopResourceName = null;
+                let shopStage = null;
+                let isOverloaded = false;
 
-                let totalMinutes = 0;
+                if (prodOps.length > 0) {
+                    // ЕСЛИ ЕСТЬ В ПЛАНЕ: Берем даты оттуда
+                    const starts = prodOps.map(op => new Date(op.startDate));
+                    const ends = prodOps.map(op => new Date(op.endDate));
+                    pStart = new Date(Math.min(...starts));
+                    pEnd = new Date(Math.max(...ends));
+                    
+                    totalMinutes = prodOps.reduce((sum, op) => sum + (op.hours * 60), 0);
 
-                // Определяем даты начала и конца изделия
-                // Даты операций (op.startDate, op.endDate) теперь игнорируются для Ганта
-                // и используются только для истории. Расчет Ганта идет от даты начала изделия.
-                let pStart = prod.startDate ? new Date(prod.startDate) : new Date();
-                let pEnd = null;
+                    // Для цвета полоски берем последнюю операцию (или ту, что дольше всего)
+                    // Давайте возьмем ту, что заканчивается последней - это логичнее для отображения "текущего" статуса
+                    const lastOp = prodOps.reduce((prev, current) => (prev.endDate > current.endDate) ? prev : current);
+                    shopResourceId = lastOp.resourceId;
+                    shopResourceName = lastOp.resourceName;
+                    shopStage = lastOp.stage;
 
-                // Теперь определяем дату окончания и общее время с учетом приоритета
-                if (prod.estimatedHours && prod.estimatedHours > 0) {
-                    // ПРИОРИТЕТ: Новая логика на основе введенных часов
-                    totalMinutes = prod.estimatedHours * 60;
-                    const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
-                    pEnd = addWorkingDays(pStart, workDaysNeeded);
+                    // Проверяем перегрузку участка в этот период
+                    // Если хоть в один день работы этого изделия на этом участке есть перегрузка > 100%
+                    if (shopResourceId && loadMatrix[shopResourceId]) {
+                        const startStr = pStart.toISOString().split('T')[0];
+                        const endStr = pEnd.toISOString().split('T')[0];
+                        
+                        // Проверяем все дни работы изделия
+                        for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+                            const dateStr = d.toISOString().split('T')[0];
+                            const dayLoad = loadMatrix[shopResourceId][dateStr]?.total || 0;
+                            const capacity = resources.find(r => r.id === shopResourceId)?.hoursPerDay || 8;
+                            if (dayLoad > capacity) {
+                                isOverloaded = true;
+                                break;
+                            }
+                        }
+                    }
+
                 } else {
-                    // ФОЛЛБЭК: Старая логика на основе операций (только для подсчета времени)
-                    totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
+                    // ФОЛЛБЭК: Если изделия нет в плане (например, нет операций)
+                    pStart = prod.startDate ? new Date(prod.startDate) : new Date();
+                    
+                    if (prod.estimatedHours && prod.estimatedHours > 0) {
+                        totalMinutes = prod.estimatedHours * 60;
+                    } else {
+                        const ops = prod.operations || [];
+                        totalMinutes = ops.reduce((sum, op) => sum + (parseFloat(op.minutesPerUnit) || 0) * (prod.quantity || 1), 0);
+                    }
+                    
                     const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
                     pEnd = addWorkingDays(pStart, workDaysNeeded);
                 }
@@ -112,21 +148,24 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                     startDate: pStart,
                     endDate: pEnd,
                     totalHours: (totalMinutes / 60).toFixed(1),
-                    durationDays: calendarDuration, // Ширина полоски = календарные дни
-                    workDays: workDaysNeeded // Количество рабочих дней
+                    durationDays: calendarDuration,
+                    workDays: workDaysNeeded,
+                    shopResourceId,
+                    shopResourceName,
+                    shopStage,
+                    isOverloaded,
+                    isResale: prod.isResale
                 };
             });
 
             // Расчет дат заказа (мин старт и макс конец)
             let minStart = null;
             let maxEnd = null;
-            let orderTotalHours = 0;
 
             if (children.length > 0) {
                 children.forEach(child => {
                     if (!minStart || child.startDate < minStart) minStart = child.startDate;
                     if (!maxEnd || child.endDate > maxEnd) maxEnd = child.endDate;
-                    orderTotalHours += parseFloat(child.totalHours);
                 });
             } else {
                 minStart = new Date();
@@ -138,11 +177,12 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
             const calendarDuration = minStart && maxEnd
                 ? Math.max(1, Math.ceil((maxEnd - minStart) / (1000 * 60 * 60 * 24)) + 1)
                 : 1;
-            const visualWidth = calendarDuration;
 
-            // NEW: Calculate elapsed working hours for the order
-            const elapsedWorkDays = countWorkingDays(minStart, maxEnd);
-            const elapsedHours = elapsedWorkDays * 8; // Assuming 8 working hours per day
+            // Расчет общего рабочего времени заказа: берем МАКСИМАЛЬНОЕ время одного изделия
+            // (как просил пользователь: "по времени максимального изготовления одного изделия")
+            const maxProductHours = children.length > 0 
+                ? Math.max(...children.map(c => parseFloat(c.totalHours))) 
+                : 0;
 
             const startOffset = Math.ceil((minStart - startDate) / (1000 * 60 * 60 * 24));
 
@@ -153,23 +193,23 @@ export const useGanttData = (orders = [], products = [], resources = [], daysToR
                 drawingsDeadline: order.drawingsDeadline,
                 materialsDeadline: order.materialsDeadline,
                 paintDeadline: order.paintDeadline,
-                drawingsArrived: order.drawingsArrived, // Флаг прибытия КМД
-                materialsArrived: order.materialsArrived, // Флаг прибытия материалов
-                paintArrived: order.paintArrived, // Флаг прибытия краски
-                isImportant: order.isImportant, // Флаг важности
+                drawingsArrived: order.drawingsArrived, 
+                materialsArrived: order.materialsArrived, 
+                paintArrived: order.paintArrived, 
+                isImportant: order.isImportant, 
                 orderNumber: order.orderNumber,
                 clientName: order.clientName,
                 deadline: order.deadline,
                 startDate: minStart,
                 endDate: maxEnd,
-                totalHours: elapsedHours.toFixed(1), // Use elapsedHours instead of summed orderTotalHours
-                durationDays: visualWidth, // Ширина полоски = максимальная длительность изделия
+                totalHours: maxProductHours.toFixed(1), 
+                durationDays: calendarDuration, 
                 startOffset,
                 children: children
             };
         });
 
-    }, [orders, products, startDate]);
+    }, [orders, products, startDate, schedulerResults]);
 
     return { calendarDays, ganttRows, startDate };
 };

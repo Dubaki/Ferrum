@@ -1,0 +1,286 @@
+[
+  {
+    "drawing": "ТМ.89.00",
+    "name": "Сальник набивной Корпус Ду50 L200",
+    "du": 50,
+    "length_mm": 200,
+    "weight_kg": 3.6,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 108х4 L=200", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø110/Ø179", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=282", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.89.02",
+    "name": "Сальник набивной Корпус Ду100 L200",
+    "du": 100,
+    "length_mm": 200,
+    "weight_kg": 6.4,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 168х5 L=200", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø170/Ø240", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=468", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.89.05",
+    "name": "Сальник набивной Корпус Ду200 L200",
+    "du": 200,
+    "length_mm": 200,
+    "weight_kg": 10.7,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 273х5 L=200", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø275/Ø345", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=782", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00",
+    "name": "Сальник набивной Корпус Ду50 L300",
+    "du": 50,
+    "length_mm": 300,
+    "weight_kg": 4.6,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 108х4 L=300", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø110/Ø179", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=282", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00-01",
+    "name": "Сальник набивной Корпус Ду80 L300",
+    "du": 80,
+    "length_mm": 300,
+    "weight_kg": 5.8,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 133х4 L=300", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø135/Ø208", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=361", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00-02",
+    "name": "Сальник набивной Корпус Ду100 L300",
+    "du": 100,
+    "length_mm": 300,
+    "weight_kg": 8.4,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 168х5 L=300", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø170/Ø243", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=464", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00-04",
+    "name": "Сальник набивной Корпус Ду150 L300",
+    "du": 150,
+    "length_mm": 300,
+    "weight_kg": 15.9,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 273х6 L=300", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø275/Ø345", "type": "sheet" },
+      { "pos": 3, "name": "Круг 10 L=782", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00-05",
+    "name": "Сальник набивной Корпус Ду200 L300",
+    "du": 200,
+    "length_mm": 300,
+    "weight_kg": 15.9,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 273х6 L=300", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø275/Ø345", "type": "sheet" },
+      { "pos": 3, "name": "Круг 10 L=782", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00-07",
+    "name": "Сальник набивной Корпус Ду300 L300",
+    "du": 300,
+    "length_mm": 300,
+    "weight_kg": 28.5,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "medium",
+    "hasProfileCut": false,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": true,
+    "sheetThicknessMm": 6,
+    "notes": "Тело корпуса — вальцовка из листа 6×300×1319. Маршрут: Плазма → Вальцовка → Сварка → Зачистка → Покраска",
+    "parts": [
+      { "pos": 1, "name": "Лист 6×300×1319 (вальцовка)", "type": "sheet_roll" },
+      { "pos": 2, "name": "Лист 10-Ø428/Ø500", "type": "sheet" },
+      { "pos": 3, "name": "Круг 16 L=1250", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.90.00-10",
+    "name": "Сальник набивной Корпус Ду500 L300",
+    "du": 500,
+    "length_mm": 300,
+    "weight_kg": 48.2,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "medium",
+    "hasProfileCut": false,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": true,
+    "sheetThicknessMm": 7,
+    "notes": "Тело корпуса — вальцовка из листа 7×300×1957. Вес близко к 50 кг — проверить при взвешивании.",
+    "parts": [
+      { "pos": 1, "name": "Лист 7×300×1957 (вальцовка)", "type": "sheet_roll" },
+      { "pos": 2, "name": "Лист 10-Ø632/Ø730", "type": "sheet" },
+      { "pos": 3, "name": "Круг 15 L=1881", "qty": 3, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.91.00",
+    "name": "Сальник набивной Корпус Ду50 L500",
+    "du": 50,
+    "length_mm": 500,
+    "weight_kg": 7.6,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 108х4,5 L=500", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø110/Ø185", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=282", "qty": 4, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.91.02",
+    "name": "Сальник набивной Корпус Ду100 L500",
+    "du": 100,
+    "length_mm": 500,
+    "weight_kg": 12.4,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 168х5 L=500", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø170/Ø240", "type": "sheet" },
+      { "pos": 3, "name": "Круг 8 L=468", "qty": 4, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.91.05",
+    "name": "Сальник набивной Корпус Ду200 L500",
+    "du": 200,
+    "length_mm": 500,
+    "weight_kg": 24.3,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "simple",
+    "hasProfileCut": true,
+    "hasSheetCut": true,
+    "needsCrane": false,
+    "needsRolling": false,
+    "sheetThicknessMm": 10,
+    "parts": [
+      { "pos": 1, "name": "Труба 273х6 L=500", "type": "profile" },
+      { "pos": 2, "name": "Лист 10-Ø275/Ø345", "type": "sheet" },
+      { "pos": 3, "name": "Круг 10 L=782", "qty": 4, "type": "profile" }
+    ]
+  },
+  {
+    "drawing": "ТМ.91.11",
+    "name": "Сальник набивной Корпус Ду600 L500",
+    "du": 600,
+    "length_mm": 500,
+    "weight_kg": 90.2,
+    "markType": "сальник",
+    "sizeCategory": "small",
+    "complexity": "complex",
+    "hasProfileCut": false,
+    "hasSheetCut": true,
+    "needsCrane": true,
+    "needsRolling": true,
+    "sheetThicknessMm": 8,
+    "notes": "Тело корпуса — вальцовка из листа 8×500×2237. Кран обязателен (90,2 кг). Ребра жёсткости — 4 шт (Лист 10мм).",
+    "parts": [
+      { "pos": 1, "name": "Лист 8×500×2237 (вальцовка)", "type": "sheet_roll" },
+      { "pos": 2, "name": "Лист 10-Ø810/Ø722", "type": "sheet" },
+      { "pos": 3, "name": "Круг 16 L=2158", "qty": 4, "type": "profile" },
+      { "pos": 4, "name": "Ребро жёсткости Лист 10мм", "qty": 4, "type": "sheet" }
+    ]
+  }
+]

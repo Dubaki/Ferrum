@@ -58,6 +58,81 @@ export default function CombinedArchiveView({ orders, products, resources, actio
     );
 }
 
+function ArchiveOperationRow({ op, prod, resources, actions }) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [val, setVal] = useState(op.factMins / prod.quantity);
+    const [showResMenu, setShowResMenu] = useState(false);
+
+    const handleSave = () => {
+        actions.updateOperation(prod.id, op.id, 'actualMinutes', parseFloat(val));
+        setIsEditing(false);
+    };
+
+    return (
+        <div className="flex justify-between items-center text-xs text-gray-600 py-1 hover:bg-slate-50 rounded px-1 group/op">
+            <div className="flex-1 font-medium">{op.name}</div>
+            
+            <div className="flex-1 flex items-center gap-2 text-gray-500 relative">
+                <button 
+                    onClick={() => setShowResMenu(!showResMenu)}
+                    className="flex items-center gap-2 hover:text-blue-600 transition"
+                >
+                    <User size={10} /> 
+                    {op.executors.length > 0 ? op.executors.join(', ') : '—'}
+                </button>
+                
+                {showResMenu && (
+                    <div className="absolute top-full left-0 z-50 bg-white border shadow-xl rounded-xl p-2 min-w-[200px] max-h-60 overflow-auto">
+                        <div className="text-[10px] font-bold text-gray-400 mb-2 uppercase px-2">Исполнители</div>
+                        {resources.filter(r => !r.firedAt).map(res => {
+                            const isSelected = op.resourceIds?.includes(res.id);
+                            return (
+                                <button 
+                                    key={res.id}
+                                    onClick={() => actions.toggleResourceForOp(prod.id, op.id, res.id)}
+                                    className={`w-full text-left px-2 py-1.5 rounded-lg mb-0.5 flex items-center justify-between ${isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-gray-50'}`}
+                                >
+                                    {res.name}
+                                    {isSelected && <span className="text-blue-500">✓</span>}
+                                </button>
+                            );
+                        })}
+                        <button onClick={() => setShowResMenu(false)} className="w-full mt-2 py-1 bg-gray-100 rounded-lg font-bold text-gray-500">Закрыть</button>
+                    </div>
+                )}
+            </div>
+            
+            <div className="flex items-center gap-4 text-right">
+                <div className="w-24 flex items-center gap-1 justify-end">
+                    {isEditing ? (
+                        <div className="flex items-center gap-1">
+                            <input 
+                                type="number" 
+                                value={val} 
+                                onChange={e => setVal(e.target.value)}
+                                className="w-12 border rounded px-1 py-0.5 text-right font-bold focus:border-blue-500 outline-none"
+                                autoFocus
+                                onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            />
+                            <button onClick={handleSave} className="text-green-600 font-bold text-[10px]">OK</button>
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={() => { setVal(op.factMins / prod.quantity); setIsEditing(true); }}
+                            className="hover:text-blue-600 flex items-center gap-1 group-hover/op:bg-blue-50 group-hover/op:px-1 rounded transition-all"
+                        >
+                            <Clock size={10} className="text-slate-300"/> {(op.factMins/60).toFixed(1)}ч
+                        </button>
+                    )}
+                </div>
+                <div className="w-20 font-bold font-mono text-slate-800 text-right">
+                    {Math.round(op.cost).toLocaleString()} ₽
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
@@ -193,23 +268,13 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                                  
                                  <div className="space-y-1">
                                      {prod.operations.map((op, opIdx) => (
-                                         <div key={opIdx} className="flex justify-between items-center text-xs text-gray-600 py-1 hover:bg-slate-50 rounded px-1">
-                                             <div className="flex-1 font-medium">{op.name}</div>
-                                             
-                                             <div className="flex-1 flex items-center gap-2 text-gray-500">
-                                                 <User size={10} /> 
-                                                 {op.executors.length > 0 ? op.executors.join(', ') : '—'}
-                                             </div>
-                                             
-                                             <div className="flex items-center gap-4 text-right">
-                                                 <div className="w-16 flex items-center gap-1 justify-end">
-                                                     <Clock size={10} className="text-slate-300"/> {(op.factMins/60).toFixed(1)}ч
-                                                 </div>
-                                                 <div className="w-20 font-bold font-mono text-slate-800 text-right">
-                                                     {Math.round(op.cost).toLocaleString()} ₽
-                                                 </div>
-                                             </div>
-                                         </div>
+                                         <ArchiveOperationRow 
+                                            key={opIdx}
+                                            op={op}
+                                            prod={prod}
+                                            resources={resources}
+                                            actions={actions}
+                                         />
                                      ))}
                                  </div>
                              </div>

@@ -15,7 +15,6 @@ import ReportsTab from './components/ReportsTab';
 import ShippingTab from './components/ShippingTab';
 import PlanningTab from './components/planning/PlanningTab';
 import ProductsTab from './components/ProductsTab';
-import WorkshopMode from './components/WorkshopMode';
 import SupplyTab from './components/supply/SupplyTab';
 import RoleSelectionModal from './components/RoleSelectionModal';
 
@@ -53,7 +52,6 @@ export default function App() {
 
   const { requests: supplyRequests, hasSupplyAlert, actions: supplyActions } = useSupplyRequests();
   const { items: warehouseItems, actions: warehouseActions } = useWarehouse();
-  const [isWorkshopMode, setIsWorkshopMode] = useState(false);
   const [userRole, setUserRole] = useState(() => {
     // Восстанавливаем роль из localStorage при загрузке
     return localStorage.getItem('userRole') || null;
@@ -77,50 +75,6 @@ export default function App() {
     return orders.some(o => o.status === 'active' && o.inShipping && o.shippingToday);
   }, [orders]);
 
-  // Проверяем требуется ли внимание мастера в разделе Цех (КТУ)
-  const hasWorkshopAlert = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const excludedPositions = ['Электрик'];
-    const activeResources = resources.filter(res => !res.firedAt && !excludedPositions.includes(res.position));
-
-    // Проверяем текущее время - КТУ проверяем только после 17:30
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const isAfter1730 = currentHour > 17 || (currentHour === 17 && currentMinute >= 30);
-
-    let notMarked = 0;
-    let noKtu = 0;
-
-    activeResources.forEach(res => {
-      const override = res.scheduleOverrides?.[today];
-      const reason = res.scheduleReasons?.[today];
-      const dateObj = new Date(today);
-      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-      const isWorkDay = res.workWeekends ? true : !isWeekend;
-
-      // Проверяем присутствие
-      let isPresent = false;
-      if (override !== undefined) {
-        isPresent = override > 0;
-      } else if (isWorkDay && reason !== 'sick' && reason !== 'absent') {
-        isPresent = true;
-      }
-
-      // Неотмечен только если мастер вообще не трогал (ни override, ни reason) в рабочий день
-      if (override === undefined && !reason && isWorkDay) notMarked++;
-
-      // Проверяем КТУ только у присутствующих (исключая должности без КТУ) И только после 17:30
-      const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
-      if (isAfter1730 && isPresent && !noKtuPositions.includes(res.position)) {
-        const ktu = res.dailyEfficiency?.[today];
-        if (ktu === undefined || ktu === 0) noKtu++;
-      }
-    });
-
-    return notMarked > 0 || noKtu > 0;
-  }, [resources, currentTime]);
-
   const handleToggleAuth = useCallback(() => {
     if (userRole) {
       // Выход
@@ -142,23 +96,10 @@ export default function App() {
     return <LoadingScreen />;
   }
 
-  if (isWorkshopMode) {
-    return (
-      <WorkshopMode
-        resources={resources}
-        products={products}
-        orders={orders}
-        actions={actions}
-        onExit={() => setIsWorkshopMode(false)}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <Header
         hasUrgentShipping={hasUrgentShipping}
-        hasWorkshopAlert={hasWorkshopAlert}
         hasSupplyAlert={hasSupplyAlert}
         isAdmin={isAdmin}
         userRole={userRole}
@@ -171,22 +112,6 @@ export default function App() {
           onClose={() => setShowRoleModal(false)}
           onSelectRole={handleSelectRole}
         />
-      )}
-
-      {/* Кнопка входа в режим цеха */}
-      {(isAdmin || userRole === 'master') && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <button
-            onClick={() => setIsWorkshopMode(true)}
-            className="bg-slate-800 text-white p-4 rounded-full shadow-xl hover:bg-orange-600 transition-all hover:scale-110 active:scale-95 group border-2 border-slate-700 hover:border-orange-500"
-            title="Перейти в режим цеха"
-          >
-            🏭
-            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-lg">
-              Открыть режим цеха
-            </span>
-          </button>
-        </div>
       )}
 
       <main className="max-w-[1600px] mx-auto px-4 md:px-6 py-6">

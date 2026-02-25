@@ -1,6 +1,6 @@
 import React, { useState, memo, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X, MessageSquare, History } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Settings, CheckCircle, Plus, Copy, PenTool, Truck, Calendar, AlertOctagon, Wallet, Star, Droplet, ShoppingBag, X, MessageSquare, History, Zap } from 'lucide-react';
 import { ORDER_STATUSES } from '../../utils/constants';
 import ProductCard from './ProductCard';
 import DrawingsSection from './DrawingsSection';
@@ -11,7 +11,8 @@ import { getRoleLabel } from '../../utils/supplyRoles';
 const OrderCard = memo(function OrderCard({
     order, products, orders, actions, resources, isExpanded, onToggle,
     isStatusMenuOpen, onToggleStatusMenu, onOpenSettings,
-    onAddProduct, // Функция добавления изделия
+    onAddProduct, // Функция добавления изделия (пресеты)
+    onAddMark,    // Функция добавления марки (КМД / AI)
     onCopyFromArchive, // Функция копирования из архива
     isAdmin, // Права админа
     canManageDrawings, // Права на управление чертежами (админ + технолог)
@@ -754,12 +755,23 @@ const OrderCard = memo(function OrderCard({
                     {/* КНОПКИ ДОБАВЛЕНИЯ */}
                     {(isAdmin || userRole === 'manager') && (
                     <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                        {/* Кнопка "Марка КМД" (AI-генерация) - только для производственных */}
+                        {!order.isProductOrder && (
+                            <button
+                                onClick={() => onAddMark(order)}
+                                className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-indigo-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-md hover:shadow-xl transition-all active:scale-95 whitespace-nowrap"
+                            >
+                                <Zap size={14} fill="currentColor" className="sm:w-4 sm:h-4 shrink-0 text-yellow-300" />
+                                <span className="uppercase tracking-wide">Марка (КМД)</span>
+                            </button>
+                        )}
+
                         <button
                             onClick={() => onAddProduct(order)}
                             className={`${order.isProductOrder ? 'w-full' : 'flex-1'} px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg ${order.isProductOrder ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700' : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap`}
                         >
                             {order.isProductOrder ? <ShoppingBag size={14} strokeWidth={3} className="sm:w-4 sm:h-4 shrink-0" /> : <Plus size={14} strokeWidth={3} className="sm:w-4 sm:h-4 shrink-0" />}
-                            <span className="uppercase tracking-wide">{order.isProductOrder ? 'Добавить товар' : 'Добавить изделие'}</span>
+                            <span className="uppercase tracking-wide">{order.isProductOrder ? 'Добавить товар' : 'Добавить по пресету'}</span>
                         </button>
 
                         {/* Кнопка "Из архива" только для производственных заказов */}

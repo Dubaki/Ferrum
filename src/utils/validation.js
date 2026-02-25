@@ -12,6 +12,14 @@ export const orderSchema = z.object({
   materialsDeadline: z.string().optional(),
   hasPaint: z.boolean(),
   paintDeadline: z.string().optional(),
+  // AI Planning fields
+  orderType: z.enum(['A', 'B']).default('A'),
+  category: z.string().default('other'),
+  priority: z.string().or(z.number()).default(3),
+  sizeCategory: z.enum(['small', 'medium', 'large', 'xlarge']).default('medium'),
+  complexity: z.string().or(z.number()).default(2),
+  weightTotalKg: z.string().or(z.number()).optional(),
+  notes: z.string().optional(),
 }).refine(
   (data) => data.isProductOrder || data.hasDrawings || data.drawingsDeadline,
   { message: 'Укажите дату готовности чертежей', path: ['drawingsDeadline'] }

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, PenTool, Truck, Flag, Star, Droplet, ShoppingBag } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, Folder, Package, Anchor, FileText, PenTool, Truck, Flag, Star, Droplet, ShoppingBag, AlertCircle } from 'lucide-react';
+import { SHOP_STAGE_COLORS } from '../../utils/constants';
 
 
 const COL_WIDTH = 48;
@@ -45,6 +46,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
         const isOrder = item.type === 'order';
 
         let bgClass = 'bg-gradient-to-r from-indigo-500 to-indigo-600';
+        let customStyle = {};
         let pattern = false;
 
         if (isOrder) {
@@ -64,15 +66,28 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
         } else {
             if (item.isResale) {
                 bgClass = 'bg-gradient-to-r from-cyan-500 to-blue-500'; // Цвет для перепродажи
+            } else if (item.shopStage && SHOP_STAGE_COLORS[item.shopStage]) {
+                // ПРИОРИТЕТ: Цветовая маркировка по участку планировщика
+                const stageColor = SHOP_STAGE_COLORS[item.shopStage];
+                customStyle = { backgroundColor: stageColor };
+                bgClass = ''; // Очищаем градиент
             } else {
                 bgClass = 'bg-gradient-to-r from-slate-400 to-slate-500';
             }
         }
 
+        let className = `absolute top-[10px] h-8 rounded-xl flex items-center px-3 text-white text-xs font-bold whitespace-nowrap overflow-hidden transition-all hover:scale-105 hover:shadow-xl cursor-pointer ${bgClass} z-10`;
+        
+        // Подсветка перегрузки
+        if (item.isOverloaded) {
+            className += ' ring-2 ring-red-500 ring-offset-1 ring-offset-white animate-pulse';
+        }
+
         return {
             left: `${left}px`,
             width: `${width}px`,
-            className: `absolute top-[10px] h-8 rounded-xl flex items-center px-3 text-white text-xs font-bold whitespace-nowrap overflow-hidden transition-all hover:scale-105 hover:shadow-xl cursor-pointer ${bgClass} z-10`,
+            className,
+            style: customStyle,
             pattern: pattern || !isOrder
         };
     };
@@ -82,7 +97,7 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
             case 'metal': return <Anchor size={14} className="text-red-200" />;
             case 'components': return <Package size={14} className="text-orange-200" />;
             case 'drawings': return <FileText size={14} className="text-yellow-200" />;
-            case 'work': return <Clock size={14} className="text-emerald-200 animate-spin-slow" />;
+            case 'work': return <Clock size={14} className="text-emerald-200 animate-spin" />;
             default: return <Folder size={14} className="opacity-80"/>;
         }
     };
@@ -256,15 +271,20 @@ function GanttChart({ calendarDays, rows, startDate, expandedIds, onToggleExpand
 
                                     {/* Полоска Ганта */}
                                     <div
-                                        style={{ left: bar.left, width: bar.width }}
+                                        style={{ left: bar.left, width: bar.width, ...bar.style }}
                                         className={bar.className}
                                         onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
                                     >
                                         {bar.pattern && <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxwYXRoIGQ9Ik0wIDhMODIDMEM1LjUgMS41IDQuNSAyLjUgOCAzVjZMMCAtMkw4IDZ6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==')]"></div>}
-                                        <span className="relative drop-shadow-md pointer-events-none flex items-center gap-1.5 pl-1">
-                                            {isOrder ? getStatusIcon(item.customStatus) : <Clock size={12} className="opacity-80" />}
-                                            <span className="truncate font-bold">
-                                                {isOrder && item.customStatus === 'metal' ? 'ЖДЕМ МЕТАЛЛ' : (item.totalHours + ' ч')}
+                                        <span className="relative drop-shadow-md pointer-events-none flex items-center gap-1.5 pl-1 w-full overflow-hidden">
+                                            {isOrder ? getStatusIcon(item.customStatus) : (item.isOverloaded ? <AlertCircle size={12} className="text-white animate-pulse" /> : <Clock size={12} className="opacity-80" />)}
+                                            <span className="truncate font-bold flex-1">
+                                                {isOrder && item.customStatus === 'metal' ? 'ЖДЕМ МЕТАЛЛ' : (
+                                                    <span className="flex items-center gap-1.5">
+                                                        <span>{item.totalHours} ч</span>
+                                                        {item.shopResourceName && <span className="opacity-70 font-normal px-1.5 py-0.5 bg-black/20 rounded-md text-[9px] uppercase tracking-tighter">{item.shopResourceName}</span>}
+                                                    </span>
+                                                )}
                                             </span>
                                         </span>
                                     </div>

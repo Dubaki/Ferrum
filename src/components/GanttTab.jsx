@@ -1,15 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { useGanttData } from '../hooks/useGanttData';
+import { useShopResources } from '../hooks/useShopResources';
+import { useScheduler } from '../hooks/useScheduler';
 import GanttChart from './gantt/GanttChart';
-import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, Timer, Target, Loader } from 'lucide-react';
+import SchedulerTab from './scheduler/SchedulerTab';
+import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, Timer, Target, Loader, BarChart3 } from 'lucide-react';
 
 export default function GanttTab({ products, resources, orders, actions }) {
-    const { calendarDays, ganttRows, startDate } = useGanttData(orders, products, resources);
-    
-    const [selectedItem, setSelectedItem] = useState(null); 
+    const { shopResources } = useShopResources();
+    const schedulerResults = useScheduler(orders, products, shopResources || []);
+    const { calendarDays, ganttRows, startDate } = useGanttData(orders, products, resources, schedulerResults);
+
+    const [selectedItem, setSelectedItem] = useState(null);
     const [newDateValue, setNewDateValue] = useState('');
     const [expandedIds, setExpandedIds] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [showPlanner, setShowPlanner] = useState(false);
 
     // Фильтрация: Скрываем заказы, состоящие ТОЛЬКО из товаров перепродажи
     const filteredGanttRows = useMemo(() => {
@@ -201,9 +207,39 @@ export default function GanttTab({ products, resources, orders, actions }) {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative fade-in">
-            
-            {/* ГРАФИК */}
+        <div className="flex flex-col h-[calc(100vh-140px)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative fade-in"
+             style={{ background: showPlanner ? '#030712' : 'white', borderColor: showPlanner ? '#1e293b' : undefined }}>
+
+            {/* ── ПЕРЕКЛЮЧАТЕЛЬ ГАНТ / ПЛАНИРОВЩИК ── */}
+            <div className={`flex items-center gap-1 px-3 py-2 shrink-0 border-b ${showPlanner ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <button
+                    onClick={() => setShowPlanner(false)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200
+                        ${!showPlanner
+                            ? 'bg-white text-slate-800 shadow-sm border border-slate-200'
+                            : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    <BarChart3 size={13} />
+                    Гант
+                </button>
+                <button
+                    onClick={() => setShowPlanner(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200
+                        ${showPlanner
+                            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
+                            : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                    <span className="font-black">X</span>
+                    Планировщик
+                </button>
+            </div>
+
+            {/* ── КОНТЕНТ ── */}
+            {showPlanner ? (
+                <div className="flex-1 overflow-hidden">
+                    <SchedulerTab products={products} resources={resources} orders={orders} />
+                </div>
+            ) : (
             <div className="flex-1 bg-white overflow-hidden relative">
                 <GanttChart
                     calendarDays={calendarDays}
@@ -215,6 +251,7 @@ export default function GanttTab({ products, resources, orders, actions }) {
                     onProductNameClick={handleOpenModal}
                 />
             </div>
+            )}
 
             {/* --- МОДАЛКА РЕДАКТИРОВАНИЯ --- */}
             {selectedItem && (

@@ -14,7 +14,7 @@ const tabs = [
   { path: '/reports', label: 'Финансы', icon: FileText },
 ];
 
-const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, userRole, onToggleAuth }) => {
+const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const roleLabel = userRole ? getRoleLabel(userRole) : null;
 
@@ -30,8 +30,7 @@ const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, user
 
   const renderTab = (tab, isMobile = false) => {
     const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
-                    (tab.path === '/supply' && hasSupplyAlert) || 
-                    (tab.path === '/resources' && hasWorkshopAlert);
+                    (tab.path === '/supply' && hasSupplyAlert);
 
     return (
       <NavLink
@@ -79,8 +78,7 @@ const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, user
           <nav className="hidden xl:flex items-center bg-slate-100/50 p-1 rounded-2xl border border-slate-200/30 gap-1 mx-8 shadow-inner">
             {tabs.map(tab => {
                 const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
-                                (tab.path === '/supply' && hasSupplyAlert) || 
-                                (tab.path === '/resources' && hasWorkshopAlert);
+                                (tab.path === '/supply' && hasSupplyAlert);
                 
                 return (
                     <NavLink
@@ -156,8 +154,7 @@ const Header = memo(({ hasUrgentShipping, hasWorkshopAlert, hasSupplyAlert, user
                 <nav className="flex flex-col space-y-3">
                     {tabs.map(tab => {
                         const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
-                                        (tab.path === '/supply' && hasSupplyAlert) || 
-                                        (tab.path === '/resources' && hasWorkshopAlert);
+                                        (tab.path === '/supply' && hasSupplyAlert);
                         
                         return (
                             <NavLink

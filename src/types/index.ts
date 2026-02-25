@@ -1,3 +1,75 @@
+// ─── AI Планировщик ──────────────────────────────────────────
+
+export type ShopStage =
+  | 'cutting_profile'
+  | 'cutting_sheet'
+  | 'rolling'
+  | 'weld_assembly'
+  | 'fitting'
+  | 'painting';
+
+export type SizeCategory = 'small' | 'medium' | 'large' | 'xlarge';
+
+export type MarkComplexity = 'simple' | 'medium' | 'complex';
+
+// Производственный участок (пила, плазма, сварочный пост, слесари, покраска)
+export interface ShopResource {
+  id: string;
+  name: string;
+  shortName: string;
+  stage: ShopStage;
+  hoursPerDay: number;
+  workerCount: number;
+  isLarge: boolean;         // может работать с изделиями > 3000 мм
+  color: string;
+  isAvailable: boolean;
+  notes?: string;
+  efficiencyCoeff?: number; // коэф. факт/план для самообучения, default 1.0
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+// Отправочная марка из КМД (импортированная или введённая вручную)
+export interface ShopMark {
+  id: string;
+  orderId: string;
+  name: string;             // Ф-3, К2, СФ1.1...
+  markType: string;         // truss | column | beam | brace | plate | other
+  quantity: number;         // кол-во одинаковых марок
+  weight_kg: number;        // масса одной марки, кг
+  sizeCategory: SizeCategory;
+  maxLength_mm: number;     // макс. длина детали внутри марки
+  complexity: MarkComplexity;
+  hasProfileCut: boolean;   // есть профильные элементы → пила
+  hasSheetCut: boolean;     // есть листовые элементы → плазма
+  needsRolling?: boolean;   // тело из листа → вальцовка (Ду300+)
+  needsCrane: boolean;      // деталь > 50 кг → кран
+  sheetThicknessMm?: number;
+  dependsOn?: string[];     // ID марок, которые должны быть готовы до сборки
+  paintColor?: string;      // RAL код
+  paintLayers?: number;
+  notes?: string;
+  source: 'tekla' | 'custom' | 'manual'; // откуда импортировано
+  createdAt: number;
+}
+
+// Сгенерированная операция (результат routeGenerator)
+export interface GeneratedOperation {
+  id: string;
+  markId: string;
+  stage: ShopStage;
+  label: string;
+  sequence: number;
+  hours: number;
+  needsLargePost: boolean;
+  preferredResourceId: string;
+  dependsOnStages: ShopStage[];
+  paintHours?: number;
+  dryingHours?: number;
+}
+
+// ─── Supply types ─────────────────────────────────────────────
+
 // Supply types
 export interface SupplyRequestItem {
   title: string;

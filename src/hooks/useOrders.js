@@ -31,7 +31,15 @@ export const useOrders = (products) => {
         paymentDate: formatDate(new Date()),
         statusHistory: [{ status: data?.customStatus || 'metal', timestamp: now }],
         createdAt: now,
-        finishedAt: null
+        finishedAt: null,
+        // AI Planning fields
+        orderType: data?.orderType || 'A',
+        category: data?.category || 'other',
+        priority: parseInt(data?.priority) || 3,
+        sizeCategory: data?.sizeCategory || 'medium',
+        complexity: parseInt(data?.complexity) || 2,
+        weightTotalKg: parseFloat(data?.weightTotalKg) || 0,
+        notes: data?.notes || ''
       });
       showSuccess('Заказ создан');
     } catch (error) {
@@ -102,6 +110,36 @@ export const useOrders = (products) => {
     }
   };
 
+  const addDrawingToOrder = async (orderId, drawingData) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      const drawings = order.drawings ? [...order.drawings] : [];
+      drawings.push({
+        ...drawingData,
+        publicId: Date.now().toString()
+      });
+      await updateDoc(doc(db, 'orders', orderId), { drawings });
+      showSuccess('Чертёж прикреплён');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+    }
+  };
+
+  const deleteDrawingFromOrder = async (orderId, drawingPath) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      const drawings = order.drawings.map(d => 
+        d.path === drawingPath ? { ...d, deleted: true, deletedAt: Date.now() } : d
+      );
+      await updateDoc(doc(db, 'orders', orderId), { drawings });
+      showSuccess('Чертёж удалён');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+    }
+  };
+
   return {
     orders,
     loading,
@@ -111,6 +149,8 @@ export const useOrders = (products) => {
       finishOrder,
       restoreOrder,
       deleteOrder,
+      addDrawingToOrder,
+      deleteDrawingFromOrder
     }
   };
 };

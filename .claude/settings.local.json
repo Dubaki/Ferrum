@@ -38,7 +38,10 @@
       "Bash(npx vercel:*)",
       "Bash(npm list:*)",
       "Bash(npx --yes sharp-cli:*)",
-      "Bash(npx sharp-cli:*)"
+      "Bash(npx sharp-cli:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }

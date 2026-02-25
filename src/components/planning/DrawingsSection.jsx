@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { FileText, Upload, Eye, Trash2, AlertCircle, Loader } from 'lucide-react';
+import { FileText, Upload, Eye, Trash2, AlertCircle, Loader, Cpu, Zap, Check } from 'lucide-react';
 import { uploadDrawing, deleteDrawing, isSupabaseConfigured } from '../../utils/supabaseStorage';
+import { parseDrawingWithAI } from '../../utils/aiParser';
 
 /**
  * Компактная секция для загрузки и просмотра PDF чертежей заказа
  */
 export default function DrawingsSection({ order, actions, isAdmin }) {
   const [uploading, setUploading] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState(null); // ID чертежа который сейчас анализируется AI
   const [error, setError] = useState('');
 
   // Только активные (не удалённые) чертежи
@@ -51,6 +53,44 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
       await actions.deleteDrawingFromOrder(order.id, drawing.path);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleAIParse = async (drawing) => {
+    if (analyzingId) return;
+    
+    setAnalyzingId(drawing.publicId);
+    setError('');
+
+    try {
+      // 1. Отправляем на "анализ" (скриптовый или AI)
+      const result = await parseDrawingWithAI(drawing.url, drawing.name);
+
+      if (result && result.marks && result.marks.length > 0) {
+        // 2. Подготавливаем данные для создания изделий
+        // Превращаем формат AI в формат для addProductsBatch
+        const marksToAdd = result.marks.map(m => ({
+          name: m.id,
+          weight_kg: m.weight_kg,
+          quantity: m.quantity,
+          category: m.category || 'other',
+          sizeCategory: m.sizeCategory || 'medium',
+          complexity: m.complexity || 'medium',
+          hasProfileCut: m.hasProfileCut,
+          hasSheetCut: m.hasSheetCut
+        }));
+
+        // 3. Создаем изделия в заказе
+        if (confirm(`AI нашел ${marksToAdd.length} марок общим весом ${result.total_tonnage || '?'} т. Добавить в заказ?`)) {
+          await actions.addProductsBatch(order.id, marksToAdd);
+        }
+      } else {
+        throw new Error('AI не нашел марок в этом чертеже');
+      }
+    } catch (err) {
+      setError(`AI ошибка: ${err.message}`);
+    } finally {
+      setAnalyzingId(null);
     }
   };
 
@@ -117,7 +157,7 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
 
         {/* Кнопка загрузки (только для админов) */}
         {isAdmin && (
-          <label className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded cursor-pointer transition">
+          <label className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded cursor-pointer transition shadow-sm hover:shadow-md">
             {uploading ? (
               <>
                 <Loader size={12} className="animate-spin" />
@@ -126,7 +166,7 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
             ) : (
               <>
                 <Upload size={12} />
-                Загрузить
+                Загрузить PDF
               </>
             )}
             <input
@@ -142,15 +182,18 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
 
       {/* Ошибки */}
       {error && (
-        <div className="mb-2 px-2 py-1.5 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-          {error}
+        <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 animate-in shake-in-1">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={14} />
+            {error}
+          </div>
         </div>
       )}
 
       {/* Список чертежей */}
       {activeDrawings.length === 0 ? (
-        <div className="text-center py-4 text-xs text-slate-400">
-          <FileText size={24} className="mx-auto mb-1 opacity-30" />
+        <div className="text-center py-4 text-xs text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
+          <FileText size={24} className="mx-auto mb-1 opacity-20" />
           <p>Чертежи не загружены</p>
         </div>
       ) : (
@@ -158,29 +201,56 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
           {activeDrawings.map((drawing) => (
             <div
               key={drawing.publicId}
-              className="flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded hover:border-blue-300 hover:shadow-sm transition group"
+              className="flex items-center gap-2 px-2.5 py-2 bg-white border border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all group"
             >
               {/* Иконка PDF */}
               <FileText size={16} className="text-red-500 flex-shrink-0" />
 
               {/* Информация о файле */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-800 truncate">
+                <p className="text-xs font-bold text-slate-800 truncate">
                   {drawing.name}
                 </p>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
                   {formatFileSize(drawing.size)} • {formatDate(drawing.uploadedAt)}
                 </p>
               </div>
 
               {/* Кнопки действий */}
-              <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 flex-shrink-0">
+                
+                {/* AI АНАЛИЗ */}
+                {isAdmin && (
+                  <button
+                    onClick={() => handleAIParse(drawing)}
+                    disabled={analyzingId !== null}
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${
+                      analyzingId === drawing.publicId 
+                        ? 'bg-orange-100 text-orange-600 animate-pulse' 
+                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white'
+                    }`}
+                    title="Распознать марки через AI"
+                  >
+                    {analyzingId === drawing.publicId ? (
+                      <>
+                        <Loader size={12} className="animate-spin" />
+                        AI думает...
+                      </>
+                    ) : (
+                      <>
+                        <Cpu size={12} />
+                        AI Парсинг
+                      </>
+                    )}
+                  </button>
+                )}
+
                 {/* Просмотреть в браузере */}
                 <a
                   href={getViewUrl(drawing)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
                   title="Открыть в новой вкладке"
                 >
                   <Eye size={14} />
@@ -190,7 +260,7 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
                 {isAdmin && (
                   <button
                     onClick={() => handleDelete(drawing)}
-                    className="p-1 text-red-500 hover:bg-red-50 rounded transition"
+                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition"
                     title="Удалить"
                   >
                     <Trash2 size={14} />

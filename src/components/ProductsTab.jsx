@@ -115,6 +115,7 @@ export default function ProductsTab({ products, resources, actions, ganttItems =
             onToggleStatusMenu={() => setOpenStatusMenuId(prev => prev === order.id ? null : order.id)}
             onOpenSettings={() => setSettingsOrder(order)}
             onAddProduct={() => setAddingProductToOrder(order)}
+            onAddMark={() => {}}
             onCopyFromArchive={() => {}}
             isAdmin={isAdmin}
             userRole={userRole}

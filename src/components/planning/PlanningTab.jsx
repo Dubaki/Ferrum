@@ -6,6 +6,7 @@ import ProductCard from './ProductCard';
 import OrderSettingsModal from './OrderSettingsModal';
 import NewOrderModal from './NewOrderModal';
 import AddProductModal from './AddProductModal';
+import AddMarkModal from './AddMarkModal';
 import CopyFromArchiveModal from './CopyFromArchiveModal'; 
 
 export default function PlanningTab({ products, resources, actions, ganttItems = [], orders = [], isAdmin, canManageDrawings, userRole, supplyRequests = [], supplyActions = {} }) {
@@ -15,6 +16,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
   // Состояние: В какой заказ мы сейчас добавляем изделия?
   const [addingProductToOrder, setAddingProductToOrder] = useState(null);
+  const [addingMarkToOrder, setAddingMarkToOrder] = useState(null);
 
   // Состояние: В какой заказ копируем из архива?
   const [copyingToOrder, setCopyingToOrder] = useState(null);
@@ -50,11 +52,19 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
   const orphanProducts = useMemo(() => products.filter(p => !p.orderId), [products]);
 
-  // Обработчик добавления из модалки
+  // Обработчик добавления из модалки пресетов
   const handleAddFromPreset = (items) => {
       if (addingProductToOrder) {
           actions.addProductsBatch(addingProductToOrder.id, items);
           setAddingProductToOrder(null);
+      }
+  };
+
+  // Обработчик добавления марки КМД
+  const handleAddMark = (planningParams) => {
+      if (addingMarkToOrder) {
+          actions.addProduct(addingMarkToOrder.id, null, planningParams);
+          setAddingMarkToOrder(null);
       }
   };
 
@@ -79,6 +89,10 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
   const handleAddProduct = useCallback((order) => {
       setAddingProductToOrder(order);
+  }, []);
+
+  const handleAddMarkToOrder = useCallback((order) => {
+      setAddingMarkToOrder(order);
   }, []);
 
   const handleCopyFromArchiveOrder = useCallback((order) => {
@@ -140,6 +154,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                 onToggleStatusMenu={handleToggleStatusMenu}
                 onOpenSettings={handleOpenSettings}
                 onAddProduct={handleAddProduct}
+                onAddMark={handleAddMarkToOrder}
                 onCopyFromArchive={handleCopyFromArchiveOrder}
                 userRole={userRole}
             />
@@ -184,11 +199,20 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                         userRole={userRole}
                     />      )}
 
-      {/* Модалка добавления изделия */}
+      {/* Модалка добавления изделия по пресету */}
       {addingProductToOrder && (
           <AddProductModal
               onClose={() => setAddingProductToOrder(null)}
               onAdd={handleAddFromPreset}
+          />
+      )}
+
+      {/* Модалка добавления марки (КМД) */}
+      {addingMarkToOrder && (
+          <AddMarkModal
+              onClose={() => setAddingMarkToOrder(null)}
+              onAdd={handleAddMark}
+              orderId={addingMarkToOrder.id}
           />
       )}
 
