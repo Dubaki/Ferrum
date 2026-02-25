@@ -60,7 +60,7 @@ export default function CombinedArchiveView({ orders, products, resources, actio
 
 function ArchiveOperationRow({ op, prod, resources, actions }) {
     const [isEditing, setIsEditing] = useState(false);
-    const [val, setVal] = useState(op.factMins / prod.quantity);
+    const [val, setVal] = useState(op.actualMinutes / prod.quantity);
     const [showResMenu, setShowResMenu] = useState(false);
 
     const handleSave = () => {
@@ -69,35 +69,66 @@ function ArchiveOperationRow({ op, prod, resources, actions }) {
     };
 
     return (
-        <div className="flex justify-between items-center text-xs text-gray-600 py-1 hover:bg-slate-50 rounded px-1 group/op">
-            <div className="flex-1 font-medium">{op.name}</div>
+        <div className="flex justify-between items-center text-xs text-gray-600 py-1.5 hover:bg-slate-50 rounded px-1.5 group/op relative">
+            {/* Кнопка удаления операции в архиве */}
+            <button 
+                onClick={() => window.confirm(`Удалить операцию "${op.name}" из архива?`) && actions.deleteOperation(prod.id, op.id)}
+                className="absolute -left-6 opacity-0 group-hover/op:opacity-100 p-1 text-red-300 hover:text-red-500 transition-all"
+                title="Удалить операцию"
+            >
+                ×
+            </button>
+
+            <div className="flex-1 font-medium flex items-center gap-2">
+                <input 
+                    type="text" 
+                    defaultValue={op.name}
+                    onBlur={(e) => actions.updateOperation(prod.id, op.id, 'name', e.target.value)}
+                    className="bg-transparent border-none focus:ring-0 p-0 font-medium text-gray-700 w-full outline-none hover:bg-gray-100 rounded px-1 transition-colors"
+                />
+            </div>
             
             <div className="flex-1 flex items-center gap-2 text-gray-500 relative">
                 <button 
-                    onClick={() => setShowResMenu(!showResMenu)}
-                    className="flex items-center gap-2 hover:text-blue-600 transition"
+                    onClick={(e) => { e.stopPropagation(); setShowResMenu(!showResMenu); }}
+                    className={`flex items-center gap-2 px-2 py-1 rounded transition-all ${op.resourceIds?.length > 0 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100' : 'hover:text-blue-600'}`}
                 >
                     <User size={10} /> 
                     {op.executors.length > 0 ? op.executors.join(', ') : '—'}
                 </button>
                 
                 {showResMenu && (
-                    <div className="absolute top-full left-0 z-50 bg-white border shadow-xl rounded-xl p-2 min-w-[200px] max-h-60 overflow-auto">
-                        <div className="text-[10px] font-bold text-gray-400 mb-2 uppercase px-2">Исполнители</div>
-                        {resources.filter(r => !r.firedAt).map(res => {
-                            const isSelected = op.resourceIds?.includes(res.id);
-                            return (
-                                <button 
-                                    key={res.id}
-                                    onClick={() => actions.toggleResourceForOp(prod.id, op.id, res.id)}
-                                    className={`w-full text-left px-2 py-1.5 rounded-lg mb-0.5 flex items-center justify-between ${isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-gray-50'}`}
-                                >
-                                    {res.name}
-                                    {isSelected && <span className="text-blue-500">✓</span>}
-                                </button>
-                            );
-                        })}
-                        <button onClick={() => setShowResMenu(false)} className="w-full mt-2 py-1 bg-gray-100 rounded-lg font-bold text-gray-500">Закрыть</button>
+                    <div className="absolute top-full left-0 z-[100] bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 min-w-[220px] max-h-72 overflow-auto animate-in zoom-in-95 duration-200">
+                        <div className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest px-1 flex justify-between items-center">
+                            Выбор бригады
+                            <X size={14} className="cursor-pointer hover:text-slate-600" onClick={() => setShowResMenu(false)} />
+                        </div>
+                        <div className="space-y-1">
+                            {resources.filter(r => !r.firedAt).map(res => {
+                                const isSelected = op.resourceIds?.includes(res.id);
+                                return (
+                                    <button 
+                                        key={res.id}
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            actions.toggleResourceForOp(prod.id, op.id, res.id);
+                                        }}
+                                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-all group/res ${
+                                            isSelected ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'hover:bg-slate-50 text-slate-600'
+                                        }`}
+                                    >
+                                        <span className="text-[11px] font-bold">{res.name}</span>
+                                        {isSelected ? <X size={12} className="opacity-60" /> : <div className="w-3 h-3 rounded-full border-2 border-slate-200 group-hover/res:border-blue-400"></div>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setShowResMenu(false); }} 
+                            className="w-full mt-4 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg"
+                        >
+                            Готово
+                        </button>
                     </div>
                 )}
             </div>
@@ -110,22 +141,22 @@ function ArchiveOperationRow({ op, prod, resources, actions }) {
                                 type="number" 
                                 value={val} 
                                 onChange={e => setVal(e.target.value)}
-                                className="w-12 border rounded px-1 py-0.5 text-right font-bold focus:border-blue-500 outline-none"
+                                className="w-12 border-2 border-blue-500 rounded px-1 py-0.5 text-right font-black focus:ring-4 focus:ring-blue-100 outline-none"
                                 autoFocus
                                 onKeyDown={e => e.key === 'Enter' && handleSave()}
+                                onBlur={handleSave}
                             />
-                            <button onClick={handleSave} className="text-green-600 font-bold text-[10px]">OK</button>
                         </div>
                     ) : (
                         <button 
                             onClick={() => { setVal(op.factMins / prod.quantity); setIsEditing(true); }}
-                            className="hover:text-blue-600 flex items-center gap-1 group-hover/op:bg-blue-50 group-hover/op:px-1 rounded transition-all"
+                            className="hover:text-blue-600 font-bold flex items-center gap-1 group-hover/op:bg-blue-50 group-hover/op:px-1.5 rounded-lg py-1 transition-all"
                         >
                             <Clock size={10} className="text-slate-300"/> {(op.factMins/60).toFixed(1)}ч
                         </button>
                     )}
                 </div>
-                <div className="w-20 font-bold font-mono text-slate-800 text-right">
+                <div className="w-20 font-black font-mono text-slate-900 text-right tabular-nums">
                     {Math.round(op.cost).toLocaleString()} ₽
                 </div>
             </div>
@@ -204,6 +235,7 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                 totalCost += opCost;
 
                 return {
+                    ...op, // Сохраняем все оригинальные поля (id, resourceIds, и т.д.)
                     name: op.name,
                     factMins: totalFactMins,
                     executors: executors,
@@ -276,6 +308,14 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                                             actions={actions}
                                          />
                                      ))}
+                                     
+                                     {/* Кнопка добавления операции в архиве */}
+                                     <button 
+                                        onClick={() => actions.addOperation(prod.id, 'Новая операция')}
+                                        className="w-full mt-2 py-2 border-2 border-dashed border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                                     >
+                                         + Добавить операцию
+                                     </button>
                                  </div>
                              </div>
                         ))}
