@@ -63,8 +63,9 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
     setError('');
 
     try {
-      // 1. Отправляем на "анализ" (скриптовый или AI)
+      console.log('[AI Парсинг] Начало:', drawing.name, drawing.url);
       const result = await parseDrawingWithAI(drawing.url, drawing.name);
+      console.log('[AI Парсинг] Результат:', result);
 
       if (result && result.marks && result.marks.length > 0) {
         const marksToAdd = result.marks.map(m => ({

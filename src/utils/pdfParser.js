@@ -11,10 +11,10 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Workaround для Vite: воркер pdfjs грузим с unpkg
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+// Локальный воркер через Vite ?url (не требует CDN)
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 // ── Паттерны ──────────────────────────────────────────────────
 
