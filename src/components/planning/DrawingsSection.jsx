@@ -67,8 +67,6 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
       const result = await parseDrawingWithAI(drawing.url, drawing.name);
 
       if (result && result.marks && result.marks.length > 0) {
-        // 2. Подготавливаем данные для создания изделий
-        // Превращаем формат AI в формат для addProductsBatch
         const marksToAdd = result.marks.map(m => ({
           name: m.id,
           weight_kg: m.weight_kg,
@@ -80,12 +78,13 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
           hasSheetCut: m.hasSheetCut
         }));
 
-        // 3. Создаем изделия в заказе
-        if (confirm(`AI нашел ${marksToAdd.length} марок общим весом ${result.total_tonnage || '?'} т. Добавить в заказ?`)) {
+        const note = result.note ? `\n\n${result.note}` : '';
+        if (confirm(`Найдено ${marksToAdd.length} марок, ~${result.total_tonnage || '?'} т.${note}\n\nДобавить в заказ?`)) {
           await actions.addProductsBatch(order.id, marksToAdd);
         }
       } else {
-        throw new Error('AI не нашел марок в этом чертеже');
+        const hint = result?.note || 'Марки не найдены';
+        throw new Error(hint);
       }
     } catch (err) {
       setError(`AI ошибка: ${err.message}`);
