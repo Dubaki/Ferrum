@@ -494,9 +494,15 @@ export const useProductionData = () => {
   const addOperation = useCallback(async (productId, initialName = 'Новая операция') => {
     try {
       const product = products.find(p => p.id === productId);
-      if (!product) return;
-      const maxSeq = product.operations.length > 0 ? Math.max(...product.operations.map(o => o.sequence)) : 0;
-      const newOps = [...product.operations, {
+      if (!product) {
+        console.error('Product not found for addOperation:', productId);
+        return;
+      }
+      
+      const ops = Array.isArray(product.operations) ? product.operations : [];
+      const maxSeq = ops.length > 0 ? Math.max(...ops.map(o => o.sequence || 0)) : 0;
+      
+      const newOps = [...ops, {
         id: Date.now(),
         name: initialName,
         resourceIds: [],

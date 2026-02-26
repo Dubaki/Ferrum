@@ -71,17 +71,17 @@ export default function OrderSupplyModal({ order, requests, supplyActions, userR
 
       {/* Details Modal Over the current one */}
       {showDetailsModal && selectedRequest && (
-        <RequestDetailsModal 
-          request={selectedRequest} 
-          userRole={userRole} 
-          supplyActions={supplyActions} 
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedRequestId(null);
-          }} 
-          // Note: We don't pass onEditRequest here to avoid nested editing complexities from Planning tab
-          // unless specifically needed.
-        />
+        <div onClick={e => e.stopPropagation()}>
+          <RequestDetailsModal
+            request={selectedRequest}
+            userRole={userRole}
+            supplyActions={supplyActions}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setSelectedRequestId(null);
+            }}
+          />
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User, History } from 'lucide-react';
+import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User, History, X } from 'lucide-react';
 import { getRoleLabel } from '../../utils/supplyRoles';
 import { ORDER_STATUSES } from '../../utils/constants';
 
@@ -60,103 +60,132 @@ export default function CombinedArchiveView({ orders, products, resources, actio
 
 function ArchiveOperationRow({ op, prod, resources, actions }) {
     const [isEditing, setIsEditing] = useState(false);
-    const [val, setVal] = useState(op.actualMinutes / prod.quantity);
+    const [val, setVal] = useState((op.actualMinutes || 0) / (prod.quantity || 1));
     const [showResMenu, setShowResMenu] = useState(false);
 
     const handleSave = () => {
+        if (!op.id) {
+            alert('Ошибка: у операции нет ID. Попробуйте вернуть заказ в работу и завершить его снова для генерации ID.');
+            return;
+        }
         actions.updateOperation(prod.id, op.id, 'actualMinutes', parseFloat(val));
         setIsEditing(false);
     };
 
     return (
-        <div className="flex justify-between items-center text-xs text-gray-600 py-1.5 hover:bg-slate-50 rounded px-1.5 group/op relative">
-            {/* Кнопка удаления операции в архиве */}
-            <button 
-                onClick={() => window.confirm(`Удалить операцию "${op.name}" из архива?`) && actions.deleteOperation(prod.id, op.id)}
-                className="absolute -left-6 opacity-0 group-hover/op:opacity-100 p-1 text-red-300 hover:text-red-500 transition-all"
-                title="Удалить операцию"
-            >
-                ×
-            </button>
+        <div className="flex justify-between items-center text-xs text-gray-600 py-2 hover:bg-slate-50 rounded-xl px-2 group/op border border-transparent hover:border-slate-100 transition-all relative">
+            
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* Кнопка удаления - ТЕПЕРЬ ВИДИМАЯ И КРАСНАЯ */}
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Удалить операцию "${op.name}"?`)) {
+                            actions.deleteOperation(prod.id, op.id);
+                        }
+                    }}
+                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Удалить"
+                >
+                    <X size={14} strokeWidth={3} />
+                </button>
 
-            <div className="flex-1 font-medium flex items-center gap-2">
                 <input 
                     type="text" 
                     defaultValue={op.name}
-                    onBlur={(e) => actions.updateOperation(prod.id, op.id, 'name', e.target.value)}
-                    className="bg-transparent border-none focus:ring-0 p-0 font-medium text-gray-700 w-full outline-none hover:bg-gray-100 rounded px-1 transition-colors"
+                    onBlur={(e) => op.id && actions.updateOperation(prod.id, op.id, 'name', e.target.value)}
+                    className="bg-transparent border-none focus:ring-0 p-0 font-bold text-slate-700 w-full outline-none hover:bg-white focus:bg-white rounded px-1.5 py-1 transition-all"
                 />
             </div>
             
-            <div className="flex-1 flex items-center gap-2 text-gray-500 relative">
+            <div className="flex-1 flex items-center gap-2 text-gray-500 relative px-2">
                 <button 
-                    onClick={(e) => { e.stopPropagation(); setShowResMenu(!showResMenu); }}
-                    className={`flex items-center gap-2 px-2 py-1 rounded transition-all ${op.resourceIds?.length > 0 ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100' : 'hover:text-blue-600'}`}
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (!op.id) {
+                            alert('У этой операции нет ID (старые данные). Пожалуйста, удалите её и добавьте заново через кнопку "+ Добавить операцию"');
+                            return;
+                        }
+                        setShowResMenu(!showResMenu); 
+                    }}
+                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all border ${op.resourceIds?.length > 0 ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-400 text-slate-500'}`}
                 >
-                    <User size={10} /> 
-                    {op.executors.length > 0 ? op.executors.join(', ') : '—'}
+                    <User size={12} strokeWidth={op.resourceIds?.length > 0 ? 3 : 2} /> 
+                    <span className="max-w-[120px] truncate">
+                        {op.executors.length > 0 ? op.executors.join(', ') : 'Выбрать...'}
+                    </span>
                 </button>
                 
                 {showResMenu && (
-                    <div className="absolute top-full left-0 z-[100] bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 min-w-[220px] max-h-72 overflow-auto animate-in zoom-in-95 duration-200">
-                        <div className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest px-1 flex justify-between items-center">
-                            Выбор бригады
-                            <X size={14} className="cursor-pointer hover:text-slate-600" onClick={() => setShowResMenu(false)} />
+                    <>
+                        {/* НЕВИДИМЫЙ ФОН ДЛЯ ЗАКРЫТИЯ ПРИ КЛИКЕ МИМО */}
+                        <div 
+                            className="fixed inset-0 z-[90] bg-transparent" 
+                            onClick={() => setShowResMenu(false)}
+                        ></div>
+
+                        <div className="absolute top-full left-0 z-[100] bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 min-w-[240px] max-h-80 overflow-auto animate-in fade-in zoom-in-95 duration-200 mt-2">
+                            <div className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest px-1 flex justify-between items-center">
+                                Бригада исполнителей
+                                <button onClick={() => setShowResMenu(false)} className="p-1 hover:bg-slate-100 rounded-full"><X size={14}/></button>
+                            </div>
+                            <div className="space-y-1">
+                                {resources.filter(r => !r.firedAt).map(res => {
+                                    const isSelected = op.resourceIds?.includes(res.id);
+                                    return (
+                                        <button 
+                                            key={res.id}
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                actions.toggleResourceForOp(prod.id, op.id, res.id);
+                                            }}
+                                            className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between transition-all ${
+                                                isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'hover:bg-slate-50 text-slate-600'
+                                            }`}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-bold">{res.name}</span>
+                                                <span className={`text-[8px] uppercase tracking-tighter opacity-70 ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>{res.position}</span>
+                                            </div>
+                                            {isSelected && <div className="bg-white/20 p-0.5 rounded-full"><X size={10} strokeWidth={4} /></div>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button 
+                                onClick={() => setShowResMenu(false)} 
+                                className="w-full mt-4 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200"
+                            >
+                                Готово
+                            </button>
                         </div>
-                        <div className="space-y-1">
-                            {resources.filter(r => !r.firedAt).map(res => {
-                                const isSelected = op.resourceIds?.includes(res.id);
-                                return (
-                                    <button 
-                                        key={res.id}
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            actions.toggleResourceForOp(prod.id, op.id, res.id);
-                                        }}
-                                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-all group/res ${
-                                            isSelected ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'hover:bg-slate-50 text-slate-600'
-                                        }`}
-                                    >
-                                        <span className="text-[11px] font-bold">{res.name}</span>
-                                        {isSelected ? <X size={12} className="opacity-60" /> : <div className="w-3 h-3 rounded-full border-2 border-slate-200 group-hover/res:border-blue-400"></div>}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); setShowResMenu(false); }} 
-                            className="w-full mt-4 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg"
-                        >
-                            Готово
-                        </button>
-                    </div>
+                    </>
                 )}
             </div>
             
-            <div className="flex items-center gap-4 text-right">
+            <div className="flex items-center gap-3 text-right">
                 <div className="w-24 flex items-center gap-1 justify-end">
                     {isEditing ? (
-                        <div className="flex items-center gap-1">
-                            <input 
-                                type="number" 
-                                value={val} 
-                                onChange={e => setVal(e.target.value)}
-                                className="w-12 border-2 border-blue-500 rounded px-1 py-0.5 text-right font-black focus:ring-4 focus:ring-blue-100 outline-none"
-                                autoFocus
-                                onKeyDown={e => e.key === 'Enter' && handleSave()}
-                                onBlur={handleSave}
-                            />
-                        </div>
+                        <input 
+                            type="number" 
+                            value={val} 
+                            onChange={e => setVal(e.target.value)}
+                            className="w-16 border-2 border-indigo-500 rounded-lg px-2 py-1 text-right font-black focus:ring-4 focus:ring-indigo-100 outline-none"
+                            autoFocus
+                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            onBlur={handleSave}
+                        />
                     ) : (
                         <button 
-                            onClick={() => { setVal(op.factMins / prod.quantity); setIsEditing(true); }}
-                            className="hover:text-blue-600 font-bold flex items-center gap-1 group-hover/op:bg-blue-50 group-hover/op:px-1.5 rounded-lg py-1 transition-all"
+                            onClick={() => { setVal((op.actualMinutes || 0) / (prod.quantity || 1)); setIsEditing(true); }}
+                            className="hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 font-bold flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all"
                         >
-                            <Clock size={10} className="text-slate-300"/> {(op.factMins/60).toFixed(1)}ч
+                            <Clock size={12} className="text-slate-400"/>
+                            <span className="text-slate-700">{(op.factMins/60).toFixed(1)}ч</span>
                         </button>
                     )}
                 </div>
-                <div className="w-20 font-black font-mono text-slate-900 text-right tabular-nums">
+                <div className="w-20 font-black font-mono text-slate-900 text-[13px] text-right tabular-nums">
                     {Math.round(op.cost).toLocaleString()} ₽
                 </div>
             </div>
@@ -201,42 +230,43 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
         let totalMins = 0;
         
         const details = oProducts.map(prod => {
-            const ops = prod.operations.map(op => {
-                const totalFactMins = (op.actualMinutes || 0) * prod.quantity;
+            const prodOps = Array.isArray(prod.operations) ? prod.operations : [];
+            
+            const ops = prodOps.map(op => {
+                const totalFactMins = (op.actualMinutes || 0) * (prod.quantity || 1);
                 totalMins += totalFactMins;
                 
+                const resourceIds = Array.isArray(op.resourceIds) ? op.resourceIds : [];
+                
                 // Находим имена исполнителей
-                const executors = (op.resourceIds || []).map(rid => {
+                const executors = resourceIds.map(rid => {
                     const res = resources.find(r => r.id === rid);
                     return res ? res.name : 'Неизвестный';
                 });
 
                 // --- ИСПРАВЛЕННЫЙ РАСЧЕТ СТОИМОСТИ ---
                 let opCost = 0;
-                if (totalFactMins > 0 && op.resourceIds && op.resourceIds.length > 0) {
+                if (totalFactMins > 0 && resourceIds.length > 0) {
                     let totalHourlyRateOfTeam = 0; // Сумма часовых ставок всей бригады
 
-                    op.resourceIds.forEach(rid => {
+                    resourceIds.forEach(rid => {
                         const res = resources.find(r => r.id === rid);
                         if (res) {
-                            // Проверяем включен ли расчет зарплаты для этого сотрудника
-                            // Если salaryEnabled === false, то его ставка = 0 (не учитываем в себестоимости)
                             const salaryEnabled = res.salaryEnabled !== false;
-                            // Дневная ставка / 8 часов = Часовая ставка этого сотрудника
                             const hourlyRate = salaryEnabled ? ((parseFloat(res.baseRate) || 0) / 8) : 0;
                             totalHourlyRateOfTeam += hourlyRate;
                         }
                     });
 
-                    // Стоимость = Время (в часах) * Суммарная стоимость часа бригады
                     opCost = (totalFactMins / 60) * totalHourlyRateOfTeam;
                 }
                 
                 totalCost += opCost;
 
                 return {
-                    ...op, // Сохраняем все оригинальные поля (id, resourceIds, и т.д.)
-                    name: op.name,
+                    ...op, 
+                    resourceIds, // Гарантируем, что это массив
+                    name: op.name || 'Без названия',
                     factMins: totalFactMins,
                     executors: executors,
                     cost: opCost
@@ -244,8 +274,9 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
             });
 
             return {
-                name: prod.name,
-                quantity: prod.quantity,
+                id: prod.id,
+                name: prod.name || 'Без названия',
+                quantity: prod.quantity || 1,
                 operations: ops
             };
         });
@@ -311,7 +342,10 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                                      
                                      {/* Кнопка добавления операции в архиве */}
                                      <button 
-                                        onClick={() => actions.addOperation(prod.id, 'Новая операция')}
+                                        onClick={() => {
+                                            console.log('Adding operation to product:', prod.id);
+                                            actions.addOperation(prod.id, 'Новая операция');
+                                        }}
                                         className="w-full mt-2 py-2 border-2 border-dashed border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50 transition-all"
                                      >
                                          + Добавить операцию
@@ -345,8 +379,8 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                                                         </span>
                                                     </div>
                                                     {entry.status && (
-                                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter border ${ORDER_STATUSES.find(s => s.id === entry.status)?.color || 'text-slate-400 border-slate-200'}`}>
-                                                            {ORDER_STATUSES.find(s => s.id === entry.status)?.label || entry.status}
+                                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter border ${Array.isArray(ORDER_STATUSES) ? (ORDER_STATUSES.find(s => s.id === entry.status)?.color || 'text-slate-400 border-slate-200') : 'text-slate-400 border-slate-200'}`}>
+                                                            {Array.isArray(ORDER_STATUSES) ? (ORDER_STATUSES.find(s => s.id === entry.status)?.label || entry.status) : entry.status}
                                                         </span>
                                                     )}
                                                 </div>
