@@ -88,13 +88,21 @@ export const useGanttData = (orders = [], products = [], resources = [], schedul
                 let isOverloaded = false;
 
                 if (prodOps.length > 0) {
-                    // ЕСЛИ ЕСТЬ В ПЛАНЕ: Берем даты оттуда
+                    // ЕСЛИ ЕСТЬ В ПЛАНЕ: Берем дату НАЧАЛА оттуда
                     const starts = prodOps.map(op => new Date(op.startDate));
-                    const ends = prodOps.map(op => new Date(op.endDate));
                     pStart = new Date(Math.min(...starts));
-                    pEnd = new Date(Math.max(...ends));
-                    
-                    totalMinutes = prodOps.reduce((sum, op) => sum + (op.hours * 60), 0);
+
+                    if (prod.estimatedHours && prod.estimatedHours > 0) {
+                        // Пользователь задал ориентировочное время — оно в приоритете
+                        totalMinutes = prod.estimatedHours * 60;
+                        const workDaysNeeded = Math.max(1, Math.ceil(totalMinutes / 60 / 8));
+                        pEnd = addWorkingDays(pStart, workDaysNeeded);
+                    } else {
+                        // Нет estimatedHours — берём даты и часы из планировщика
+                        const ends = prodOps.map(op => new Date(op.endDate));
+                        pEnd = new Date(Math.max(...ends));
+                        totalMinutes = prodOps.reduce((sum, op) => sum + (op.hours * 60), 0);
+                    }
 
                     // Для цвета полоски берем последнюю операцию (или ту, что дольше всего)
                     // Давайте возьмем ту, что заканчивается последней - это логичнее для отображения "текущего" статуса
