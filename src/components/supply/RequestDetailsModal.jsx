@@ -19,7 +19,15 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [previewInvoice, setPreviewInvoice] = useState(null); // Будет хранить объект счета для предпросмотра
   const [showItems, setShowItems] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [orderAmounts, setOrderAmounts] = useState(request.orderAmounts || {});
+  const [amountsSaved, setAmountsSaved] = useState(false);
   const fileInputRef = useRef(null);
+
+  const handleSaveAmounts = async () => {
+    await supplyActions.updateRequest(request.id, { orderAmounts });
+    setAmountsSaved(true);
+    setTimeout(() => setAmountsSaved(false), 1500);
+  };
 
   const statusInfo = SUPPLY_STATUSES[request.status] || SUPPLY_STATUSES.with_supplier;
 
@@ -378,6 +386,48 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             {request.deliveredAt && <div className="bg-green-50 p-2 rounded-lg"><div className="text-green-500 mb-0.5">Доставлено</div><div className="font-medium text-green-700">{formatDate(request.deliveredAt)}</div></div>}
             <div className="bg-slate-50 p-2 rounded-lg"><div className="text-slate-400 mb-0.5">Создано</div><div className="font-medium text-slate-700">{formatDateTime(request.createdAt)}</div></div>
           </div>
+
+          {/* Суммы по заказам из счёта */}
+          {(orders.length > 0 || legacyOrderNumber) && (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                  <CreditCard size={13} /> Суммы по счёту
+                </span>
+                {amountsSaved && <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Сохранено ✓</span>}
+              </div>
+              <div className="p-3 space-y-2">
+                {(orders.length > 0
+                  ? orders
+                  : [{ orderId: 'legacy', orderNumber: legacyOrderNumber }]
+                ).map(order => (
+                  <div key={order.orderId} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500 w-20 shrink-0 truncate" title={order.orderNumber}>{order.orderNumber}</span>
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        value={orderAmounts[order.orderId] || ''}
+                        onChange={e => setOrderAmounts(prev => ({ ...prev, [order.orderId]: parseFloat(e.target.value) || 0 }))}
+                        onBlur={handleSaveAmounts}
+                        placeholder="0"
+                        className="w-full pr-6 pl-2.5 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:border-orange-400 transition text-right font-bold text-slate-800 bg-white"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold pointer-events-none">₽</span>
+                    </div>
+                  </div>
+                ))}
+                {orders.length > 1 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-1">
+                    <span className="text-xs text-slate-400 font-medium">Итого:</span>
+                    <span className="text-sm font-black text-slate-800">
+                      {Object.values(orderAmounts).reduce((s, v) => s + (v || 0), 0).toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {(request.approvals?.technologist || request.approvals?.shopManager || request.approvals?.director || request.approvals?.vesta) && (
             <div className="flex flex-wrap gap-1.5">
