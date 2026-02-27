@@ -116,7 +116,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     return {
       inWork: calcTotal(departmentFilteredRequests.filter(r => !['delivered', 'paid'].includes(r.status))),
       paid:   calcTotal(departmentFilteredRequests.filter(r => r.status === 'paid')),
-      total:  calcTotal(departmentFilteredRequests.filter(r => r.status !== 'delivered')),
+      total:  calcTotal(departmentFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status))),
     };
   }, [departmentFilteredRequests]);
 
