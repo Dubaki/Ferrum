@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock, Inbox, Archive, AlertCircle, Truck, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock, Inbox, Archive, AlertCircle, Truck, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
 import { getRequestsForRole, isRequestOverdue, getRoleLabel } from '../../utils/supplyRoles';
 import SupplyRequestCard from './SupplyRequestCard';
 import CreateRequestModal from './CreateRequestModal';
@@ -106,6 +106,19 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     paid: departmentFilteredRequests.filter(r => r.status === 'paid').length,
     awaitingDelivery: departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
   }), [myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, departmentFilteredRequests]);
+
+  // Суммы по счетам
+  const amountStats = useMemo(() => {
+    const calcTotal = (list) => list.reduce((total, r) => {
+      if (!r.orderAmounts) return total;
+      return total + Object.values(r.orderAmounts).reduce((s, v) => s + (v || 0), 0);
+    }, 0);
+    return {
+      inWork: calcTotal(departmentFilteredRequests.filter(r => !['delivered', 'paid'].includes(r.status))),
+      paid:   calcTotal(departmentFilteredRequests.filter(r => r.status === 'paid')),
+      total:  calcTotal(departmentFilteredRequests.filter(r => r.status !== 'delivered')),
+    };
+  }, [departmentFilteredRequests]);
 
   // Всегда берём свежие данные из Firestore по ID
   const selectedRequest = useMemo(() => {
@@ -261,6 +274,33 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
         <StatCard icon={<Truck size={16} className="text-primary-500"/>} label="Ожидает" value={stats.awaitingDelivery} colorClass="text-primary-600" />
         <StatCard icon={<AlertTriangle size={16} className={stats.overdue > 0 ? "text-warning-500" : "text-neutral-400"}/>} label="Просрочено" value={stats.overdue} colorClass={stats.overdue > 0 ? 'text-warning-600' : 'text-neutral-500'} pulse={stats.overdue > 0} />
       </div>
+
+      {/* Табло сумм */}
+      {amountStats.total > 0 && (
+        <div className="bg-slate-900 rounded-2xl px-6 py-5 flex items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0">
+              <TrendingUp size={24} className="text-orange-400" />
+            </div>
+            <div>
+              <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-0.5">Закупки · {activeDepartment}</div>
+              <div className="text-white text-3xl font-black tracking-tighter leading-none">
+                {amountStats.total.toLocaleString('ru-RU')} <span className="text-orange-500">₽</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 text-right shrink-0">
+            <div>
+              <div className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">В работе</div>
+              <div className="text-slate-200 text-sm font-black">{amountStats.inWork.toLocaleString('ru-RU')} ₽</div>
+            </div>
+            <div>
+              <div className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">Оплачено</div>
+              <div className="text-emerald-400 text-sm font-black">{amountStats.paid.toLocaleString('ru-RU')} ₽</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
