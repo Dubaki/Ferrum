@@ -37,25 +37,25 @@ const ExecutorSelector = memo(({ isOpen, onClose, op, resources, onToggle, produ
                 </div>
                 
                 <div className="space-y-0.5 max-h-80 overflow-y-auto custom-scrollbar pr-1">
-                    {resources.map(res => {
+                    {resources.filter(r => r.status !== 'fired').map(res => {
                         const isSelected = op.resourceIds?.includes(res.id);
                         return (
                             <label
                                 key={res.id}
                                 className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all duration-200 group ${
-                                    isSelected 
-                                    ? 'bg-slate-900 text-white shadow-md shadow-slate-200 scale-[1.02]' 
+                                    isSelected
+                                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200 scale-[1.02]'
                                     : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'
                                 }`}
                             >
                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                    isSelected ? 'bg-orange-500 border-orange-500' : 'border-slate-200 group-hover:border-slate-300 bg-white'
+                                    isSelected ? 'bg-white border-white' : 'border-slate-200 group-hover:border-slate-300 bg-white'
                                 }`}>
-                                    {isSelected && <Check size={12} strokeWidth={4} className="text-white" />}
+                                    {isSelected && <Check size={12} strokeWidth={4} className="text-orange-500" />}
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-sm font-bold truncate">{res.name}</span>
-                                    <span className={`text-[10px] uppercase tracking-tight font-medium ${isSelected ? 'text-slate-400' : 'text-slate-400 opacity-70'}`}>
+                                    <span className={`text-[10px] uppercase tracking-tight font-medium ${isSelected ? 'text-orange-100' : 'text-slate-400 opacity-70'}`}>
                                         {res.position}
                                     </span>
                                 </div>
@@ -177,23 +177,23 @@ function OperationRow({ op, product, products, orders, productId, actions, resou
             
             {/* Исполнитель */}
             <div className="col-span-3">
-                <button 
-                    onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (canEdit) setIsLocalOpen(true); 
-                    }} 
-                    className={`w-full h-8 px-2 rounded-xl border transition-all duration-300 flex items-center justify-between group/btn
-                        ${op.resourceIds?.length > 0 
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-100 hover:shadow-lg' 
-                            : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300 hover:bg-white'
-                        }
-                    `}
-                >
-                    <span className="text-[10px] font-black uppercase tracking-tight truncate flex-1 text-left">
-                        {assignedNames || 'Назначить'}
-                    </span>
-                    <UserPlus size={12} className={`shrink-0 transition-transform duration-300 ${op.resourceIds?.length ? 'text-orange-400' : 'text-slate-300 group-hover/btn:scale-110'}`} />
-                </button>
+                {op.resourceIds?.length > 0 ? (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); if (canEdit) setIsLocalOpen(true); }}
+                        className="w-full h-8 px-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 border border-cyan-400 text-white shadow-md shadow-cyan-200 transition-all duration-200 flex items-center gap-1.5"
+                    >
+                        <div className="w-2 h-2 rounded-full bg-white/80 shrink-0" />
+                        <span className="text-[11px] font-black truncate flex-1 text-left">{assignedNames}</span>
+                    </button>
+                ) : (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); if (canEdit) setIsLocalOpen(true); }}
+                        className="w-full h-8 px-2 rounded-xl border border-dashed border-slate-200 bg-white text-slate-300 hover:border-slate-400 hover:text-slate-500 transition-all duration-200 flex items-center justify-center gap-1.5"
+                    >
+                        <UserPlus size={12} className="shrink-0" />
+                        <span className="text-[10px] font-bold">Назначить</span>
+                    </button>
+                )}
 
                 <ExecutorSelector 
                     isOpen={isLocalOpen}

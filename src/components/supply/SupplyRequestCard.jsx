@@ -115,11 +115,17 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
 
           {/* Col 5: Icons (Alerts) */}
           <div className="flex items-center justify-end gap-2">
-            {request.orderAmounts && Object.values(request.orderAmounts).some(v => v > 0) && (
-              <div className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-700 whitespace-nowrap">
-                {Object.values(request.orderAmounts).reduce((s, v) => s + (v || 0), 0).toLocaleString('ru-RU')} ₽
-              </div>
-            )}
+            {(() => {
+              const linkedOrders = request.orders?.length > 0 ? request.orders : null;
+              const total = linkedOrders
+                ? linkedOrders.reduce((s, o) => s + (request.orderAmounts?.[o.orderId] || 0), 0)
+                : Object.values(request.orderAmounts || {}).reduce((s, v) => s + (v || 0), 0);
+              return total > 0 ? (
+                <div className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-700 whitespace-nowrap">
+                  {total.toLocaleString('ru-RU')} ₽
+                </div>
+              ) : null;
+            })()}
             {alertToShow && (
               <div className={`px-2 py-0.5 rounded border text-xs font-bold flex items-center gap-1 whitespace-nowrap
                   ${alertToShow.type === 'overdue' ? 'bg-red-50 text-red-600 border-red-200' : ''}

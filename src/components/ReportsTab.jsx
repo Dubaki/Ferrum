@@ -38,6 +38,7 @@ export default function ReportsTab({ reports, actions, products, orders, resourc
                   resources={resources}
                   actions={actions}
                   userRole={userRole}
+                  supplyRequests={supplyRequests}
               />
           )}
           {activeSubTab === 'salary' && (

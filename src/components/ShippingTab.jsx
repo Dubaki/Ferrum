@@ -4,7 +4,7 @@ import { Package, Truck, CheckCircle2, Clock, ArrowLeft, Calendar, BarChart3, Ch
 // =================================================================================
 // ЭЛИТНАЯ КАРТОЧКА ЗАКАЗА (ВЕРСИЯ 5 - КЛИК НА ВСЮ КАРТОЧКУ)
 // =================================================================================
-const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onToggleToday, onCompleteShipping, onReturn, isAdmin, userRole }) {
+const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, supplyRequests, onToggleToday, onCompleteShipping, onReturn, isAdmin, userRole }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const orderProducts = products.filter(p => p.orderId === order.id);
   const totalProducts = orderProducts.length;
@@ -22,7 +22,18 @@ const ShippingOrderCard = memo(function ShippingOrderCard({ order, products, onT
   const handleCompleteShipping = (e) => {
     e.stopPropagation();
     if (window.confirm(`Вы уверены, что хотите отметить заказ ${order.orderNumber} как отгруженный? Это действие переместит заказ в архив.`)) {
-      onCompleteShipping(order.id, userRole);
+      // Вычисляем снимок закупок для архива
+      const linked = (supplyRequests || []).filter(r => r.orders?.some(o => o.orderId === order.id));
+      const supplySnapshot = {
+        total: linked.reduce((s, r) => s + (r.orderAmounts?.[order.id] || 0), 0),
+        items: linked.map(r => ({
+          requestNumber: r.requestNumber,
+          status: r.status,
+          amount: r.orderAmounts?.[order.id] || 0,
+          items: (r.items || []).map(i => ({ title: i.title, quantity: i.quantity, unit: i.unit })),
+        })),
+      };
+      onCompleteShipping(order.id, userRole, supplySnapshot);
     }
   };
 
@@ -243,7 +254,7 @@ const MonthlyStats = memo(function MonthlyStats({ orders, products, selectedMont
   );
 });
 
-export default memo(function ShippingTab({ orders, products, actions, isAdmin, userRole }) {
+export default memo(function ShippingTab({ orders, products, actions, isAdmin, userRole, supplyRequests }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -299,6 +310,7 @@ export default memo(function ShippingTab({ orders, products, actions, isAdmin, u
                   key={order.id}
                   order={order}
                   products={products}
+                  supplyRequests={supplyRequests}
                   onToggleToday={actions.toggleShippingToday}
                   onCompleteShipping={actions.completeShipping}
                   onReturn={actions.returnFromShipping}

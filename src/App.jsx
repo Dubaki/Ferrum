@@ -161,6 +161,7 @@ export default function App() {
                   actions={actions}
                   isAdmin={isAdmin}
                   userRole={userRole}
+                  supplyRequests={supplyRequests}
                 />
               ) : (
                 <AccessDenied navigate={navigate} />

@@ -11,11 +11,10 @@ export default function OrderSupplyModal({ order, requests, supplyActions, userR
   const selectedRequest = requests.find(r => r.id === selectedRequestId);
 
   // Сумма для этого заказа из каждой заявки
+  // activeSupplyRequests уже гарантирует что orderId === order.id → берём только этот ключ
   const getAmountForOrder = (request) => {
     if (!request.orderAmounts) return 0;
-    if (request.orderAmounts[order.id] !== undefined) return request.orderAmounts[order.id] || 0;
-    // Если нет точного ключа — берём всю сумму (единственный заказ)
-    return Object.values(request.orderAmounts).reduce((s, v) => s + (v || 0), 0);
+    return request.orderAmounts[order.id] || 0;
   };
 
   const amountStats = useMemo(() => {

@@ -19,7 +19,17 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   const [previewInvoice, setPreviewInvoice] = useState(null); // Будет хранить объект счета для предпросмотра
   const [showItems, setShowItems] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [orderAmounts, setOrderAmounts] = useState(request.orderAmounts || {});
+  // Инициализируем только по ключам linked orders — без "призрак-ключей"
+  const [orderAmounts, setOrderAmounts] = useState(() => {
+    const validOrders = (request.orders?.length > 0)
+      ? request.orders
+      : (request.orderNumber ? [{ orderId: 'legacy' }] : []);
+    const amounts = {};
+    validOrders.forEach(o => {
+      amounts[o.orderId] = request.orderAmounts?.[o.orderId] || 0;
+    });
+    return amounts;
+  });
   const [amountsSaved, setAmountsSaved] = useState(false);
   const fileInputRef = useRef(null);
 

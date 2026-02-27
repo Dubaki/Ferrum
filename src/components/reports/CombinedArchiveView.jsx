@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User, History, X } from 'lucide-react';
+import { RotateCcw, Calendar, ChevronDown, ChevronRight, AlertCircle, Clock, User, History, X, ShoppingBag } from 'lucide-react';
 import { getRoleLabel } from '../../utils/supplyRoles';
 import { ORDER_STATUSES } from '../../utils/constants';
 
-export default function CombinedArchiveView({ orders, products, resources, actions, userRole }) {
+export default function CombinedArchiveView({ orders, products, resources, actions, userRole, supplyRequests }) {
     const completedOrders = useMemo(() => orders
         .filter(o => o.status === 'completed')
         .sort((a, b) => new Date(b.finishedAt || 0) - new Date(a.finishedAt || 0)), [orders]);
@@ -42,13 +42,14 @@ export default function CombinedArchiveView({ orders, products, resources, actio
                     </div>
                     <div className="divide-y divide-gray-100">
                         {groupedByMonth[monthKey].map(order => (
-                             <ArchiveOrderRow 
-                                key={order.id} 
-                                order={order} 
-                                products={products} 
-                                resources={resources} 
+                             <ArchiveOrderRow
+                                key={order.id}
+                                order={order}
+                                products={products}
+                                resources={resources}
                                 actions={actions}
                                 userRole={userRole}
+                                supplyRequests={supplyRequests}
                              />
                         ))}
                     </div>
@@ -193,7 +194,7 @@ function ArchiveOperationRow({ op, prod, resources, actions }) {
     );
 }
 
-function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
+function ArchiveOrderRow({ order, products, resources, actions, userRole, supplyRequests }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
 
@@ -223,6 +224,23 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
         return roles[role] || 'bg-slate-50 text-slate-500';
     };
     
+    // Закупки: снимок из заказа (для старых архивов — live из supplyRequests)
+    const { supplyTotal, supplyItems } = useMemo(() => {
+        if (order.supplyItems && order.supplyItems.length > 0) {
+            return { supplyTotal: order.supplyTotal || 0, supplyItems: order.supplyItems };
+        }
+        const linked = (supplyRequests || []).filter(r => r.orders?.some(o => o.orderId === order.id));
+        if (linked.length === 0) return { supplyTotal: 0, supplyItems: [] };
+        const total = linked.reduce((s, r) => s + (r.orderAmounts?.[order.id] || 0), 0);
+        const items = linked.map(r => ({
+            requestNumber: r.requestNumber,
+            status: r.status,
+            amount: r.orderAmounts?.[order.id] || 0,
+            items: (r.items || []).map(i => ({ title: i.title, quantity: i.quantity, unit: i.unit })),
+        }));
+        return { supplyTotal: total, supplyItems: items };
+    }, [order.supplyItems, order.supplyTotal, order.id, supplyRequests]);
+
     // Детальный расчет по операциям
     const { orderLaborCost, orderTotalMinutes, productDetails } = useMemo(() => {
         const oProducts = products.filter(p => p.orderId === order.id);
@@ -309,7 +327,13 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                         <div className="text-[10px] text-gray-400 uppercase font-bold">Себестоимость</div>
                         <div className="font-bold text-blue-700 text-lg">{Math.round(orderLaborCost).toLocaleString()} ₽</div>
                     </div>
-                    <button 
+                    {supplyTotal > 0 && (
+                        <div>
+                            <div className="text-[10px] text-emerald-600 uppercase font-bold">Закупки</div>
+                            <div className="font-bold text-emerald-700 text-lg">{supplyTotal.toLocaleString('ru-RU')} ₽</div>
+                        </div>
+                    )}
+                    <button
                         onClick={(e) => { e.stopPropagation(); if (window.confirm(`Вернуть заказ ${order.orderNumber} в работу?`)) actions.restoreOrder(order.id, userRole); }}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition" 
                         title="Вернуть в работу"
@@ -353,6 +377,42 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole }) {
                                  </div>
                              </div>
                         ))}
+
+                        {/* ЗАКУПКИ В АРХИВЕ */}
+                        {supplyItems.length > 0 && (
+                            <div className="border border-emerald-200 rounded-xl overflow-hidden">
+                                <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border-b border-emerald-100">
+                                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-1.5">
+                                        <ShoppingBag size={13} /> Закупки материалов ({supplyItems.length})
+                                    </span>
+                                    <span className="text-sm font-black text-emerald-700">
+                                        {supplyTotal.toLocaleString('ru-RU')} ₽
+                                    </span>
+                                </div>
+                                <div className="divide-y divide-emerald-50 bg-white">
+                                    {supplyItems.map((entry, idx) => (
+                                        <div key={idx} className="px-3 py-2">
+                                            <div className="flex items-center gap-2 text-xs mb-1">
+                                                <span className="font-mono font-bold text-slate-500 shrink-0">{entry.requestNumber}</span>
+                                                <span className="flex-1" />
+                                                {entry.amount > 0 && (
+                                                    <span className="font-black text-emerald-600">{entry.amount.toLocaleString('ru-RU')} ₽</span>
+                                                )}
+                                            </div>
+                                            {entry.items && entry.items.length > 0 && (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {entry.items.map((item, iIdx) => (
+                                                        <span key={iIdx} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                                                            {item.title} {item.quantity && `× ${item.quantity}`}{item.unit && ` ${item.unit}`}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* ИСТОРИЯ ДЕЙСТВИЙ В АРХИВЕ */}
                         {order.statusHistory && order.statusHistory.length > 0 && (

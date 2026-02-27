@@ -241,7 +241,7 @@ export const useProductionData = () => {
     }
   }, [orders, showError, getFirebaseErrorMessage, db]);
 
-  const completeShipping = useCallback(async (id, userRole = 'admin') => {
+  const completeShipping = useCallback(async (id, userRole = 'admin', supplySnapshot = null) => {
     try {
       const order = orders.find(o => o.id === id);
       if (!order) return;
@@ -258,7 +258,11 @@ export const useProductionData = () => {
         shippingToday: false,
         shippedAt: shippedDate,
         finishedAt: finishedDate,
-        statusHistory: newHistory
+        statusHistory: newHistory,
+        ...(supplySnapshot && supplySnapshot.total > 0 ? {
+          supplyTotal: supplySnapshot.total,
+          supplyItems: supplySnapshot.items,
+        } : {}),
       };
 
       // Удаляем чертежи из Supabase Storage и помечаем как удалённые

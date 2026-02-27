@@ -25,6 +25,7 @@ const OrderCard = memo(function OrderCard({
     const [showNotesModal, setShowNotesModal] = useState(false);
     const [showSupplyModal, setShowSupplyModal] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
+    const [showSupply, setShowSupply] = useState(false);
     const hasNotes = Array.isArray(order.notes) ? order.notes.length > 0 : !!order.notes;
 
     const formatDateTime = (timestamp) => {
@@ -709,6 +710,48 @@ const OrderCard = memo(function OrderCard({
                             isAdmin={canManageDrawings || userRole === 'manager'}
                         />
                     )}
+
+                    {/* ЗАКУПКИ ПО ЗАКАЗУ */}
+                    {linkedSupplyRequests.length > 0 && (() => {
+                        const supplyTotal = linkedSupplyRequests.reduce((s, r) => s + (r.orderAmounts?.[order.id] || 0), 0);
+                        return (
+                            <div className="mt-3 border border-emerald-200 rounded-xl overflow-hidden">
+                                <button
+                                    onClick={() => setShowSupply(!showSupply)}
+                                    className="w-full flex items-center justify-between px-3 py-2 bg-emerald-50 hover:bg-emerald-100 transition text-left"
+                                >
+                                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-1.5">
+                                        <ShoppingBag size={13} /> Закупки по заказу ({linkedSupplyRequests.length})
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        {supplyTotal > 0 && (
+                                            <span className="text-sm font-black text-emerald-700">{supplyTotal.toLocaleString('ru-RU')} ₽</span>
+                                        )}
+                                        <ChevronDown size={14} className={`text-emerald-500 transition-transform duration-200 ${showSupply ? 'rotate-180' : ''}`} />
+                                    </div>
+                                </button>
+                                {showSupply && (
+                                    <div className="divide-y divide-emerald-50 bg-white border-t border-emerald-100">
+                                        {linkedSupplyRequests.map(r => {
+                                            const amt = r.orderAmounts?.[order.id] || 0;
+                                            const itemNames = (r.items || []).slice(0, 2).map(i => i.title).join(', ');
+                                            const moreCount = (r.items || []).length > 2 ? `+${r.items.length - 2}` : '';
+                                            return (
+                                                <div key={r.id} className="px-3 py-1.5 flex items-center gap-2 text-xs">
+                                                    <span className="font-mono font-bold text-slate-400 shrink-0 text-[10px]">{r.requestNumber}</span>
+                                                    <span className="text-slate-600 truncate flex-1">{itemNames || '—'}{moreCount && ` ${moreCount}`}</span>
+                                                    {amt > 0
+                                                        ? <span className="font-black text-emerald-600 shrink-0">{amt.toLocaleString('ru-RU')} ₽</span>
+                                                        : <span className="text-slate-300 text-[10px] shrink-0">сумма не указана</span>
+                                                    }
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* ИСТОРИЯ ДЕЙСТВИЙ */}
                     {order.statusHistory && order.statusHistory.length > 0 && (
