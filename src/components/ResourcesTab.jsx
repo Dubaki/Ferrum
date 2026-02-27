@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus, User, MapPin, Phone, Calendar, Archive,
   X, Save, ShieldAlert, ChevronLeft, ChevronRight, Clock,
   Thermometer, MinusCircle, CheckCircle, Briefcase, Percent,
-  DollarSign, AlertCircle, MessageSquare
+  DollarSign, AlertCircle, MessageSquare, Trash2
 } from 'lucide-react';
 
 // ИМПОРТ КОМПОНЕНТА КТУ (из папки reports, куда мы его сохраняли ранее)
@@ -47,6 +48,24 @@ const ShiftCell = memo(({
         cellClass = 'bg-emerald-400/20 ring-1 ring-inset ring-emerald-500/20';
     }
 
+    // КТУ-рамка: зелёная = проставлено, жёлтая = пропущено (только прошедшие дни)
+    let ktuRingClass = '';
+    const needsKtu = !noKtuPositions.includes(res.position) && res.salaryEnabled !== false;
+    if (!isBeforeStartDate && needsKtu && reason !== 'sick' && reason !== 'absent') {
+        const hasHours = override !== undefined ? override > 0 : (isWorkDay && standardHours > 0);
+        if (hasHours) {
+            const ktuValue = res.dailyEfficiency?.[dateStr];
+            if (ktuValue !== undefined) {
+                ktuRingClass = 'ring-1 ring-inset ring-green-500';
+            } else {
+                const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+                if (new Date(dateStr) < todayMidnight) {
+                    ktuRingClass = 'ring-[3px] ring-inset ring-yellow-400';
+                }
+            }
+        }
+    }
+
     if (isBeforeStartDate) {
         content = <X size={12} className="text-slate-300 mx-auto"/>;
         cellClass = 'bg-slate-50 opacity-40 cursor-not-allowed';
@@ -59,7 +78,13 @@ const ShiftCell = memo(({
         );
         cellClass = 'bg-red-100/80 shadow-inner ring-1 ring-inset ring-red-200';
     } else if (reason === 'absent') {
-        content = <X size={14} className="text-slate-400 mx-auto"/>;
+        const ktu = res.dailyEfficiency?.[dateStr];
+        content = (
+            <div className="flex flex-col items-center">
+                <X size={14} className="text-slate-400 mx-auto"/>
+                {ktu !== undefined && <span className="text-[8px] font-black text-slate-400 mt-0.5">{ktu}%</span>}
+            </div>
+        );
         cellClass = 'bg-slate-100';
     } else if (reason === 'late') {
         content = (
@@ -89,7 +114,7 @@ const ShiftCell = memo(({
 
     return (
         <td
-            className={`border-r border-slate-100 text-center transition-all p-0 h-12 relative ${cellClass} ${isBeforeStartDate ? 'cursor-not-allowed' : 'cursor-pointer hover:ring-2 hover:ring-orange-500 hover:z-20 hover:scale-[1.15] hover:shadow-xl hover:rounded-sm group'}`}
+            className={`border-r border-slate-100 text-center transition-all p-0 h-12 relative ${cellClass} ${ktuRingClass} ${isBeforeStartDate ? 'cursor-not-allowed' : 'cursor-pointer hover:ring-2 hover:ring-orange-500 hover:z-20 hover:scale-[1.15] hover:shadow-xl hover:rounded-sm group'}`}
             onClick={() => !isBeforeStartDate && onOpenModal(res, dateStr, override ?? (isWorkDay ? standardHours : 0))}
         >
             <div className={innerClass}>
@@ -100,12 +125,17 @@ const ShiftCell = memo(({
 });
 
 // --- МЕМОИЗИРОВАННАЯ СТРОКА ---
-const ResourceRow = memo(({ res, daysArray, currentDate, actions, onOpenModal, onSelectResource }) => {
+const ResourceRow = memo(({ res, daysArray, currentDate, actions, onOpenModal, onSelectResource, onOpenHoursDetail }) => {
     const isOfficial = res.isOfficiallyEmployed ?? false;
-    
+
     // Подсчет часов (мемоизируем внутри строки)
-    const totalHours = useMemo(() => {
-        let total = 0;
+    const stats = useMemo(() => {
+        let totalHours = 0;
+        let rawTotalHours = 0;
+        let totalShifts = 0;
+        const missingKtuDays = [];
+        const sickDays = [];
+        const absentDays = [];
         const noKtuPositions = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез'];
 
         daysArray.forEach(day => {
@@ -121,25 +151,36 @@ const ResourceRow = memo(({ res, daysArray, currentDate, actions, onOpenModal, o
             const effectiveStartDate = res.startDate || res.employmentDate;
             const isBeforeStartDate = effectiveStartDate && new Date(dateStr) < new Date(effectiveStartDate);
 
-            if (!isBeforeStartDate && reason !== 'sick' && reason !== 'absent') {
-                let dayHours = 0;
-                if (override !== undefined) {
-                    dayHours = Math.min(Math.max(override, 0), 24);
-                } else if (isWorkDay) {
-                    dayHours = standardHours;
-                }
+            if (isBeforeStartDate) return;
+            if (reason === 'sick') { sickDays.push(dateStr); return; }
+            if (reason === 'absent') { absentDays.push(dateStr); return; }
 
-                // Проверяем КТУ
+            let dayHours = 0;
+            if (override !== undefined) {
+                dayHours = Math.min(Math.max(override, 0), 24);
+            } else if (isWorkDay) {
+                dayHours = standardHours;
+            }
+
+            if (dayHours > 0) {
+                rawTotalHours += dayHours;
+                totalShifts++;
                 if (!noKtuPositions.includes(res.position) && res.salaryEnabled !== false) {
                     const ktuValue = res.dailyEfficiency?.[dateStr];
-                    if (ktuValue === undefined && dayHours > 0) {
-                        dayHours = 0;
+                    if (ktuValue === undefined) {
+                        const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+                        if (new Date(dateStr) < todayMidnight) {
+                            missingKtuDays.push({ dateStr, hours: dayHours });
+                        }
+                    } else {
+                        totalHours += dayHours;
                     }
+                } else {
+                    totalHours += dayHours;
                 }
-                total += dayHours;
             }
         });
-        return total;
+        return { totalHours, rawTotalHours, totalShifts, missingKtuDays, sickDays, absentDays };
     }, [res, daysArray, currentDate]);
 
     return (
@@ -194,8 +235,15 @@ const ResourceRow = memo(({ res, daysArray, currentDate, actions, onOpenModal, o
                 );
             })}
 
-            <td className={`p-3 text-center font-black sticky right-0 z-10 shadow-[-10px_0_15px_rgba(0,0,0,0.05)] ${totalHours > 0 ? 'bg-slate-900 text-orange-500' : 'bg-slate-100 text-slate-400'} border-l-2 border-orange-500/50`}>
-                <span className="text-xl tracking-tighter">{totalHours}</span>
+            <td
+                className={`p-3 text-center font-black sticky right-0 z-10 shadow-[-10px_0_15px_rgba(0,0,0,0.05)] ${stats.totalHours > 0 ? 'bg-slate-900 text-orange-500 hover:bg-orange-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'} border-l-2 border-orange-500/50 cursor-pointer transition-colors`}
+                onClick={() => onOpenHoursDetail(res, stats)}
+                title="Подробная статистика смен"
+            >
+                <span className="text-xl tracking-tighter">{stats.totalHours}</span>
+                {stats.missingKtuDays.length > 0 && (
+                    <div className="text-[8px] font-black text-amber-400 leading-none mt-0.5 uppercase tracking-tighter">!КТУ</div>
+                )}
             </td>
         </tr>
     );
@@ -205,12 +253,17 @@ export default function ResourcesTab({ resources, setResources, actions, isAdmin
   const [activeView, setActiveView] = useState('table'); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedResource, setSelectedResource] = useState(null); 
-  const [shiftModal, setShiftModal] = useState(null); 
+  const [shiftModal, setShiftModal] = useState(null);
   const [noteModal, setNoteModal] = useState(null); // { resourceId, name, note }
+  const [hoursDetailModal, setHoursDetailModal] = useState(null); // { res, stats }
 
   // Стабильные коллбэки для оптимизации
   const handleOpenShiftModal = useCallback((resource, dateStr, currentHours) => {
       setShiftModal({ resource, dateStr, currentHours });
+  }, []);
+
+  const handleOpenHoursDetail = useCallback((res, stats) => {
+      setHoursDetailModal({ res, stats });
   }, []);
 
   const handleSelectResource = useCallback((res) => {
@@ -427,7 +480,7 @@ export default function ResourcesTab({ resources, setResources, actions, isAdmin
                       </thead>
                       <tbody>
                           {activeResources.map(res => (
-                              <ResourceRow 
+                              <ResourceRow
                                   key={res.id}
                                   res={res}
                                   daysArray={daysArray}
@@ -435,6 +488,7 @@ export default function ResourcesTab({ resources, setResources, actions, isAdmin
                                   actions={actions}
                                   onOpenModal={handleOpenShiftModal}
                                   onSelectResource={handleSelectResource}
+                                  onOpenHoursDetail={handleOpenHoursDetail}
                               />
                           ))}
                       </tbody>
@@ -559,8 +613,15 @@ export default function ResourcesTab({ resources, setResources, actions, isAdmin
           </div>
       )}
 
-      {selectedResource && <EmployeeModal resource={selectedResource} onClose={() => setSelectedResource(null)} actions={actions} />}
+      {selectedResource && <EmployeeModal resource={selectedResource} onClose={() => setSelectedResource(null)} actions={actions} isAdmin={isAdmin} />}
       {shiftModal && <ShiftEditModal data={shiftModal} onClose={() => setShiftModal(null)} onSave={actions.updateResourceSchedule} />}
+      {hoursDetailModal && (
+          <HoursDetailModal
+              data={hoursDetailModal}
+              monthName={monthName}
+              onClose={() => setHoursDetailModal(null)}
+          />
+      )}
       {noteModal && (
           <ArchiveNoteModal 
               data={noteModal} 
@@ -577,9 +638,9 @@ export default function ResourcesTab({ resources, setResources, actions, isAdmin
 
 function ArchiveNoteModal({ data, onClose, onSave }) {
     const [note, setNote] = useState(data.note || '');
-    return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in zoom-in-95">
-            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                 <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest mb-1">Комментарий к расчёту</h3>
                 <p className="text-slate-400 text-sm mb-4 font-bold">{data.name}</p>
                 <textarea 
@@ -599,11 +660,12 @@ function ArchiveNoteModal({ data, onClose, onSave }) {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
-function EmployeeModal({ resource, onClose, actions }) {
+function EmployeeModal({ resource, onClose, actions, isAdmin }) {
     const isNew = !resource.id;
     const POSITIONS = ['Стажёр', 'Мастер', 'Технолог', 'Плазморез', 'Слесарь', 'Разнорабочий', 'Кладовщик', 'Маляр', 'Сварщик', 'Электрик', 'Лентопил'];
     const [formData, setFormData] = useState({
@@ -651,9 +713,9 @@ function EmployeeModal({ resource, onClose, actions }) {
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
                     <h2 className="text-2xl font-bold">{isNew ? 'Новый сотрудник' : formData.name}</h2>
                     <button onClick={onClose} className="text-white hover:text-slate-300 transition"><X size={20}/></button>
@@ -678,10 +740,20 @@ function EmployeeModal({ resource, onClose, actions }) {
                 </div>
                 <div className="p-6 border-t flex justify-end gap-3 bg-slate-50">
                     <button onClick={onClose} className="px-4 py-2 font-bold text-slate-500">Отмена</button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold">Сохранить</button>
+                    {isAdmin && !isNew && (
+                        <button 
+                            onClick={() => { if(confirm(`Уволить сотрудника ${formData.name}?`)) { actions.fireResource(resource.id); onClose(); }}}
+                            className="mr-auto p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition"
+                            title="Уволить сотрудника"
+                        >
+                            <Trash2 size={24}/>
+                        </button>
+                    )}
+                    <button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-orange-600 transition">Сохранить</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -691,14 +763,122 @@ function ShiftEditModal({ data, onClose, onSave }) {
     const [type, setType] = useState(null); 
     const handleSave = () => { onSave(resource.id, dateStr, hours, type); onClose(); };
     const statusOptions = [ { id: null, label: 'Стандарт', color: 'bg-slate-100 text-slate-600', icon: CheckCircle }, { id: 'sick', label: 'Болеет', color: 'bg-red-100 text-red-600', icon: Thermometer, setHours: 0 }, { id: 'late', label: 'Опоздал', color: 'bg-orange-100 text-orange-600', icon: Clock, setHours: resource.hoursPerDay - 1 }, { id: 'overtime', label: 'Переработка', color: 'bg-blue-100 text-blue-600', icon: Plus, setHours: resource.hoursPerDay + 2 }, { id: 'absent', label: 'Прогул/Отгул', color: 'bg-slate-200 text-slate-500', icon: MinusCircle, setHours: 0 } ];
-    return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in zoom-in-95">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                 <h3 className="font-bold text-lg text-slate-800 mb-4">{resource.name}</h3>
                 <div className="grid grid-cols-2 gap-2 mb-4">{statusOptions.map(opt => (<button key={opt.id || 'std'} onClick={() => { setType(opt.id); if (opt.setHours !== undefined) setHours(opt.setHours); }} className={`p-3 rounded-lg text-xs font-bold flex items-center gap-2 border-2 ${type === opt.id ? 'border-slate-800 ring-1 ring-slate-800 ' + opt.color : 'border-transparent hover:bg-slate-50 ' + opt.color.replace('text-', 'text-opacity-70 text-')}`}><opt.icon size={16}/> {opt.label}</button>))}</div>
                 <div className="mb-6"><label className="text-[10px] font-bold text-slate-400 uppercase">Часов</label><input type="number" value={hours} onChange={(e) => setHours(e.target.value)} className="w-full text-center text-4xl font-black text-slate-800 border-b-2 border-slate-100 outline-none py-2" autoFocus/></div>
                 <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-3 font-bold text-slate-400 hover:bg-slate-50 rounded-xl">Отмена</button><button onClick={handleSave} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-black hover:bg-orange-600">Сохранить</button></div>
             </div>
-        </div>
+        </div>,
+        document.body
+    );
+}
+
+function HoursDetailModal({ data, monthName, onClose }) {
+    const { res, stats } = data;
+    const lostKtuHours = stats.missingKtuDays.reduce((s, d) => s + d.hours, 0);
+
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+
+                {/* Шапка */}
+                <div className="bg-slate-900 p-5 text-white flex justify-between items-start">
+                    <div>
+                        <h2 className="text-xl font-black">{res.name}</h2>
+                        <p className="text-slate-400 text-[10px] uppercase tracking-widest mt-0.5">{res.position} · {monthName}</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition mt-0.5"><X size={18}/></button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                    {/* Три плашки: смены / всего часов / зачтено */}
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+                            <div className="text-3xl font-black text-emerald-700">{stats.totalShifts}</div>
+                            <div className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mt-1 opacity-80">Смен</div>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
+                            <div className="text-3xl font-black text-blue-700">{stats.rawTotalHours}</div>
+                            <div className="text-[9px] font-black uppercase tracking-widest text-blue-600 mt-1 opacity-80">Часов всего</div>
+                        </div>
+                        <div className={`rounded-2xl p-3 text-center border ${lostKtuHours > 0 ? 'bg-amber-50 border-amber-200' : 'bg-orange-50 border-orange-100'}`}>
+                            <div className={`text-3xl font-black ${lostKtuHours > 0 ? 'text-amber-700' : 'text-orange-600'}`}>{stats.totalHours}</div>
+                            <div className={`text-[9px] font-black uppercase tracking-widest mt-1 opacity-80 ${lostKtuHours > 0 ? 'text-amber-600' : 'text-orange-500'}`}>Зачтено</div>
+                        </div>
+                    </div>
+
+                    {/* Дни без КТУ */}
+                    {stats.missingKtuDays.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">
+                                    Не проставлен КТУ — {stats.missingKtuDays.length} дн.
+                                </p>
+                                <span className="text-xs font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-lg">
+                                    −{lostKtuHours} ч
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {stats.missingKtuDays.map(d => (
+                                    <span key={d.dateStr} className="bg-amber-100 border border-amber-200 text-amber-800 text-[10px] font-black px-2 py-1 rounded-lg">
+                                        {new Date(d.dateStr).getDate()} — {d.hours}ч
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Больничные */}
+                    {stats.sickDays.length > 0 && (
+                        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
+                            <p className="text-[10px] font-black text-red-700 uppercase tracking-widest mb-2">
+                                Больничные — {stats.sickDays.length} дн.
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {stats.sickDays.map(d => (
+                                    <span key={d} className="bg-red-100 border border-red-200 text-red-700 text-[10px] font-black px-2 py-1 rounded-lg">
+                                        {new Date(d).getDate()}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Прогулы / Отгулы */}
+                    {stats.absentDays.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                                Прогулы / Отгулы — {stats.absentDays.length} дн.
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {stats.absentDays.map(d => (
+                                    <span key={d} className="bg-slate-200 border border-slate-300 text-slate-600 text-[10px] font-black px-2 py-1 rounded-lg">
+                                        {new Date(d).getDate()}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Всё чисто */}
+                    {stats.missingKtuDays.length === 0 && stats.sickDays.length === 0 && stats.absentDays.length === 0 && (
+                        <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
+                            <CheckCircle size={16}/>
+                            <span className="text-xs font-black uppercase tracking-widest">Всё проставлено</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="px-5 pb-5">
+                    <button onClick={onClose} className="w-full py-3 bg-slate-100 rounded-2xl font-black text-slate-600 hover:bg-slate-200 transition text-[10px] uppercase tracking-widest">
+                        Закрыть
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 }
