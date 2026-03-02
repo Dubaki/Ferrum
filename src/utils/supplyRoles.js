@@ -1,9 +1,10 @@
 // Срок поставки после оплаты (lead time)
 export const LEAD_TIME_TYPES = {
-  stock:      { label: 'Со склада',    shortLabel: 'Склад',     days: 0,  color: 'bg-emerald-500', textColor: 'text-emerald-700', bgLight: 'bg-emerald-50', borderColor: 'border-emerald-200' },
-  days:       { label: 'До 1 недели',  shortLabel: '~1 нед.',   days: 7,  color: 'bg-blue-400',    textColor: 'text-blue-700',    bgLight: 'bg-blue-50',    borderColor: 'border-blue-200'    },
-  weeks:      { label: '1–4 недели',   shortLabel: '1-4 нед.',  days: 28, color: 'bg-orange-400',  textColor: 'text-orange-700',  bgLight: 'bg-orange-50',  borderColor: 'border-orange-200'  },
-  production: { label: 'Производство', shortLabel: 'Произв.',   days: 60, color: 'bg-red-500',     textColor: 'text-red-700',     bgLight: 'bg-red-50',     borderColor: 'border-red-200'     },
+  stock:    { label: 'Со склада',   shortLabel: 'Склад',    days: 0,  color: 'bg-emerald-500', textColor: 'text-emerald-700', bgLight: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+  days1_2:  { label: '1–2 дня',    shortLabel: '1-2 дня',  days: 2,  color: 'bg-blue-400',    textColor: 'text-blue-700',    bgLight: 'bg-blue-50',    borderColor: 'border-blue-200'    },
+  days3_5:  { label: '3–5 дней',   shortLabel: '3-5 дней', days: 5,  color: 'bg-cyan-500',    textColor: 'text-cyan-700',    bgLight: 'bg-cyan-50',    borderColor: 'border-cyan-200'    },
+  weeks1_2: { label: '1–2 недели', shortLabel: '1-2 нед.', days: 14, color: 'bg-orange-500',  textColor: 'text-orange-700',  bgLight: 'bg-orange-50',  borderColor: 'border-orange-200'  },
+  custom:   { label: 'Своя дата',  shortLabel: 'Дата',     days: null, color: 'bg-purple-500', textColor: 'text-purple-700',  bgLight: 'bg-purple-50',  borderColor: 'border-purple-200'  },
 };
 
 // Уровни приоритета оплаты заявки

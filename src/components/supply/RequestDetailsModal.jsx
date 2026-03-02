@@ -124,9 +124,18 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   // Срок поставки
   const canSetLeadTime = canPerformAction(userRole, 'setLeadTime');
   const leadTimeInfo = request.leadTime ? LEAD_TIME_TYPES[request.leadTime] : null;
-  // Предупреждение: долгий срок поставки, но приоритет не повышен
-  const showLeadTimeWarning = ['weeks', 'production'].includes(request.leadTime) && currentPriority >= 3 &&
-    !['delivered', 'paid', 'awaiting_delivery'].includes(request.status);
+  const [pendingCustomDate, setPendingCustomDate] = useState(request.leadTimeCustomDate || '');
+  // Предупреждение: 1-2 недели или своя дата > 7 дней — рекомендуем повысить приоритет
+  const showLeadTimeWarning = (() => {
+    if (!request.leadTime || ['delivered', 'paid', 'awaiting_delivery'].includes(request.status)) return false;
+    if (currentPriority < 3) return false; // приоритет уже повышен
+    if (request.leadTime === 'weeks1_2') return true;
+    if (request.leadTime === 'custom' && request.leadTimeCustomDate) {
+      const daysUntil = Math.ceil((new Date(request.leadTimeCustomDate) - new Date()) / (1000 * 60 * 60 * 24));
+      return daysUntil > 7;
+    }
+    return false;
+  })();
 
   // Возможность открепить счет (только когда заявка у снабженца или на этапах до согласования директором)
   const canDetachInvoice = canPerformAction(userRole, 'attachInvoice') && request.invoices && request.invoices.length > 0 && INVOICE_EDITABLE_STATUSES.includes(request.status);
@@ -406,29 +415,46 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                 <Clock size={13} className="text-slate-400" />
                 <span className="text-xs font-bold text-slate-600">Срок поставки после оплаты</span>
               </div>
-              <div className="p-2 grid grid-cols-4 gap-1.5">
-                {Object.entries(LEAD_TIME_TYPES).map(([key, lt]) => {
-                  const isActive = request.leadTime === key;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => supplyActions.setLeadTime(request.id, key, userRole)}
-                      className={`py-1.5 px-1 rounded text-center text-[10px] font-bold border transition ${
-                        isActive
-                          ? `${lt.color} text-white border-transparent shadow-sm`
-                          : `${lt.bgLight} ${lt.textColor} ${lt.borderColor} hover:opacity-75`
-                      }`}
-                    >
-                      {lt.shortLabel}
-                    </button>
-                  );
-                })}
+              <div className="p-2 space-y-1.5">
+                {/* 4 фиксированных варианта */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {Object.entries(LEAD_TIME_TYPES).filter(([k]) => k !== 'custom').map(([key, lt]) => {
+                    const isActive = request.leadTime === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => supplyActions.setLeadTime(request.id, key, null, userRole)}
+                        className={`py-1.5 px-1 rounded text-center text-[10px] font-bold border transition ${
+                          isActive ? `${lt.color} text-white border-transparent shadow-sm` : `${lt.bgLight} ${lt.textColor} ${lt.borderColor} hover:opacity-75`
+                        }`}
+                      >
+                        {lt.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Своя дата */}
+                <div className={`flex items-center gap-2 px-2 py-1.5 rounded border transition ${request.leadTime === 'custom' ? 'bg-purple-50 border-purple-300' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <span className={`text-[10px] font-bold whitespace-nowrap flex-shrink-0 ${request.leadTime === 'custom' ? 'text-purple-700' : 'text-slate-400'}`}>Своя дата:</span>
+                  <input
+                    type="date"
+                    value={pendingCustomDate}
+                    onChange={e => setPendingCustomDate(e.target.value)}
+                    onBlur={e => { if (e.target.value) supplyActions.setLeadTime(request.id, 'custom', e.target.value, userRole); }}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="flex-1 px-2 py-0.5 text-xs font-bold text-slate-700 border border-purple-200 rounded focus:outline-none focus:border-purple-400 bg-white"
+                  />
+                </div>
               </div>
             </div>
           ) : leadTimeInfo ? (
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${leadTimeInfo.bgLight} ${leadTimeInfo.borderColor}`}>
               <Clock size={13} className={leadTimeInfo.textColor} />
-              <span className={`text-xs font-bold ${leadTimeInfo.textColor}`}>Срок поставки: {leadTimeInfo.label}</span>
+              <span className={`text-xs font-bold ${leadTimeInfo.textColor}`}>
+                Срок поставки: {request.leadTime === 'custom' && request.leadTimeCustomDate
+                  ? new Date(request.leadTimeCustomDate).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' })
+                  : leadTimeInfo.label}
+              </span>
             </div>
           ) : null}
 
@@ -437,10 +463,12 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
             <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-700">
-                <span className="font-bold">Срок поставки — {leadTimeInfo.label}.</span>{' '}
-                {request.leadTime === 'production'
-                  ? 'Товар нужно производить — рекомендуется отметить заявку как «Критично» или «Высокий» приоритет, чтобы оплатить её первой.'
-                  : 'Поставка займёт несколько недель — рекомендуется повысить приоритет оплаты.'}
+                <span className="font-bold">
+                  {request.leadTime === 'custom' && request.leadTimeCustomDate
+                    ? `Поставка ожидается ${new Date(request.leadTimeCustomDate).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' })}.`
+                    : `Срок поставки — ${leadTimeInfo?.label}.`}
+                </span>{' '}
+                Рекомендуется повысить приоритет оплаты, чтобы успеть получить вовремя.
               </div>
             </div>
           )}

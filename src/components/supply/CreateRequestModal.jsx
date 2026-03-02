@@ -89,6 +89,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   const [department, setDepartment] = useState(isEditing ? (editData.department || 'Химмаш') : 'Химмаш');
   const [comment, setComment] = useState(isEditing ? (editData.creatorComment || '') : '');
   const [leadTime, setLeadTime] = useState(isEditing ? (editData.leadTime || null) : null);
+  const [leadTimeCustomDate, setLeadTimeCustomDate] = useState(isEditing ? (editData.leadTimeCustomDate || '') : '');
   const [loading, setLoading] = useState(false);
 
   // Стабильные коллбэки для предотвращения лишних ререндеров
@@ -153,6 +154,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         department,
         comment,
         leadTime: leadTime || null,
+        leadTimeCustomDate: leadTime === 'custom' ? (leadTimeCustomDate || null) : null,
         createdBy: userRole
       };
       if (isEditing && onEdit) {
@@ -268,30 +270,36 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
               <Clock size={12} className="inline mr-1 -mt-0.5" />Срок поставки после оплаты
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(LEAD_TIME_TYPES).map(([key, lt]) => (
+            {/* 4 фиксированных варианта — 2×2 */}
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {Object.entries(LEAD_TIME_TYPES).filter(([k]) => k !== 'custom').map(([key, lt]) => (
                 <label key={key} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="leadTime"
-                    value={key}
-                    checked={leadTime === key}
-                    onChange={() => setLeadTime(key)}
-                    className="peer sr-only"
-                  />
-                  <div className={`py-2.5 px-3 rounded-xl border-2 text-center transition-all
-                    peer-checked:border-current peer-checked:font-black
-                    ${leadTime === key ? `${lt.bgLight} ${lt.textColor} border-current` : 'border-slate-100 text-slate-400 hover:bg-slate-50'}
-                  `}>
+                  <input type="radio" name="leadTime" value={key} checked={leadTime === key} onChange={() => setLeadTime(key)} className="peer sr-only" />
+                  <div className={`py-2.5 px-3 rounded-xl border-2 text-center transition-all ${leadTime === key ? `${lt.bgLight} ${lt.textColor} border-current` : 'border-slate-100 text-slate-400 hover:bg-slate-50'}`}>
                     <div className="text-[10px] font-black uppercase tracking-widest">{lt.shortLabel}</div>
                     <div className="text-[9px] font-medium opacity-75 mt-0.5">{lt.label}</div>
                   </div>
                 </label>
               ))}
             </div>
-            {leadTime === null && (
-              <p className="text-[9px] text-slate-400 mt-1.5 ml-1">Не указано — можно уточнить позже</p>
-            )}
+            {/* Своя дата — полная ширина */}
+            <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all ${leadTime === 'custom' ? 'bg-purple-50 border-purple-300' : 'border-slate-100 hover:bg-slate-50'}`}>
+              <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+                <input type="radio" name="leadTime" value="custom" checked={leadTime === 'custom'} onChange={() => setLeadTime('custom')} className="sr-only" />
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${leadTime === 'custom' ? 'border-purple-500 bg-purple-500' : 'border-slate-300'}`}>
+                  {leadTime === 'custom' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${leadTime === 'custom' ? 'text-purple-700' : 'text-slate-400'}`}>Своя дата</span>
+              </label>
+              <input
+                type="date"
+                value={leadTimeCustomDate}
+                onChange={e => { setLeadTimeCustomDate(e.target.value); setLeadTime('custom'); }}
+                min={new Date().toISOString().split('T')[0]}
+                className="flex-1 px-2 py-1 text-xs font-bold text-slate-700 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+              />
+            </div>
+            {leadTime === null && <p className="text-[9px] text-slate-400 mt-1.5 ml-1">Не указано — можно уточнить позже</p>}
           </div>
 
           {/* ДОПОЛНИТЕЛЬНО */}
