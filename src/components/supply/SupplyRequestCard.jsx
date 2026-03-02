@@ -149,8 +149,8 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
             {request.leadTime && LEAD_TIME_TYPES[request.leadTime] && (() => {
               const lt = LEAD_TIME_TYPES[request.leadTime];
               if (request.leadTime === 'stock') return null;
-              const label = request.leadTime === 'custom' && request.leadTimeCustomDate
-                ? new Date(request.leadTimeCustomDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+              const label = request.leadTime === 'custom' && request.leadTimeCustomDays
+                ? `${request.leadTimeCustomDays} дн.`
                 : lt.shortLabel;
               return (
                 <div className={`px-2 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap ${lt.bgLight} ${lt.textColor} ${lt.borderColor}`}>

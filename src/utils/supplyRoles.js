@@ -4,7 +4,7 @@ export const LEAD_TIME_TYPES = {
   days1_2:  { label: '1–2 дня',    shortLabel: '1-2 дня',  days: 2,  color: 'bg-blue-400',    textColor: 'text-blue-700',    bgLight: 'bg-blue-50',    borderColor: 'border-blue-200'    },
   days3_5:  { label: '3–5 дней',   shortLabel: '3-5 дней', days: 5,  color: 'bg-cyan-500',    textColor: 'text-cyan-700',    bgLight: 'bg-cyan-50',    borderColor: 'border-cyan-200'    },
   weeks1_2: { label: '1–2 недели', shortLabel: '1-2 нед.', days: 14, color: 'bg-orange-500',  textColor: 'text-orange-700',  bgLight: 'bg-orange-50',  borderColor: 'border-orange-200'  },
-  custom:   { label: 'Своя дата',  shortLabel: 'Дата',     days: null, color: 'bg-purple-500', textColor: 'text-purple-700',  bgLight: 'bg-purple-50',  borderColor: 'border-purple-200'  },
+  custom:   { label: 'Указать дни', shortLabel: 'Дней',     days: null, color: 'bg-purple-500', textColor: 'text-purple-700',  bgLight: 'bg-purple-50',  borderColor: 'border-purple-200'  },
 };
 
 // Уровни приоритета оплаты заявки

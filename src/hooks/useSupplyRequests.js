@@ -79,7 +79,7 @@ export const useSupplyRequests = () => {
         department: data.department || 'Химмаш',
         creatorComment: data.comment || '',
         leadTime: data.leadTime || null,
-        leadTimeCustomDate: data.leadTime === 'custom' ? (data.leadTimeCustomDate || null) : null,
+        leadTimeCustomDays: data.leadTime === 'custom' ? (data.leadTimeCustomDays || null) : null,
         desiredDate: data.desiredDate || null,
         status: 'with_supplier',
         invoices: [], // Массив для хранения нескольких счетов
@@ -361,18 +361,18 @@ export const useSupplyRequests = () => {
     notifyRoles(notifyRole, buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
-  const setLeadTime = async (id, leadTime, leadTimeCustomDate = null, userRole = 'technologist') => {
+  const setLeadTime = async (id, leadTime, leadTimeCustomDays = null, userRole = 'technologist') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-    const ltLabel = leadTime === 'custom' && leadTimeCustomDate
-      ? `Своя дата: ${leadTimeCustomDate}`
+    const ltLabel = leadTime === 'custom' && leadTimeCustomDays
+      ? `${leadTimeCustomDays} дн.`
       : (LEAD_TIME_TYPES[leadTime]?.label || leadTime);
     await updateRequest(id, {
       leadTime,
-      leadTimeCustomDate: leadTime === 'custom' ? (leadTimeCustomDate || null) : null,
+      leadTimeCustomDays: leadTime === 'custom' ? (leadTimeCustomDays || null) : null,
       statusHistory: addStatusHistory(request, request.status, userRole, `Срок поставки указан: ${ltLabel}`)
     });
-    showSuccess(`Срок поставки: ${LEAD_TIME_TYPES[leadTime]?.label || leadTime}`);
+    showSuccess(`Срок поставки: ${ltLabel}`);
   };
 
   const setPriority = async (id, priority, userRole = 'technologist') => {
