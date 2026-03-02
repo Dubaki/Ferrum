@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
 import { X, Package, Plus, Trash2, FileText, Building, MessageSquare } from 'lucide-react';
-import { SUPPLY_UNITS } from '../../utils/supplyRoles';
+import { SUPPLY_UNITS, LEAD_TIME_TYPES } from '../../utils/supplyRoles';
+import { Clock } from 'lucide-react';
 
 // --- МЕМОИЗИРОВАННЫЙ КОМПОНЕНТ ПОЗИЦИИ ---
 const ItemRow = memo(({ index, item, onUpdate, onRemove, showRemove }) => {
@@ -87,6 +88,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   const [desiredDate, setDesiredDate] = useState(isEditing ? (editData.desiredDate || '') : '');
   const [department, setDepartment] = useState(isEditing ? (editData.department || 'Химмаш') : 'Химмаш');
   const [comment, setComment] = useState(isEditing ? (editData.creatorComment || '') : '');
+  const [leadTime, setLeadTime] = useState(isEditing ? (editData.leadTime || null) : null);
   const [loading, setLoading] = useState(false);
 
   // Стабильные коллбэки для предотвращения лишних ререндеров
@@ -150,6 +152,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
         desiredDate,
         department,
         comment,
+        leadTime: leadTime || null,
         createdBy: userRole
       };
       if (isEditing && onEdit) {
@@ -258,6 +261,37 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
                 />
               ))}
             </div>
+          </div>
+
+          {/* СРОК ПОСТАВКИ ПОСЛЕ ОПЛАТЫ */}
+          <div className="pt-2 border-t border-slate-50">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
+              <Clock size={12} className="inline mr-1 -mt-0.5" />Срок поставки после оплаты
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(LEAD_TIME_TYPES).map(([key, lt]) => (
+                <label key={key} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="leadTime"
+                    value={key}
+                    checked={leadTime === key}
+                    onChange={() => setLeadTime(key)}
+                    className="peer sr-only"
+                  />
+                  <div className={`py-2.5 px-3 rounded-xl border-2 text-center transition-all
+                    peer-checked:border-current peer-checked:font-black
+                    ${leadTime === key ? `${lt.bgLight} ${lt.textColor} border-current` : 'border-slate-100 text-slate-400 hover:bg-slate-50'}
+                  `}>
+                    <div className="text-[10px] font-black uppercase tracking-widest">{lt.shortLabel}</div>
+                    <div className="text-[9px] font-medium opacity-75 mt-0.5">{lt.label}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {leadTime === null && (
+              <p className="text-[9px] text-slate-400 mt-1.5 ml-1">Не указано — можно уточнить позже</p>
+            )}
           </div>
 
           {/* ДОПОЛНИТЕЛЬНО */}

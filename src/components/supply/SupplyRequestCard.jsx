@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X, Info, ListChecks } from 'lucide-react';
-import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel, PRIORITY_LEVELS } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel, PRIORITY_LEVELS, LEAD_TIME_TYPES } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete, supplyActions }) {
   const [showRejectReason, setShowRejectReason] = useState(false);
@@ -123,7 +123,7 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
             </div>
           )}
 
-          {/* Col 5: Icons (Alerts) */}
+          {/* Col 5: Icons (Alerts + Lead Time) */}
           <div className="flex items-center justify-end gap-2">
             {(() => {
               const linkedOrders = request.orders?.length > 0 ? request.orders : null;
@@ -146,6 +146,16 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
                   <span>{alertToShow.label}</span>
               </div>
             )}
+            {request.leadTime && LEAD_TIME_TYPES[request.leadTime] && (() => {
+              const lt = LEAD_TIME_TYPES[request.leadTime];
+              // Показываем только "тяжёлые" типы, чтобы не засорять карточки
+              if (request.leadTime === 'stock') return null;
+              return (
+                <div className={`px-2 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap ${lt.bgLight} ${lt.textColor} ${lt.borderColor}`}>
+                  {lt.shortLabel}
+                </div>
+              );
+            })()}
             {(request.supplierAddress || request.supplierPhone) && (
                 <div
                     className="relative flex items-center justify-center p-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition group"

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown, Edit } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue, getRoleLabel, PRIORITY_LEVELS } from '../../utils/supplyRoles';
+import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown, Edit, AlertTriangle } from 'lucide-react';
+import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue, getRoleLabel, PRIORITY_LEVELS, LEAD_TIME_TYPES } from '../../utils/supplyRoles';
 
 const EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'pending_director_approval'];
 const INVOICE_EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'rejected'];
@@ -120,6 +120,13 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
   // Приоритет оплаты — может менять технолог, нач. цеха, директор
   const canSetPriority = canPerformAction(userRole, 'setPriority');
   const currentPriority = request.priority || 3;
+
+  // Срок поставки
+  const canSetLeadTime = canPerformAction(userRole, 'setLeadTime');
+  const leadTimeInfo = request.leadTime ? LEAD_TIME_TYPES[request.leadTime] : null;
+  // Предупреждение: долгий срок поставки, но приоритет не повышен
+  const showLeadTimeWarning = ['weeks', 'production'].includes(request.leadTime) && currentPriority >= 3 &&
+    !['delivered', 'paid', 'awaiting_delivery'].includes(request.status);
 
   // Возможность открепить счет (только когда заявка у снабженца или на этапах до согласования директором)
   const canDetachInvoice = canPerformAction(userRole, 'attachInvoice') && request.invoices && request.invoices.length > 0 && INVOICE_EDITABLE_STATUSES.includes(request.status);
@@ -389,6 +396,52 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Срок поставки */}
+          {canSetLeadTime ? (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+                <Clock size={13} className="text-slate-400" />
+                <span className="text-xs font-bold text-slate-600">Срок поставки после оплаты</span>
+              </div>
+              <div className="p-2 grid grid-cols-4 gap-1.5">
+                {Object.entries(LEAD_TIME_TYPES).map(([key, lt]) => {
+                  const isActive = request.leadTime === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => supplyActions.setLeadTime(request.id, key, userRole)}
+                      className={`py-1.5 px-1 rounded text-center text-[10px] font-bold border transition ${
+                        isActive
+                          ? `${lt.color} text-white border-transparent shadow-sm`
+                          : `${lt.bgLight} ${lt.textColor} ${lt.borderColor} hover:opacity-75`
+                      }`}
+                    >
+                      {lt.shortLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : leadTimeInfo ? (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${leadTimeInfo.bgLight} ${leadTimeInfo.borderColor}`}>
+              <Clock size={13} className={leadTimeInfo.textColor} />
+              <span className={`text-xs font-bold ${leadTimeInfo.textColor}`}>Срок поставки: {leadTimeInfo.label}</span>
+            </div>
+          ) : null}
+
+          {/* Предупреждение: долгий срок + низкий приоритет */}
+          {showLeadTimeWarning && (
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-700">
+                <span className="font-bold">Срок поставки — {leadTimeInfo.label}.</span>{' '}
+                {request.leadTime === 'production'
+                  ? 'Товар нужно производить — рекомендуется отметить заявку как «Критично» или «Высокий» приоритет, чтобы оплатить её первой.'
+                  : 'Поставка займёт несколько недель — рекомендуется повысить приоритет оплаты.'}
+              </div>
             </div>
           )}
 

@@ -3,7 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, order
 import { db } from '../firebase';
 import { uploadInvoice, deleteInvoice } from '../utils/supabaseStorage';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
-import { getRoleLabel, PRIORITY_LEVELS } from '../utils/supplyRoles';
+import { getRoleLabel, PRIORITY_LEVELS, LEAD_TIME_TYPES } from '../utils/supplyRoles';
 import { notifyRoles, buildNotificationMessage } from '../utils/telegramNotify';
 
 export const useSupplyRequests = () => {
@@ -77,7 +77,8 @@ export const useSupplyRequests = () => {
         items: data.items || [],
         orders: data.orders || [],
         department: data.department || 'Химмаш',
-        creatorComment: data.comment || '', // <-- Added comment field
+        creatorComment: data.comment || '',
+        leadTime: data.leadTime || null,
         desiredDate: data.desiredDate || null,
         status: 'with_supplier',
         invoices: [], // Массив для хранения нескольких счетов
@@ -359,6 +360,17 @@ export const useSupplyRequests = () => {
     notifyRoles(notifyRole, buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
+  const setLeadTime = async (id, leadTime, userRole = 'technologist') => {
+    const request = requests.find(r => r.id === id);
+    if (!request) return;
+    const ltLabel = LEAD_TIME_TYPES[leadTime]?.label || leadTime;
+    await updateRequest(id, {
+      leadTime,
+      statusHistory: addStatusHistory(request, request.status, userRole, `Срок поставки указан: ${ltLabel}`)
+    });
+    showSuccess(`Срок поставки: ${ltLabel}`);
+  };
+
   const setPriority = async (id, priority, userRole = 'technologist') => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
@@ -438,7 +450,7 @@ export const useSupplyRequests = () => {
     actions: {
       createRequest, updateRequest, deleteRequest, editRequest, attachInvoice, submitForApproval,
       approveTechnologist, approveShopManager, approveDirector, markPaid, setDeliveryDate,
-      markDelivered, rejectRequest, detachInvoice, markAsInQueue, setPriority
+      markDelivered, rejectRequest, detachInvoice, markAsInQueue, setPriority, setLeadTime
     }
   };
 };

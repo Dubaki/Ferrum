@@ -1,3 +1,11 @@
+// Срок поставки после оплаты (lead time)
+export const LEAD_TIME_TYPES = {
+  stock:      { label: 'Со склада',    shortLabel: 'Склад',     days: 0,  color: 'bg-emerald-500', textColor: 'text-emerald-700', bgLight: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+  days:       { label: 'До 1 недели',  shortLabel: '~1 нед.',   days: 7,  color: 'bg-blue-400',    textColor: 'text-blue-700',    bgLight: 'bg-blue-50',    borderColor: 'border-blue-200'    },
+  weeks:      { label: '1–4 недели',   shortLabel: '1-4 нед.',  days: 28, color: 'bg-orange-400',  textColor: 'text-orange-700',  bgLight: 'bg-orange-50',  borderColor: 'border-orange-200'  },
+  production: { label: 'Производство', shortLabel: 'Произв.',   days: 60, color: 'bg-red-500',     textColor: 'text-red-700',     bgLight: 'bg-red-50',     borderColor: 'border-red-200'     },
+};
+
 // Уровни приоритета оплаты заявки
 export const PRIORITY_LEVELS = {
   1: { label: 'Критично', color: 'bg-red-500', textColor: 'text-red-600', borderColor: 'border-red-300', bgLight: 'bg-red-50' },
@@ -96,7 +104,10 @@ export const canPerformAction = (role, action) => {
     deleteRequest: ['director', 'shopManager', 'vesta'],
 
     // Приоритет оплаты (технолог, нач. цеха, директор)
-    setPriority: ['technologist', 'shopManager', 'director']
+    setPriority: ['technologist', 'shopManager', 'director'],
+
+    // Срок поставки (все кто создаёт + руководство)
+    setLeadTime: ['technologist', 'shopManager', 'director', 'manager', 'supplier', 'vesta']
   };
 
   return permissions[action]?.includes(role) || false;
