@@ -133,15 +133,9 @@ export default function MasterEfficiencyView({ resources, actions }) {
     };
 
     const handleMarkPresent = (res, dStr) => {
-        // Отмечаем как присутствующего (стандартные часы) + КТУ 100 по умолчанию
+        // Отмечаем как присутствующего (стандартные часы). КТУ Мастер вводит вручную.
         const standardHours = res.hoursPerDay || 8;
         actions.updateResourceSchedule(res.id, dStr, standardHours, null);
-        
-        // Проставляем КТУ 100 только если он еще не задан
-        const currentEff = res.dailyEfficiency?.[dStr];
-        if (currentEff === undefined || currentEff === 0) {
-            actions.updateResourceEfficiency(res.id, dStr, 100);
-        }
     };
 
     const handleMarkAbsent = (res, dStr) => {
