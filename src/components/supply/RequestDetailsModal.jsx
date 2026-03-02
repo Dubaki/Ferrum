@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Package, Calendar, FileText, Clock, Check, Truck, CreditCard, History, Trash2, Upload, Eye, ChevronDown, Edit } from 'lucide-react';
-import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue, getRoleLabel } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, canPerformAction, isDeliveryOverdue, getRoleLabel, PRIORITY_LEVELS } from '../../utils/supplyRoles';
 
 const EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'pending_director_approval'];
 const INVOICE_EDITABLE_STATUSES = ['with_supplier', 'invoice_attached', 'pending_tech_approval', 'pending_shop_approval', 'rejected'];
@@ -116,6 +116,10 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
 
   // Возможность удаления
   const canDelete = canPerformAction(userRole, 'deleteRequest');
+
+  // Приоритет оплаты — может менять технолог, нач. цеха, директор
+  const canSetPriority = canPerformAction(userRole, 'setPriority');
+  const currentPriority = request.priority || 3;
 
   // Возможность открепить счет (только когда заявка у снабженца или на этапах до согласования директором)
   const canDetachInvoice = canPerformAction(userRole, 'attachInvoice') && request.invoices && request.invoices.length > 0 && INVOICE_EDITABLE_STATUSES.includes(request.status);
@@ -277,6 +281,39 @@ export default function RequestDetailsModal({ request, userRole, supplyActions, 
               )}
             </div>
           )}
+          {/* Приоритет оплаты */}
+          {canSetPriority ? (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200">
+              <span className="text-xs font-medium text-slate-400 shrink-0">Приоритет:</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4].map(p => {
+                  const pInfo = PRIORITY_LEVELS[p];
+                  const isActive = currentPriority === p;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => supplyActions.setPriority(request.id, p, userRole)}
+                      className={`px-2 py-0.5 rounded text-xs font-bold border transition ${
+                        isActive
+                          ? `${pInfo.color} text-white border-transparent shadow-sm`
+                          : `${pInfo.bgLight} ${pInfo.textColor} ${pInfo.borderColor} hover:opacity-75`
+                      }`}
+                    >
+                      {pInfo.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : request.priority && request.priority !== 3 ? (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200">
+              <span className="text-xs font-medium text-slate-400 shrink-0">Приоритет:</span>
+              {(() => {
+                const p = PRIORITY_LEVELS[request.priority];
+                return p ? <span className={`px-2 py-0.5 rounded text-xs font-bold ${p.color} text-white`}>{p.label}</span> : null;
+              })()}
+            </div>
+          ) : null}
         </div>
 
         {/* Содержимое */}

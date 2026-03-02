@@ -3,7 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, order
 import { db } from '../firebase';
 import { uploadInvoice, deleteInvoice } from '../utils/supabaseStorage';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
-import { getRoleLabel } from '../utils/supplyRoles';
+import { getRoleLabel, PRIORITY_LEVELS } from '../utils/supplyRoles';
 import { notifyRoles, buildNotificationMessage } from '../utils/telegramNotify';
 
 export const useSupplyRequests = () => {
@@ -359,6 +359,17 @@ export const useSupplyRequests = () => {
     notifyRoles(notifyRole, buildNotificationMessage(request, 'rejected', { role, reason }));
   };
 
+  const setPriority = async (id, priority, userRole = 'technologist') => {
+    const request = requests.find(r => r.id === id);
+    if (!request) return;
+    const priorityLabel = PRIORITY_LEVELS[priority]?.label || `${priority}`;
+    await updateRequest(id, {
+      priority,
+      statusHistory: addStatusHistory(request, request.status, userRole, `Приоритет оплаты изменён: ${priorityLabel}`)
+    });
+    showSuccess(`Приоритет: ${priorityLabel}`);
+  };
+
   const editRequest = async (id, data) => {
     const request = requests.find(r => r.id === id);
     if (!request) throw new Error('Заявка не найдена');
@@ -427,7 +438,7 @@ export const useSupplyRequests = () => {
     actions: {
       createRequest, updateRequest, deleteRequest, editRequest, attachInvoice, submitForApproval,
       approveTechnologist, approveShopManager, approveDirector, markPaid, setDeliveryDate,
-      markDelivered, rejectRequest, detachInvoice, markAsInQueue
+      markDelivered, rejectRequest, detachInvoice, markAsInQueue, setPriority
     }
   };
 };

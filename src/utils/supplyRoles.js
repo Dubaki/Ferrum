@@ -1,3 +1,11 @@
+// Уровни приоритета оплаты заявки
+export const PRIORITY_LEVELS = {
+  1: { label: 'Критично', color: 'bg-red-500', textColor: 'text-red-600', borderColor: 'border-red-300', bgLight: 'bg-red-50' },
+  2: { label: 'Высокий',  color: 'bg-orange-500', textColor: 'text-orange-600', borderColor: 'border-orange-300', bgLight: 'bg-orange-50' },
+  3: { label: 'Обычный',  color: 'bg-slate-400', textColor: 'text-slate-500', borderColor: 'border-slate-200', bgLight: 'bg-slate-50' },
+  4: { label: 'Низкий',   color: 'bg-green-400', textColor: 'text-green-600', borderColor: 'border-green-200', bgLight: 'bg-green-50' },
+};
+
 // Роли для раздела "Снабжение"
 export const SUPPLY_ROLES = {
   technologist: { label: 'Технолог', password: 'fer25', icon: '👷' },
@@ -85,7 +93,10 @@ export const canPerformAction = (role, action) => {
     rejectRequest: ['director', 'shopManager', 'technologist', 'vesta'],
 
     // Удаление (руководство)
-    deleteRequest: ['director', 'shopManager', 'vesta']
+    deleteRequest: ['director', 'shopManager', 'vesta'],
+
+    // Приоритет оплаты (технолог, нач. цеха, директор)
+    setPriority: ['technologist', 'shopManager', 'director']
   };
 
   return permissions[action]?.includes(role) || false;

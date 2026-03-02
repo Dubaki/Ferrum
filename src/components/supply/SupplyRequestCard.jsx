@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Package, Truck, MessageSquare, AlertTriangle, Eye, Trash2, X, Info, ListChecks } from 'lucide-react';
-import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel } from '../../utils/supplyRoles';
+import { SUPPLY_STATUSES, getHoursUntilDeadline, getRoleLabel, PRIORITY_LEVELS } from '../../utils/supplyRoles';
 
 export default function SupplyRequestCard({ request, userRole, onOpenDetails, onOpenInvoice, onDelete, supplyActions }) {
   const [showRejectReason, setShowRejectReason] = useState(false);
@@ -74,8 +74,18 @@ export default function SupplyRequestCard({ request, userRole, onOpenDetails, on
           {/* Col 1: Status Indicator */}
           <span className={`w-1.5 h-8 rounded-full ${statusInfo.color} flex-shrink-0`}></span>
 
-          {/* Col 2: Request Number */}
-          <div className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{request.requestNumber}</div>
+          {/* Col 2: Request Number + Priority Badge */}
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{request.requestNumber}</span>
+            {request.priority && request.priority !== 3 && (() => {
+              const p = PRIORITY_LEVELS[request.priority];
+              return p ? (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${p.color} text-white whitespace-nowrap`}>
+                  {p.label}
+                </span>
+              ) : null;
+            })()}
+          </div>
 
           {/* Col 3 & 4: Item Info / Comment ИЛИ причина отклонения */}
           {/* Col 3: Item Info (всегда) */}
