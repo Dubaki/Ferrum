@@ -33,7 +33,7 @@ const ShiftCell = memo(({
         } else if (isWorkDay && override === undefined) {
             if (!noKtuPositions.includes(res.position)) {
                 const ktuValue = res.dailyEfficiency?.[dateStr];
-                if (ktuValue !== undefined) dayWorked = true;
+                if (ktuValue !== undefined && ktuValue > 0) dayWorked = true;
             } else {
                 dayWorked = true;
             }
@@ -51,11 +51,11 @@ const ShiftCell = memo(({
     // КТУ-рамка: зелёная = проставлено, жёлтая = пропущено (только прошедшие дни)
     let ktuRingClass = '';
     const needsKtu = !noKtuPositions.includes(res.position) && res.salaryEnabled !== false;
-    if (!isBeforeStartDate && needsKtu && reason !== 'sick' && reason !== 'absent') {
+if (!isBeforeStartDate && needsKtu && reason !== 'sick' && reason !== 'absent') {
         const hasHours = override !== undefined ? override > 0 : (isWorkDay && standardHours > 0);
         if (hasHours) {
             const ktuValue = res.dailyEfficiency?.[dateStr];
-            if (ktuValue !== undefined) {
+            if (ktuValue !== undefined && ktuValue > 0) {
                 ktuRingClass = 'ring-1 ring-inset ring-green-500';
             } else {
                 const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
@@ -65,7 +65,6 @@ const ShiftCell = memo(({
             }
         }
     }
-
     if (isBeforeStartDate) {
         content = <X size={12} className="text-slate-300 mx-auto"/>;
         cellClass = 'bg-slate-50 opacity-40 cursor-not-allowed';
@@ -107,9 +106,14 @@ const ShiftCell = memo(({
         if(override === 0) cellClass = 'bg-slate-100';
         else cellClass = 'bg-emerald-400/20 ring-1 ring-inset ring-emerald-500/20 shadow-sm';
     } else {
-        content = isWorkDay 
-            ? <span className="text-slate-400 font-medium text-[10px] opacity-40">{standardHours}</span> 
+        content = isWorkDay
+            ? <span className="text-slate-400 font-medium text-[10px] opacity-40">{standardHours}</span>
             : <span className="text-slate-200">-</span>;
+    }
+
+    // Убираем ring из cellClass ПОСЛЕ всех if-else, чтобы ktuRingClass не конфликтовал в CSS
+    if (ktuRingClass) {
+        cellClass = cellClass.replace(/\s*ring-\S+/g, '').trim();
     }
 
     return (
