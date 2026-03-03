@@ -41,7 +41,13 @@
       "Bash(npx sharp-cli:*)",
       "Bash(timeout:*)",
       "Bash(ping:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.livekit.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:yandex.cloud)"
     ]
   }
 }

@@ -62,6 +62,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
+  const [selectedOrderFilter, setSelectedOrderFilter] = useState('all'); // 'all', 'workshop', or orderId
   const [expandedMonths, setExpandedMonths] = useState({}); // { 'YYYY-MM': true }
   const [expandedDays, setExpandedDays] = useState({});     // { 'YYYY-MM-DD': true }
 
@@ -69,14 +70,30 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     activeDepartment === 'Химмаш' ? r.department === 'Химмаш' || !r.department : r.department === activeDepartment
   ), [supplyRequests, activeDepartment]);
 
-  const myRequests = useMemo(() => getRequestsForRole(departmentFilteredRequests, userRole), [departmentFilteredRequests, userRole]);
-  const allRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered'), [departmentFilteredRequests]);
-  const overdueRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r)), [departmentFilteredRequests]);
-  const awaitingRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery'), [departmentFilteredRequests]);
-  const archivedRequests = useMemo(() => departmentFilteredRequests.filter(r => r.status === 'delivered'), [departmentFilteredRequests]);
+  // Фильтрация по выбранному заказу
+  const orderFilteredRequests = useMemo(() => {
+    if (selectedOrderFilter === 'all') return departmentFilteredRequests;
+    if (selectedOrderFilter === 'workshop') {
+      return departmentFilteredRequests.filter(r => r.orders?.some(o => o.orderId === 'В цех'));
+    }
+    return departmentFilteredRequests.filter(r => r.orders?.some(o => o.orderId === selectedOrderFilter));
+  }, [departmentFilteredRequests, selectedOrderFilter]);
+
+  const myRequests = useMemo(() => getRequestsForRole(orderFilteredRequests, userRole), [orderFilteredRequests, userRole]);
+  const allRequests = useMemo(() => orderFilteredRequests.filter(r => r.status !== 'delivered'), [orderFilteredRequests]);
+  const overdueRequests = useMemo(() => orderFilteredRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r)), [orderFilteredRequests]);
+  const awaitingRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'awaiting_delivery'), [orderFilteredRequests]);
+  const archivedRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'delivered'), [orderFilteredRequests]);
   const groupedArchivedRequests = useMemo(() => groupRequestsByDeliveredDate(archivedRequests), [archivedRequests]);
 
   const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
+
+  // Извлекаем список активных заказов для фильтрации
+  const requestsOrders = useMemo(() => {
+    return activeOrders
+      .map(o => ({ id: o.id, number: o.orderNumber }))
+      .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+  }, [activeOrders]);
 
   const currentRequests = useMemo(() => {
     let list;
@@ -102,23 +119,34 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
     all: allRequests.length,
     overdue: overdueRequests.length,
     archive: archivedRequests.length,
-    inProgress: departmentFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status)).length,
-    paid: departmentFilteredRequests.filter(r => r.status === 'paid').length,
-    awaitingDelivery: departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
-  }), [myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, departmentFilteredRequests]);
+    inProgress: orderFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status)).length,
+    paid: orderFilteredRequests.filter(r => r.status === 'paid').length,
+    awaitingDelivery: orderFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
+  }), [myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, orderFilteredRequests]);
 
   // Суммы по счетам
   const amountStats = useMemo(() => {
     const calcTotal = (list) => list.reduce((total, r) => {
       if (!r.orderAmounts) return total;
+      // Если выбран фильтр по заказу, берем только сумму этого заказа
+      if (selectedOrderFilter !== 'all') {
+        const filterId = selectedOrderFilter === 'workshop' ? 'В цех' : selectedOrderFilter;
+        return total + (r.orderAmounts[filterId] || 0);
+      }
+      // Иначе сумму всех заказов в заявке
       return total + Object.values(r.orderAmounts).reduce((s, v) => s + (v || 0), 0);
     }, 0);
+
+    const activeReqs = orderFilteredRequests.filter(r => r.status !== 'delivered');
+    const paidReqs = orderFilteredRequests.filter(r => r.status === 'paid');
+    const inWorkReqs = orderFilteredRequests.filter(r => !['delivered', 'paid'].includes(r.status));
+
     return {
-      inWork: calcTotal(departmentFilteredRequests.filter(r => !['delivered', 'paid'].includes(r.status))),
-      paid:   calcTotal(departmentFilteredRequests.filter(r => r.status === 'paid')),
-      total:  calcTotal(departmentFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status))),
+      inWork: calcTotal(inWorkReqs),
+      paid:   calcTotal(paidReqs),
+      total:  calcTotal(activeReqs),
     };
-  }, [departmentFilteredRequests]);
+  }, [orderFilteredRequests, selectedOrderFilter]);
 
   // Всегда берём свежие данные из Firestore по ID
   const selectedRequest = useMemo(() => {
@@ -277,30 +305,62 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
 
       {/* Табло сумм */}
       {amountStats.total > 0 && (
-        <div className="bg-slate-900 rounded-2xl px-6 py-5 flex items-center justify-between gap-4 shadow-lg">
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0">
-              <TrendingUp size={24} className="text-orange-400" />
+        <div className="bg-black border border-white/10 rounded-2xl px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center shrink-0 border border-primary-500/20">
+              <TrendingUp size={20} className="text-primary-400" />
             </div>
             <div>
-              <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-0.5">Закупки · {activeDepartment}</div>
-              <div className="text-white text-3xl font-black tracking-tighter leading-none">
-                {amountStats.total.toLocaleString('ru-RU')} <span className="text-orange-500">₽</span>
+              <div className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.2em] mb-0.5">Общая сумма закупок</div>
+              <div className="text-white text-2xl font-black tracking-tighter leading-none flex items-baseline gap-1.5">
+                {amountStats.total.toLocaleString('ru-RU')} <span className="text-primary-500 text-lg">₽</span>
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-2 text-right shrink-0">
+          
+          <div className="flex items-center gap-8 pr-2">
             <div>
-              <div className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">В работе</div>
-              <div className="text-slate-200 text-sm font-black">{amountStats.inWork.toLocaleString('ru-RU')} ₽</div>
+              <div className="text-neutral-500 text-[8px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> В работе
+              </div>
+              <div className="text-neutral-200 text-base font-black tracking-tight">{amountStats.inWork.toLocaleString('ru-RU')} <span className="text-neutral-500 font-bold text-xs">₽</span></div>
             </div>
+            <div className="w-px h-8 bg-white/5"></div>
             <div>
-              <div className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">Оплачено</div>
-              <div className="text-emerald-400 text-sm font-black">{amountStats.paid.toLocaleString('ru-RU')} ₽</div>
+              <div className="text-neutral-500 text-[8px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Оплачено
+              </div>
+              <div className="text-emerald-400 text-base font-black tracking-tight">{amountStats.paid.toLocaleString('ru-RU')} <span className="text-emerald-500/50 font-bold text-xs">₽</span></div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Фильтр по заказам */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+        <button
+          onClick={() => setSelectedOrderFilter('all')}
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${selectedOrderFilter === 'all' ? 'bg-primary-600 border-primary-600 text-white shadow-lg' : 'bg-white border-neutral-100 text-neutral-400 hover:border-neutral-200'}`}
+        >
+          Все
+        </button>
+        <button
+          onClick={() => setSelectedOrderFilter('workshop')}
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${selectedOrderFilter === 'workshop' ? 'bg-slate-800 border-slate-800 text-white shadow-lg' : 'bg-white border-neutral-100 text-neutral-400 hover:border-neutral-200'}`}
+        >
+          Цех
+        </button>
+        <div className="w-px h-6 bg-neutral-200 shrink-0 mx-1"></div>
+        {requestsOrders.map(order => (
+          <button
+            key={order.id}
+            onClick={() => setSelectedOrderFilter(order.id)}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${selectedOrderFilter === order.id ? 'bg-cyan-600 border-cyan-600 text-white shadow-lg' : 'bg-white border-neutral-100 text-neutral-400 hover:border-neutral-200'}`}
+          >
+            {order.number}
+          </button>
+        ))}
+      </div>
 
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
