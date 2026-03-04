@@ -5,31 +5,14 @@ export const orderSchema = z.object({
   orderNumber: z.string().min(1, 'Введите номер заказа'),
   clientName: z.string().optional(),
   deadline: z.string().min(1, 'Укажите срок сдачи заказа'),
-  isProductOrder: z.boolean().optional(), // Флаг товарного заказа
+  isProductOrder: z.boolean().optional(),
   hasDrawings: z.boolean(),
   drawingsDeadline: z.string().optional(),
   hasMaterials: z.boolean(),
   materialsDeadline: z.string().optional(),
   hasPaint: z.boolean(),
   paintDeadline: z.string().optional(),
-  // AI Planning fields
-  orderType: z.enum(['A', 'B']).default('A'),
-  category: z.string().default('other'),
-  priority: z.string().or(z.number()).default(3),
-  sizeCategory: z.enum(['small', 'medium', 'large', 'xlarge']).default('medium'),
-  complexity: z.string().or(z.number()).default(2),
-  weightTotalKg: z.string().or(z.number()).optional(),
-  notes: z.string().optional(),
-}).refine(
-  (data) => data.isProductOrder || data.hasDrawings || data.drawingsDeadline,
-  { message: 'Укажите дату готовности чертежей', path: ['drawingsDeadline'] }
-).refine(
-  (data) => data.isProductOrder || data.hasMaterials || data.materialsDeadline,
-  { message: 'Укажите дату поставки материалов', path: ['materialsDeadline'] }
-).refine(
-  (data) => data.isProductOrder || data.hasPaint || data.paintDeadline,
-  { message: 'Укажите дату поставки краски', path: ['paintDeadline'] }
-);
+});
 
 // Схема для сотрудника
 export const resourceSchema = z.object({

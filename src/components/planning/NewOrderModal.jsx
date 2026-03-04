@@ -1,29 +1,8 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPortal } from 'react-dom';
-import { X, Save, PenTool, Truck, Calendar, Droplet, AlertCircle, ShoppingBag, Cpu, Scale, BarChart2 } from 'lucide-react';
+import { X, Save, PenTool, Truck, Calendar, Droplet, AlertCircle, ShoppingBag } from 'lucide-react';
 import { orderSchema } from '../../utils/validation';
-
-const CATEGORIES_A = [
-  { id: 'beam', label: 'Балка' },
-  { id: 'column', label: 'Колонна' },
-  { id: 'truss', label: 'Ферма' },
-  { id: 'brace', label: 'Связи' },
-  { id: 'purlin', label: 'Прогоны' },
-  { id: 'plate', label: 'Пластины/Узлы' },
-  { id: 'other', label: 'Другое' },
-];
-
-const CATEGORIES_B = [
-  { id: 'ladder', label: 'Лестница' },
-  { id: 'handrail', label: 'Ограждение' },
-  { id: 'platform', label: 'Площадка' },
-  { id: 'seal', label: 'Сальник' },
-  { id: 'stair', label: 'Стремянка' },
-  { id: 'light_pole', label: 'Опора' },
-  { id: 'foundation', label: 'Фундамент' },
-  { id: 'other', label: 'Другое' },
-];
 
 export default function NewOrderModal({ onClose, onCreate }) {
   const {
@@ -44,13 +23,6 @@ export default function NewOrderModal({ onClose, onCreate }) {
       materialsDeadline: '',
       hasPaint: false,
       paintDeadline: '',
-      orderType: 'A',
-      category: 'other',
-      priority: 3,
-      complexity: 2,
-      sizeCategory: 'medium',
-      weightTotalKg: '',
-      notes: ''
     }
   });
 
@@ -58,12 +30,8 @@ export default function NewOrderModal({ onClose, onCreate }) {
   const hasMaterials = watch('hasMaterials');
   const hasPaint = watch('hasPaint');
   const isProductOrder = watch('isProductOrder');
-  const orderType = watch('orderType');
-
-  const categories = orderType === 'A' ? CATEGORIES_A : CATEGORIES_B;
 
   const onSubmit = (data) => {
-    // Логика статуса
     let initialStatus = 'work';
     if (!data.hasMaterials) initialStatus = 'metal';
     else if (!data.hasDrawings) initialStatus = 'drawings';
@@ -73,18 +41,10 @@ export default function NewOrderModal({ onClose, onCreate }) {
       clientName: data.clientName,
       deadline: data.deadline,
       isProductOrder: data.isProductOrder,
-      drawingsDeadline: data.hasDrawings ? null : data.drawingsDeadline,
-      materialsDeadline: data.hasMaterials ? null : data.materialsDeadline,
-      paintDeadline: data.hasPaint ? null : data.paintDeadline,
+      drawingsDeadline: data.hasDrawings ? null : (data.drawingsDeadline || null),
+      materialsDeadline: data.hasMaterials ? null : (data.materialsDeadline || null),
+      paintDeadline: data.hasPaint ? null : (data.paintDeadline || null),
       customStatus: initialStatus,
-      // AI Planning fields
-      orderType: data.orderType,
-      category: data.category,
-      priority: parseInt(data.priority),
-      complexity: parseInt(data.complexity),
-      sizeCategory: data.sizeCategory,
-      weightTotalKg: parseFloat(data.weightTotalKg) || 0,
-      notes: data.notes
     });
     onClose();
   };
@@ -97,11 +57,9 @@ export default function NewOrderModal({ onClose, onCreate }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-lg">Новый заказ: Входной контроль</h3>
-          </div>
+          <h3 className="font-bold text-lg">Новый заказ</h3>
           <button onClick={onClose} type="button"><X size={20}/></button>
         </div>
 
@@ -130,88 +88,6 @@ export default function NewOrderModal({ onClose, onCreate }) {
             </div>
           </div>
 
-          {/* AI Planning Section */}
-          {!isProductOrder && (
-            <div className="bg-slate-900 text-white rounded-xl p-4 shadow-inner">
-              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-white/10">
-                <Cpu size={18} className="text-cyan-400" />
-                <span className="text-xs font-black uppercase tracking-widest text-cyan-400">Параметры планирования AI</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">Тип изделия</label>
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      <label className={`flex items-center justify-center p-2 rounded-lg border-2 cursor-pointer transition-all ${orderType === 'A' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
-                        <input type="radio" value="A" {...register('orderType')} className="hidden" />
-                        <span className="text-xs font-bold">Тип А (МК)</span>
-                      </label>
-                      <label className={`flex items-center justify-center p-2 rounded-lg border-2 cursor-pointer transition-all ${orderType === 'B' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
-                        <input type="radio" value="B" {...register('orderType')} className="hidden" />
-                        <span className="text-xs font-bold">Тип Б (Малые)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">Категория</label>
-                    <select
-                      {...register('category')}
-                      className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
-                    >
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id} className="bg-slate-800">{cat.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1">
-                      <Scale size={10}/> Общий вес заказа (кг)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      {...register('weightTotalKg')}
-                      className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
-                      placeholder="Напр. 4500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[9px] font-bold text-slate-400 uppercase">Сложность</label>
-                      <select
-                        {...register('complexity')}
-                        className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-1.5 text-xs font-bold text-white outline-none focus:border-cyan-500"
-                      >
-                        <option value="1" className="bg-slate-800">1 - Простая</option>
-                        <option value="2" className="bg-slate-800">2 - Средняя</option>
-                        <option value="3" className="bg-slate-800">3 - Сложная</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[9px] font-bold text-slate-400 uppercase">Приоритет</label>
-                      <select
-                        {...register('priority')}
-                        className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-1.5 text-xs font-bold text-white outline-none focus:border-cyan-500"
-                      >
-                        <option value="1" className="bg-slate-800">1 - Горит!</option>
-                        <option value="2" className="bg-slate-800">2 - Высокий</option>
-                        <option value="3" className="bg-slate-800">3 - Средний</option>
-                        <option value="4" className="bg-slate-800">4 - Низкий</option>
-                        <option value="5" className="bg-slate-800">5 - Запас</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Тип заказа (Товарный) */}
           <div className="bg-cyan-50 p-4 rounded-xl border-2 border-cyan-100 transition-all hover:border-cyan-300">
             <label className="flex items-center gap-3 font-bold text-cyan-900 cursor-pointer">
@@ -230,16 +106,15 @@ export default function NewOrderModal({ onClose, onCreate }) {
 
           {/* Блоки снабжения */}
           {!isProductOrder && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div className={`p-3 rounded-xl border-2 transition-all ${hasDrawings ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100 shadow-sm'}`}>
                 <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer mb-2 text-xs">
                   <input type="checkbox" {...register('hasDrawings')} className="w-4 h-4 accent-indigo-600" />
-                  <PenTool size={14} className="text-indigo-500"/> КМД готовы?
+                  <PenTool size={14} className="text-indigo-500"/> КМД
                 </label>
                 {!hasDrawings && (
-                  <div className="animate-in slide-in-from-top-1">
+                  <div>
                     <input type="date" {...register('drawingsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
-                    <ErrorMessage error={errors.drawingsDeadline} />
                   </div>
                 )}
               </div>
@@ -247,12 +122,11 @@ export default function NewOrderModal({ onClose, onCreate }) {
               <div className={`p-3 rounded-xl border-2 transition-all ${hasMaterials ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100 shadow-sm'}`}>
                 <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer mb-2 text-xs">
                   <input type="checkbox" {...register('hasMaterials')} className="w-4 h-4 accent-amber-600" />
-                  <Truck size={14} className="text-amber-500"/> Металл на складе?
+                  <Truck size={14} className="text-amber-500"/> Металл
                 </label>
                 {!hasMaterials && (
-                  <div className="animate-in slide-in-from-top-1">
+                  <div>
                     <input type="date" {...register('materialsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
-                    <ErrorMessage error={errors.materialsDeadline} />
                   </div>
                 )}
               </div>
@@ -260,12 +134,11 @@ export default function NewOrderModal({ onClose, onCreate }) {
               <div className={`p-3 rounded-xl border-2 transition-all ${hasPaint ? 'bg-rose-50 border-rose-200' : 'bg-white border-slate-100 shadow-sm'}`}>
                 <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer mb-2 text-xs">
                   <input type="checkbox" {...register('hasPaint')} className="w-4 h-4 accent-rose-600" />
-                  <Droplet size={14} className="text-rose-500"/> Краска есть?
+                  <Droplet size={14} className="text-rose-500"/> Краска
                 </label>
                 {!hasPaint && (
-                  <div className="animate-in slide-in-from-top-1">
+                  <div>
                     <input type="date" {...register('paintDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
-                    <ErrorMessage error={errors.paintDeadline} />
                   </div>
                 )}
               </div>
@@ -290,7 +163,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
             disabled={isSubmitting}
             className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-orange-600 transition-all shadow-lg flex justify-center items-center gap-2 active:scale-95 disabled:opacity-50"
           >
-            {isSubmitting ? 'Создание...' : <><Save size={20}/> Создать заказ и в план</>}
+            {isSubmitting ? 'Создание...' : <><Save size={20}/> Создать заказ</>}
           </button>
         </form>
       </div>
