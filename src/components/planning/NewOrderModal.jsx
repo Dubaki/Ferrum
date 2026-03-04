@@ -230,7 +230,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
 
           {/* Блоки снабжения */}
           {!isProductOrder && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className={`p-3 rounded-xl border-2 transition-all ${hasDrawings ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100 shadow-sm'}`}>
                 <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer mb-2 text-xs">
                   <input type="checkbox" {...register('hasDrawings')} className="w-4 h-4 accent-indigo-600" />
@@ -253,6 +253,19 @@ export default function NewOrderModal({ onClose, onCreate }) {
                   <div className="animate-in slide-in-from-top-1">
                     <input type="date" {...register('materialsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
                     <ErrorMessage error={errors.materialsDeadline} />
+                  </div>
+                )}
+              </div>
+
+              <div className={`p-3 rounded-xl border-2 transition-all ${hasPaint ? 'bg-rose-50 border-rose-200' : 'bg-white border-slate-100 shadow-sm'}`}>
+                <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer mb-2 text-xs">
+                  <input type="checkbox" {...register('hasPaint')} className="w-4 h-4 accent-rose-600" />
+                  <Droplet size={14} className="text-rose-500"/> Краска есть?
+                </label>
+                {!hasPaint && (
+                  <div className="animate-in slide-in-from-top-1">
+                    <input type="date" {...register('paintDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
+                    <ErrorMessage error={errors.paintDeadline} />
                   </div>
                 )}
               </div>

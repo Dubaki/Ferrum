@@ -14,21 +14,22 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
     });
 
     const handleSave = () => {
-        // Обновляем все поля
-        actions.updateOrder(order.id, 'orderNumber', formData.orderNumber);
-        actions.updateOrder(order.id, 'clientName', formData.clientName);
-        actions.updateOrder(order.id, 'paymentDate', formData.paymentDate);
-        actions.updateOrder(order.id, 'deadline', formData.deadline);
-        actions.updateOrder(order.id, 'drawingsDeadline', formData.drawingsDeadline);
-        actions.updateOrder(order.id, 'materialsDeadline', formData.materialsDeadline);
-        actions.updateOrder(order.id, 'paintDeadline', formData.paintDeadline);
+        actions.updateOrderSettings(order.id, {
+            orderNumber: formData.orderNumber,
+            clientName: formData.clientName,
+            paymentDate: formData.paymentDate,
+            deadline: formData.deadline,
+            drawingsDeadline: formData.drawingsDeadline,
+            materialsDeadline: formData.materialsDeadline,
+            paintDeadline: formData.paintDeadline,
+        }, userRole);
 
         // Опциональная логика авто-статусов
         if (formData.drawingsDeadline && !formData.materialsDeadline && order.customStatus === 'metal') {
-             actions.updateOrder(order.id, 'customStatus', 'drawings');
+             actions.updateOrder(order.id, 'customStatus', 'drawings', userRole);
         }
         if (formData.materialsDeadline && order.customStatus === 'drawings') {
-             actions.updateOrder(order.id, 'customStatus', 'metal');
+             actions.updateOrder(order.id, 'customStatus', 'metal', userRole);
         }
 
         onClose();

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
@@ -8,10 +8,11 @@ import { generateRoute } from '../utils/routeGenerator';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
-  const [products, setProducts] = useState([]); 
-  const [orders, setOrders] = useState([]);     
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const ordersRef = useRef([]);
 
   useEffect(() => {
     const unsubscribes = [];
@@ -29,7 +30,7 @@ export const useProductionData = () => {
 
     const resourcePromise = createSnapshotPromise('resources', setResources, (a,b) => a.name.localeCompare(b.name));
     const productsPromise = createSnapshotPromise('products', setProducts);
-    const ordersPromise = createSnapshotPromise('orders', setOrders, (a,b) => b.createdAt - a.createdAt);
+    const ordersPromise = createSnapshotPromise('orders', (list) => { ordersRef.current = list; setOrders(list); }, (a,b) => b.createdAt - a.createdAt);
     const reportsPromise = createSnapshotPromise('reports', setReports, (a,b) => b.createdAt - a.createdAt);
 
     Promise.all([resourcePromise, productsPromise, ordersPromise, reportsPromise])
@@ -62,7 +63,7 @@ export const useProductionData = () => {
 
   // --- Actions ---
 
-  const addOrder = useCallback(async (data) => {
+  const addOrder = useCallback(async (data, createdBy = null) => {
     try {
       const now = Date.now();
       await addDoc(collection(db, 'orders'), {
@@ -76,7 +77,7 @@ export const useProductionData = () => {
         materialsDeadline: data?.materialsDeadline || null,
         paintDeadline: data?.paintDeadline || null, // Добавил paintDeadline который отсутствовал
         paymentDate: formatDate(new Date()),
-        statusHistory: [{ status: data?.customStatus || 'metal', timestamp: now }],
+        statusHistory: [{ status: data?.customStatus || 'metal', timestamp: now, role: createdBy, note: 'Заказ создан' }],
         createdAt: now,
         finishedAt: null
       });
@@ -94,7 +95,7 @@ export const useProductionData = () => {
 
   const updateOrder = useCallback(async (id, field, value, userRole = 'admin') => {
     try {
-      const order = orders.find(o => o.id === id);
+      const order = ordersRef.current.find(o => o.id === id);
       if (!order) return;
 
       if (field === 'customStatus') {
@@ -122,7 +123,7 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, showError, getFirebaseErrorMessage, db]);
+  }, [showError, getFirebaseErrorMessage, db]);
 
   const finishOrder = useCallback(async (id) => {
     try {
@@ -163,7 +164,7 @@ export const useProductionData = () => {
   // Переместить заказ в раздел отгрузок
   const moveToShipping = useCallback(async (id, userRole = 'admin') => {
     try {
-      const order = orders.find(o => o.id === id);
+      const order = ordersRef.current.find(o => o.id === id);
       if (!order) return;
 
       const newHistory = addStatusHistory(order, order.customStatus, userRole, 'Перемещён в отгрузки (на склад)');
@@ -200,12 +201,12 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, products, showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [products, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Вернуть заказ из отгрузок в заказы
   const returnFromShipping = useCallback(async (id, userRole = 'admin') => {
     try {
-      const order = orders.find(o => o.id === id);
+      const order = ordersRef.current.find(o => o.id === id);
       if (!order) return;
 
       const newHistory = addStatusHistory(order, order.customStatus, userRole, 'Возвращён из отгрузок в работу');
@@ -220,12 +221,12 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Отметить/снять отметку "отгрузка сегодня"
   const toggleShippingToday = useCallback(async (id, userRole = 'admin') => {
     try {
-      const order = orders.find(o => o.id === id);
+      const order = ordersRef.current.find(o => o.id === id);
       if (!order) return;
 
       const note = !order.shippingToday ? 'Отмечен к отгрузке на сегодня' : 'Отметка "на сегодня" снята';
@@ -239,11 +240,11 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, showError, getFirebaseErrorMessage, db]);
+  }, [showError, getFirebaseErrorMessage, db]);
 
   const completeShipping = useCallback(async (id, userRole = 'admin', supplySnapshot = null) => {
     try {
-      const order = orders.find(o => o.id === id);
+      const order = ordersRef.current.find(o => o.id === id);
       if (!order) return;
 
       const newHistory = addStatusHistory(order, 'completed', userRole, 'Заказ отгружен (Архив)');
@@ -289,7 +290,45 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, deleteDrawing, showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [deleteDrawing, showSuccess, showError, getFirebaseErrorMessage, db]);
+
+  const updateOrderSettings = useCallback(async (id, newData, userRole = null) => {
+    try {
+      const order = ordersRef.current.find(o => o.id === id);
+      if (!order) return;
+
+      const fieldLabels = {
+        orderNumber: 'Номер договора',
+        clientName: 'Клиент',
+        deadline: 'Срок сдачи',
+        drawingsDeadline: 'Срок КМД',
+        materialsDeadline: 'Срок металла',
+        paintDeadline: 'Срок краски',
+        paymentDate: 'Дата оплаты',
+      };
+
+      const changes = [];
+      for (const [field, label] of Object.entries(fieldLabels)) {
+        const oldVal = order[field] || '';
+        const newVal = newData[field] || '';
+        if (oldVal !== newVal) {
+          changes.push(`${label}: ${oldVal || '—'} → ${newVal || '—'}`);
+        }
+      }
+
+      const updates = { ...newData };
+      if (changes.length > 0) {
+        const note = changes.join('; ');
+        updates.statusHistory = addStatusHistory(order, order.customStatus, userRole, note);
+      }
+
+      await updateDoc(doc(db, 'orders', id), updates);
+      showSuccess('Параметры сохранены');
+    } catch (error) {
+      showError(getFirebaseErrorMessage(error));
+      throw error;
+    }
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   const deleteOrder = useCallback(async (id) => {
     try {
@@ -324,7 +363,7 @@ export const useProductionData = () => {
   // Добавить чертёж к заказу (метаданные)
   const addDrawingToOrder = useCallback(async (orderId, drawingData) => {
     try {
-      const order = orders.find(o => o.id === orderId);
+      const order = ordersRef.current.find(o => o.id === orderId);
       if (!order) return;
 
       const currentDrawings = order.drawings || [];
@@ -339,12 +378,12 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, cleanUndefined, showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [cleanUndefined, showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // Удалить чертёж (пометить как deleted)
   const deleteDrawingFromOrder = useCallback(async (orderId, filePath) => {
     try {
-      const order = orders.find(o => o.id === orderId);
+      const order = ordersRef.current.find(o => o.id === orderId);
       if (!order) return;
 
       const currentDrawings = order.drawings || [];
@@ -358,7 +397,7 @@ export const useProductionData = () => {
       showError(getFirebaseErrorMessage(error));
       throw error;
     }
-  }, [orders, showSuccess, showError, getFirebaseErrorMessage, db]);
+  }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // --- ПРОДУКТЫ ---
   const addProduct = useCallback(async (orderId = null, initialDate = null) => {
@@ -810,7 +849,7 @@ export const useProductionData = () => {
   }, [showError, getFirebaseErrorMessage, db]);
 
   const memoizedActions = useMemo(() => ({
-    addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
+    addOrder, updateOrder, updateOrderSettings, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
     addDrawingToOrder, deleteDrawingFromOrder,
     addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
@@ -820,7 +859,7 @@ export const useProductionData = () => {
     fireResource, deleteResource, addReport, deleteReport,
     settleResource, updateResourceNote
   }), [
-    addOrder, updateOrder, deleteOrder, finishOrder, restoreOrder,
+    addOrder, updateOrder, updateOrderSettings, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
     addDrawingToOrder, deleteDrawingFromOrder, // Теперь эти функции в зависимостях
     addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,

@@ -184,9 +184,9 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
 
       {/* Модалка создания заказа */}
       {isCreating && (
-          <NewOrderModal 
-             onClose={() => setIsCreating(false)} 
-             onCreate={actions.addOrder} 
+          <NewOrderModal
+             onClose={() => setIsCreating(false)}
+             onCreate={(data) => actions.addOrder(data, userRole)}
           />
       )}
 
