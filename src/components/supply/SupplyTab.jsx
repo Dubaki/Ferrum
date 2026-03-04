@@ -86,7 +86,10 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const archivedRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'delivered'), [orderFilteredRequests]);
   const groupedArchivedRequests = useMemo(() => groupRequestsByDeliveredDate(archivedRequests), [archivedRequests]);
 
-  const activeOrders = useMemo(() => orders.filter(o => o.status === 'active'), [orders]);
+  // Фильтруем активные заказы так же, как в PlanningTab
+  const activeOrders = useMemo(() => {
+    return orders.filter(o => o.status === 'active' && !o.inShipping && o.isProductOrder !== true);
+  }, [orders]);
 
   // Извлекаем список активных заказов для фильтрации
   const requestsOrders = useMemo(() => {
