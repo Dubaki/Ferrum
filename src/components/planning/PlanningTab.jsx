@@ -99,6 +99,14 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       setCopyingToOrder(order);
   }, []);
 
+  // Стабильные callbacks для модалок — не пересоздаются при ре-рендерах PlanningTab
+  const handleCloseCreating = useCallback(() => setIsCreating(false), []);
+  const handleCloseSettings = useCallback(() => setSettingsOrder(null), []);
+  const handleCloseAddProduct = useCallback(() => setAddingProductToOrder(null), []);
+  const handleCloseAddMark = useCallback(() => setAddingMarkToOrder(null), []);
+  const handleCloseCopyArchive = useCallback(() => setCopyingToOrder(null), []);
+  const handleCreateOrder = useCallback((data) => actions.addOrder(data, userRole), [actions, userRole]);
+
   return (
     <div className="space-y-3 pb-20 fade-in font-sans text-slate-800">
       {/* Header */}
@@ -185,24 +193,25 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       {/* Модалка создания заказа */}
       {isCreating && (
           <NewOrderModal
-             onClose={() => setIsCreating(false)}
-             onCreate={(data) => actions.addOrder(data, userRole)}
+             onClose={handleCloseCreating}
+             onCreate={handleCreateOrder}
           />
       )}
 
       {/* Модалка настроек заказа */}
       {settingsOrder && (
-                    <OrderSettingsModal
-                        order={settingsOrder}
-                        onClose={() => setSettingsOrder(null)}
-                        actions={actions}
-                        userRole={userRole}
-                    />      )}
+          <OrderSettingsModal
+              order={settingsOrder}
+              onClose={handleCloseSettings}
+              actions={actions}
+              userRole={userRole}
+          />
+      )}
 
       {/* Модалка добавления изделия по пресету */}
       {addingProductToOrder && (
           <AddProductModal
-              onClose={() => setAddingProductToOrder(null)}
+              onClose={handleCloseAddProduct}
               onAdd={handleAddFromPreset}
           />
       )}
@@ -210,7 +219,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       {/* Модалка добавления марки (КМД) */}
       {addingMarkToOrder && (
           <AddMarkModal
-              onClose={() => setAddingMarkToOrder(null)}
+              onClose={handleCloseAddMark}
               onAdd={handleAddMark}
               orderId={addingMarkToOrder.id}
           />
@@ -219,7 +228,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
       {/* Модалка копирования из архива */}
       {copyingToOrder && (
           <CopyFromArchiveModal
-              onClose={() => setCopyingToOrder(null)}
+              onClose={handleCloseCopyArchive}
               onCopy={handleCopyFromArchive}
               orders={orders}
               products={products}

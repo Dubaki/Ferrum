@@ -1,10 +1,18 @@
+import { memo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPortal } from 'react-dom';
 import { X, Save, PenTool, Truck, Calendar, Droplet, AlertCircle, ShoppingBag } from 'lucide-react';
 import { orderSchema } from '../../utils/validation';
 
-export default function NewOrderModal({ onClose, onCreate }) {
+// Вынесен за пределы компонента — иначе React видит новый тип на каждый рендер и делает unmount/mount
+const ErrorMessage = ({ error }) => error ? (
+  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+    <AlertCircle size={12} /> {error.message}
+  </p>
+) : null;
+
+const NewOrderModal = memo(function NewOrderModal({ onClose, onCreate }) {
   const {
     register,
     handleSubmit,
@@ -31,7 +39,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
   const hasPaint = watch('hasPaint');
   const isProductOrder = watch('isProductOrder');
 
-  const onSubmit = (data) => {
+  const onSubmit = useCallback((data) => {
     let initialStatus = 'work';
     if (!data.hasMaterials) initialStatus = 'metal';
     else if (!data.hasDrawings) initialStatus = 'drawings';
@@ -47,13 +55,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
       customStatus: initialStatus,
     });
     onClose();
-  };
-
-  const ErrorMessage = ({ error }) => error ? (
-    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-      <AlertCircle size={12} /> {error.message}
-    </p>
-  ) : null;
+  }, [onCreate, onClose]);
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
@@ -113,9 +115,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
                   <PenTool size={14} className="text-indigo-500"/> КМД
                 </label>
                 {!hasDrawings && (
-                  <div>
-                    <input type="date" {...register('drawingsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
-                  </div>
+                  <input type="date" {...register('drawingsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
                 )}
               </div>
 
@@ -125,9 +125,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
                   <Truck size={14} className="text-amber-500"/> Металл
                 </label>
                 {!hasMaterials && (
-                  <div>
-                    <input type="date" {...register('materialsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
-                  </div>
+                  <input type="date" {...register('materialsDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
                 )}
               </div>
 
@@ -137,9 +135,7 @@ export default function NewOrderModal({ onClose, onCreate }) {
                   <Droplet size={14} className="text-rose-500"/> Краска
                 </label>
                 {!hasPaint && (
-                  <div>
-                    <input type="date" {...register('paintDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
-                  </div>
+                  <input type="date" {...register('paintDeadline')} className="w-full border rounded p-1.5 text-xs bg-slate-50 font-bold text-slate-700" />
                 )}
               </div>
             </div>
@@ -170,4 +166,6 @@ export default function NewOrderModal({ onClose, onCreate }) {
     </div>,
     document.body
   );
-}
+});
+
+export default NewOrderModal;

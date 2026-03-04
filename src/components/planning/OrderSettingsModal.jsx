@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Settings, Trash2, Save, PenTool, Truck, Droplet, Cpu, Scale } from 'lucide-react';
 
@@ -23,7 +23,7 @@ const CATEGORIES_B = [
   { id: 'other', label: 'Другое' },
 ];
 
-export default function OrderSettingsModal({ order, onClose, actions, userRole }) {
+const OrderSettingsModal = memo(function OrderSettingsModal({ order, onClose, actions, userRole }) {
     const [formData, setFormData] = useState({
         orderNumber: order.orderNumber || '',
         clientName: order.clientName || '',
@@ -32,7 +32,6 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
         drawingsDeadline: order.drawingsDeadline || '',
         materialsDeadline: order.materialsDeadline || '',
         paintDeadline: order.paintDeadline || '',
-        // AI Planning
         orderType: order.orderType || 'A',
         category: order.category || 'other',
         priority: order.priority || 3,
@@ -42,9 +41,18 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
         notes: order.notes || '',
     });
 
-    const categories = formData.orderType === 'A' ? CATEGORIES_A : CATEGORIES_B;
+    // Единый обработчик — не создаёт новые функции для каждого поля
+    const handleChange = useCallback((e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    }, []);
 
-    const handleSave = () => {
+    const categories = useMemo(
+        () => formData.orderType === 'A' ? CATEGORIES_A : CATEGORIES_B,
+        [formData.orderType]
+    );
+
+    const handleSave = useCallback(() => {
         actions.updateOrderSettings(order.id, {
             orderNumber: formData.orderNumber,
             clientName: formData.clientName,
@@ -63,16 +71,21 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
         }, userRole);
 
         if (formData.drawingsDeadline && !formData.materialsDeadline && order.customStatus === 'metal') {
-             actions.updateOrder(order.id, 'customStatus', 'drawings', userRole);
+            actions.updateOrder(order.id, 'customStatus', 'drawings', userRole);
         }
         if (formData.materialsDeadline && order.customStatus === 'drawings') {
-             actions.updateOrder(order.id, 'customStatus', 'metal', userRole);
+            actions.updateOrder(order.id, 'customStatus', 'metal', userRole);
         }
 
         onClose();
-    };
+    }, [formData, order, actions, userRole, onClose]);
 
-    const set = (field) => (e) => setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    const handleDelete = useCallback(() => {
+        if (confirm('Удалить заказ полностью?')) {
+            actions.deleteOrder(order.id);
+            onClose();
+        }
+    }, [actions, order.id, onClose]);
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
@@ -90,8 +103,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Номер договора</label>
                             <input
                                 type="text"
+                                name="orderNumber"
                                 value={formData.orderNumber}
-                                onChange={set('orderNumber')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-slate-200 rounded-lg p-3 font-black text-lg text-slate-800 focus:border-orange-500 outline-none transition"
                                 placeholder="Например: 124-Ф"
                                 autoFocus
@@ -101,15 +115,16 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Клиент</label>
                             <input
                                 type="text"
+                                name="clientName"
                                 value={formData.clientName}
-                                onChange={set('clientName')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-slate-200 rounded-lg p-3 font-medium text-slate-800 focus:border-orange-500 outline-none transition"
                                 placeholder="Название компании"
                             />
                         </div>
                     </div>
 
-                    {/* AI Planning — только для начальника цеха и выше */}
+                    {/* AI Planning — параметры планирования */}
                     {!order.isProductOrder && (
                         <div className="bg-slate-900 text-white rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-white/10">
@@ -124,7 +139,7 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                                         <div className="grid grid-cols-2 gap-2 mt-1">
                                             {['A', 'B'].map(t => (
                                                 <label key={t} className={`flex items-center justify-center p-2 rounded-lg border-2 cursor-pointer transition-all ${formData.orderType === t ? (t === 'A' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-orange-500/20 border-orange-500 text-orange-400') : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
-                                                    <input type="radio" value={t} checked={formData.orderType === t} onChange={set('orderType')} className="hidden" />
+                                                    <input type="radio" name="orderType" value={t} checked={formData.orderType === t} onChange={handleChange} className="hidden" />
                                                     <span className="text-xs font-bold">{t === 'A' ? 'Тип А (МК)' : 'Тип Б (Малые)'}</span>
                                                 </label>
                                             ))}
@@ -134,8 +149,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                                     <div>
                                         <label className="text-[9px] font-bold text-slate-400 uppercase">Категория</label>
                                         <select
+                                            name="category"
                                             value={formData.category}
-                                            onChange={set('category')}
+                                            onChange={handleChange}
                                             className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
                                         >
                                             {categories.map(cat => (
@@ -147,8 +163,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                                     <div>
                                         <label className="text-[9px] font-bold text-slate-400 uppercase">Размер</label>
                                         <select
+                                            name="sizeCategory"
                                             value={formData.sizeCategory}
-                                            onChange={set('sizeCategory')}
+                                            onChange={handleChange}
                                             className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
                                         >
                                             <option value="small" className="bg-slate-800">Малый</option>
@@ -165,8 +182,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                                         <input
                                             type="number"
                                             step="0.1"
+                                            name="weightTotalKg"
                                             value={formData.weightTotalKg}
-                                            onChange={set('weightTotalKg')}
+                                            onChange={handleChange}
                                             className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
                                             placeholder="Напр. 4500"
                                         />
@@ -175,8 +193,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                                     <div>
                                         <label className="text-[9px] font-bold text-slate-400 uppercase">Сложность</label>
                                         <select
+                                            name="complexity"
                                             value={formData.complexity}
-                                            onChange={set('complexity')}
+                                            onChange={handleChange}
                                             className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
                                         >
                                             <option value="1" className="bg-slate-800">1 — Простая</option>
@@ -188,8 +207,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                                     <div>
                                         <label className="text-[9px] font-bold text-slate-400 uppercase">Приоритет</label>
                                         <select
+                                            name="priority"
                                             value={formData.priority}
-                                            onChange={set('priority')}
+                                            onChange={handleChange}
                                             className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-cyan-500"
                                         >
                                             <option value="1" className="bg-slate-800">1 — Горит!</option>
@@ -205,8 +225,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             <div className="mt-3">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase">Примечания</label>
                                 <textarea
+                                    name="notes"
                                     value={formData.notes}
-                                    onChange={set('notes')}
+                                    onChange={handleChange}
                                     rows={2}
                                     className="w-full mt-1 bg-white/5 border-2 border-white/10 rounded-lg p-2 text-xs text-white outline-none focus:border-cyan-500 resize-none"
                                     placeholder="Особенности заказа..."
@@ -225,8 +246,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             </label>
                             <input
                                 type="date"
+                                name="drawingsDeadline"
                                 value={formData.drawingsDeadline}
-                                onChange={set('drawingsDeadline')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-indigo-100 bg-white rounded-lg p-2 text-sm focus:border-indigo-500 outline-none transition font-bold text-slate-700"
                             />
                         </div>
@@ -237,8 +259,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             </label>
                             <input
                                 type="date"
+                                name="materialsDeadline"
                                 value={formData.materialsDeadline}
-                                onChange={set('materialsDeadline')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-rose-100 bg-white rounded-lg p-2 text-sm focus:border-rose-500 outline-none transition font-bold text-slate-700"
                             />
                         </div>
@@ -249,8 +272,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             </label>
                             <input
                                 type="date"
+                                name="paintDeadline"
                                 value={formData.paintDeadline}
-                                onChange={set('paintDeadline')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-emerald-100 bg-white rounded-lg p-2 text-sm focus:border-emerald-500 outline-none transition font-bold text-slate-700"
                             />
                         </div>
@@ -262,8 +286,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             <label className="block text-xs font-bold text-emerald-600 uppercase mb-1">Дата оплаты</label>
                             <input
                                 type="date"
+                                name="paymentDate"
                                 value={formData.paymentDate}
-                                onChange={set('paymentDate')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-emerald-100 bg-emerald-50/30 rounded-lg p-2 text-sm focus:border-emerald-500 outline-none transition font-medium text-slate-700"
                             />
                         </div>
@@ -271,8 +296,9 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Срок сдачи</label>
                             <input
                                 type="date"
+                                name="deadline"
                                 value={formData.deadline}
-                                onChange={set('deadline')}
+                                onChange={handleChange}
                                 className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-orange-500 outline-none transition font-medium text-slate-700"
                             />
                         </div>
@@ -281,7 +307,7 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
                     <div className="pt-4 flex gap-3 mt-4 border-t border-slate-100">
                         {userRole !== 'manager' && (
                             <button
-                                onClick={() => { if(confirm("Удалить заказ полностью?")) { actions.deleteOrder(order.id); onClose(); }}}
+                                onClick={handleDelete}
                                 className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition bg-slate-50 border border-transparent hover:border-red-100"
                                 title="Удалить заказ"
                             >
@@ -300,4 +326,6 @@ export default function OrderSettingsModal({ order, onClose, actions, userRole }
         </div>,
         document.body
     );
-}
+});
+
+export default OrderSettingsModal;
