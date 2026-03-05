@@ -80,7 +80,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   }, [departmentFilteredRequests, selectedOrderFilter]);
 
   const myRequests = useMemo(() => getRequestsForRole(orderFilteredRequests, userRole), [orderFilteredRequests, userRole]);
-  const allRequests = useMemo(() => orderFilteredRequests.filter(r => r.status !== 'delivered'), [orderFilteredRequests]);
+  const allRequests = useMemo(() => orderFilteredRequests.filter(r => r.status !== 'delivered' && r.status !== 'awaiting_delivery'), [orderFilteredRequests]);
   const overdueRequests = useMemo(() => orderFilteredRequests.filter(r => r.status !== 'delivered' && isRequestOverdue(r)), [orderFilteredRequests]);
   const awaitingRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'awaiting_delivery'), [orderFilteredRequests]);
   const archivedRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'delivered'), [orderFilteredRequests]);
