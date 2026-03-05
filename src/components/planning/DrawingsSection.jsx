@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { FileText, Upload, Eye, Trash2, AlertCircle, Loader, Cpu, Zap, Check } from 'lucide-react';
+import { FileText, Upload, Eye, Trash2, AlertCircle, Loader } from 'lucide-react';
 import { uploadDrawing, deleteDrawing, isSupabaseConfigured } from '../../utils/supabaseStorage';
-import { parseDrawingWithAI } from '../../utils/aiParser';
 
 /**
  * Компактная секция для загрузки и просмотра PDF чертежей заказа
  */
 export default function DrawingsSection({ order, actions, isAdmin }) {
   const [uploading, setUploading] = useState(false);
-  const [analyzingId, setAnalyzingId] = useState(null); // ID чертежа который сейчас анализируется AI
   const [error, setError] = useState('');
 
   // Только активные (не удалённые) чертежи
@@ -53,44 +51,6 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
       await actions.deleteDrawingFromOrder(order.id, drawing.path);
     } catch (err) {
       setError(err.message);
-    }
-  };
-
-  const handleAIParse = async (drawing) => {
-    if (analyzingId) return;
-    
-    setAnalyzingId(drawing.publicId);
-    setError('');
-
-    try {
-      console.log('[AI Парсинг] Начало:', drawing.name, drawing.url);
-      const result = await parseDrawingWithAI(drawing.url, drawing.name);
-      console.log('[AI Парсинг] Результат:', result);
-
-      if (result && result.marks && result.marks.length > 0) {
-        const marksToAdd = result.marks.map(m => ({
-          name: m.id,
-          weight_kg: m.weight_kg,
-          quantity: m.quantity,
-          category: m.category || 'other',
-          sizeCategory: m.sizeCategory || 'medium',
-          complexity: m.complexity || 'medium',
-          hasProfileCut: m.hasProfileCut,
-          hasSheetCut: m.hasSheetCut
-        }));
-
-        const note = result.note ? `\n\n${result.note}` : '';
-        if (confirm(`Найдено ${marksToAdd.length} марок, ~${result.total_tonnage || '?'} т.${note}\n\nДобавить в заказ?`)) {
-          await actions.addProductsBatch(order.id, marksToAdd);
-        }
-      } else {
-        const hint = result?.note || 'Марки не найдены';
-        throw new Error(hint);
-      }
-    } catch (err) {
-      setError(`AI ошибка: ${err.message}`);
-    } finally {
-      setAnalyzingId(null);
     }
   };
 
@@ -219,32 +179,6 @@ export default function DrawingsSection({ order, actions, isAdmin }) {
               {/* Кнопки действий */}
               <div className="flex items-center gap-1 flex-shrink-0">
                 
-                {/* AI АНАЛИЗ */}
-                {isAdmin && (
-                  <button
-                    onClick={() => handleAIParse(drawing)}
-                    disabled={analyzingId !== null}
-                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${
-                      analyzingId === drawing.publicId 
-                        ? 'bg-orange-100 text-orange-600 animate-pulse' 
-                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white'
-                    }`}
-                    title="Распознать марки через AI"
-                  >
-                    {analyzingId === drawing.publicId ? (
-                      <>
-                        <Loader size={12} className="animate-spin" />
-                        AI думает...
-                      </>
-                    ) : (
-                      <>
-                        <Cpu size={12} />
-                        AI Парсинг
-                      </>
-                    )}
-                  </button>
-                )}
-
                 {/* Просмотреть в браузере */}
                 <a
                   href={getViewUrl(drawing)}

@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { generateRoute } from '../utils/routeGenerator';
 
 const fmtDate = (date) => {
   const d = new Date(date);
@@ -122,46 +121,6 @@ export const useScheduler = (orders, products, resources, simulatedOrders = []) 
           needsLargePost: op.needsLargePost || false,
           isSimulated: false,
         });
-      });
-    });
-
-    // ── Симулируемые заказы ───────────────────────────────────
-    // Резка симуляции → phase1, остальное → phase2
-    simulatedOrders.forEach(sim => {
-      const simRoute = generateRoute({
-        id: sim.number || 'SIM',
-        weight_kg: (sim.tonnage || 1) * 1000,
-        quantity: 1,
-        complexity: sim.complexity || 'medium',
-        sizeCategory: sim.sizeCategory || 'medium',
-        hasProfileCut: true,
-        hasSheetCut: sim.hasSheetCut || false,
-      });
-
-      simRoute.forEach(op => {
-        const item = {
-          id: `sim_${sim.id}_${op.id}`,
-          prodId: CUTTING_STAGES.has(op.stage)
-            ? `__cutting__sim_${sim.id}`
-            : `sim_prod_${sim.id}`,
-          prodName: `[СИМ] ${sim.number}`,
-          orderId: `sim_order_${sim.id}`,
-          orderNumber: sim.number,
-          opName: op.label,
-          stage: op.stage,
-          seq: op.sequence,
-          hours: op.hours,
-          priority: sim.priority || 3,
-          deadline: sim.deadline || '2099-12-31',
-          preferredResIds: [op.preferredResourceId],
-          needsLargePost: false,
-          isSimulated: true,
-        };
-        if (CUTTING_STAGES.has(op.stage)) {
-          phase1.push(item);
-        } else {
-          phase2.push(item);
-        }
       });
     });
 

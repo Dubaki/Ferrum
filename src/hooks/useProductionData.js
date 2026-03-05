@@ -4,7 +4,6 @@ import { db } from '../firebase';
 import { formatDate } from '../utils/helpers';
 import { showSuccess, showError, getFirebaseErrorMessage } from '../utils/toast';
 import { deleteDrawing } from '../utils/supabaseStorage';
-import { generateRoute } from '../utils/routeGenerator';
 
 export const useProductionData = () => {
   const [resources, setResources] = useState([]);
@@ -400,17 +399,19 @@ export const useProductionData = () => {
   }, [showSuccess, showError, getFirebaseErrorMessage, db]);
 
   // --- ПРОДУКТЫ ---
-  const addProduct = useCallback(async (orderId = null, initialDate = null) => {
+  const addProduct = useCallback(async (orderId = null, initialDate = null, planningParams = null) => {
     try {
       const startDate = initialDate || formatDate(new Date());
+
       const docRef = await addDoc(collection(db, 'products'), {
         orderId,
-        name: 'Новое изделие',
-        quantity: 1,
+        name: planningParams?.id || 'Новое изделие',
+        quantity: planningParams?.quantity || 1,
         startDate: startDate,
         status: 'active',
         operations: [],
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        weight_kg: planningParams?.weight_kg || 0
       });
       return docRef.id;
     } catch (error) {
@@ -419,7 +420,7 @@ export const useProductionData = () => {
     }
   }, [formatDate, showError, getFirebaseErrorMessage, db]);
 
-  // Пакетное добавление из пресетов или AI
+  // Пакетное добавление из пресетов
   const addProductsBatch = useCallback(async (orderId, presetItems) => {
     try {
       const startDate = formatDate(new Date());
@@ -427,7 +428,7 @@ export const useProductionData = () => {
       for (const item of presetItems) {
         let ops = [];
         
-        // 1. Если это старый формат пресетов (есть массив ops)
+        // Если это старый формат пресетов (есть массив ops)
         if (item.ops && Array.isArray(item.ops)) {
           ops = item.ops.map((op, index) => ({
             id: Date.now() + index + Math.random(),
@@ -438,30 +439,6 @@ export const useProductionData = () => {
             sequence: index + 1
           }));
         } 
-        // 2. Если это новый формат AI/КМД (есть weight_kg)
-        else if (item.weight_kg) {
-          const route = generateRoute({
-            id: item.name,
-            weight_kg: item.weight_kg,
-            quantity: item.quantity || 1,
-            complexity: item.complexity || 'medium',
-            sizeCategory: item.sizeCategory || 'medium',
-            hasProfileCut: item.hasProfileCut !== false,
-            hasSheetCut: item.hasSheetCut === true,
-            needsCrane: item.weight_kg > 50
-          });
-          
-          ops = route.map(op => ({
-            id: Date.now() + Math.random(),
-            name: op.label,
-            minutesPerUnit: Math.round(op.hours * 60),
-            actualMinutes: 0,
-            resourceIds: [op.preferredResourceId],
-            sequence: op.sequence,
-            stage: op.stage,
-            plannedHours: op.hours
-          }));
-        }
 
         await addDoc(collection(db, 'products'), {
           orderId,
@@ -472,9 +449,7 @@ export const useProductionData = () => {
           operations: ops,
           isResale: item.isResale || false,
           createdAt: Date.now(),
-          weight_kg: item.weight_kg || 0,
-          sizeCategory: item.sizeCategory || 'medium',
-          complexity: item.complexity || 'medium'
+          weight_kg: item.weight_kg || 0
         });
       }
       showSuccess(`Добавлено изделий: ${presetItems.length}`);
