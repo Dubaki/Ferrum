@@ -140,14 +140,13 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       return total + Object.values(r.orderAmounts).reduce((s, v) => s + (v || 0), 0);
     }, 0);
 
-    const activeReqs = orderFilteredRequests.filter(r => r.status !== 'delivered');
-    const paidReqs = orderFilteredRequests.filter(r => r.status === 'paid');
-    const inWorkReqs = orderFilteredRequests.filter(r => !['delivered', 'paid'].includes(r.status));
+    const paidReqs = orderFilteredRequests.filter(r => ['paid', 'awaiting_delivery'].includes(r.status));
+    const inWorkReqs = orderFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status));
 
     return {
       inWork: calcTotal(inWorkReqs),
       paid:   calcTotal(paidReqs),
-      total:  calcTotal(activeReqs),
+      total:  calcTotal(inWorkReqs), // только неоплаченные
     };
   }, [orderFilteredRequests, selectedOrderFilter]);
 
