@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Plus, FolderOpen, Search, Package } from 'lucide-react';
+import { Plus, FolderOpen, Search, Package, DatabaseZap } from 'lucide-react';
 
 import OrderCard from './OrderCard';
 import ProductCard from './ProductCard';
@@ -130,9 +130,18 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                  />
              </div>
 
+             {isAdmin && (
+                 <button
+                    onClick={() => { if (window.confirm('Проставить даты начала/конца изготовления для всех старых заказов из истории?')) actions.migrateOrderDates(); }}
+                    className="flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 px-3 py-2 rounded-lg hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all text-[10px] font-bold uppercase"
+                    title="Миграция: проставить даты изготовления из истории заказов"
+                 >
+                   <DatabaseZap size={13} /> Миграция дат
+                 </button>
+             )}
              {(isAdmin || userRole === 'manager') && (
-                 <button 
-                    onClick={() => setIsCreating(true)} 
+                 <button
+                    onClick={() => setIsCreating(true)}
                     className="shiny-effect flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-orange-600 transition-all active:scale-95 font-bold uppercase tracking-wide text-[10px]"
                  >
                    <Plus size={14} strokeWidth={3} /> Создать заказ

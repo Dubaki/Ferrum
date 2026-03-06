@@ -98,8 +98,13 @@ export const useProductionData = () => {
       if (!order) return;
 
       if (field === 'customStatus') {
-        const newHistory = addStatusHistory(order, value, userRole, `Статус изменён на: ${value}`);
-        await updateDoc(doc(db, 'orders', id), { [field]: value, statusHistory: newHistory });
+        const statusLabels = { metal: 'Ждём металл', components: 'Ждём комплектующие', drawings: 'Чертежи в разработке', work: 'В работе', done: 'Готово к отгрузке' };
+        const newHistory = addStatusHistory(order, value, userRole, `Статус изменён: ${statusLabels[value] || value}`);
+        const extra = {};
+        if (value === 'work' && !order.startedAt) {
+          extra.startedAt = new Date().toISOString();
+        }
+        await updateDoc(doc(db, 'orders', id), { [field]: value, statusHistory: newHistory, ...extra });
         return;
       }
       
@@ -172,7 +177,8 @@ export const useProductionData = () => {
       await updateDoc(doc(db, 'orders', id), {
         inShipping: true,
         shippingToday: false,
-        statusHistory: newHistory
+        statusHistory: newHistory,
+        manufacturedAt: new Date().toISOString()
       });
 
       // Автоматически завершаем все незавершённые операции
@@ -823,6 +829,44 @@ export const useProductionData = () => {
     }
   }, [showError, getFirebaseErrorMessage, db]);
 
+  const migrateOrderDates = useCallback(async () => {
+    const allOrders = ordersRef.current;
+    const toUpdate = [];
+
+    for (const order of allOrders) {
+      const updates = {};
+      const history = order.statusHistory || [];
+
+      if (!order.startedAt) {
+        const workEntry = history.find(e => e.status === 'work');
+        if (workEntry) updates.startedAt = new Date(workEntry.timestamp).toISOString();
+      }
+
+      if (!order.manufacturedAt) {
+        const shippingEntry = history.find(e => e.note && e.note.includes('Перемещён в отгрузки'));
+        if (shippingEntry) {
+          updates.manufacturedAt = new Date(shippingEntry.timestamp).toISOString();
+        } else if (order.finishedAt) {
+          updates.manufacturedAt = order.finishedAt;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        toUpdate.push({ id: order.id, updates });
+      }
+    }
+
+    if (toUpdate.length === 0) {
+      showSuccess('Все заказы уже имеют даты изготовления');
+      return;
+    }
+
+    const batch = writeBatch(db);
+    toUpdate.forEach(({ id, updates }) => batch.update(doc(db, 'orders', id), updates));
+    await batch.commit();
+    showSuccess(`Миграция завершена: обновлено ${toUpdate.length} заказов`);
+  }, [db, showSuccess]);
+
   const memoizedActions = useMemo(() => ({
     addOrder, updateOrder, updateOrderSettings, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
@@ -832,17 +876,19 @@ export const useProductionData = () => {
     moveOperationUp, moveOperationDown,
     addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
     fireResource, deleteResource, addReport, deleteReport,
-    settleResource, updateResourceNote
+    settleResource, updateResourceNote,
+    migrateOrderDates
   }), [
     addOrder, updateOrder, updateOrderSettings, deleteOrder, finishOrder, restoreOrder,
     moveToShipping, returnFromShipping, toggleShippingToday, completeShipping,
-    addDrawingToOrder, deleteDrawingFromOrder, // Теперь эти функции в зависимостях
+    addDrawingToOrder, deleteDrawingFromOrder,
     addProduct, addProductsBatch, updateProduct, deleteProduct, copyOperationsToAll,
     addOperation, updateOperation, toggleResourceForOp, deleteOperation,
     moveOperationUp, moveOperationDown,
     addResource, updateResource, updateResourceSchedule, updateResourceEfficiency, updateResourceSafety,
     fireResource, deleteResource, addReport, deleteReport,
-    settleResource, updateResourceNote
+    settleResource, updateResourceNote,
+    migrateOrderDates
   ]);
 
   return {

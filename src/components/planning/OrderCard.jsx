@@ -753,6 +753,30 @@ const OrderCard = memo(function OrderCard({
                         );
                     })()}
 
+                    {/* ДАТЫ ИЗГОТОВЛЕНИЯ */}
+                    {(order.startedAt || order.manufacturedAt) && (
+                        <div className="mt-4 p-3 bg-white/60 border border-slate-200 rounded-xl flex flex-wrap gap-4">
+                            {order.startedAt && (
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Начало изготовления</span>
+                                    <span className="text-xs font-bold text-emerald-700">{formatDateTime(order.startedAt)}</span>
+                                </div>
+                            )}
+                            {order.manufacturedAt && (
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Изготовлен</span>
+                                    <span className="text-xs font-bold text-blue-700">{formatDateTime(order.manufacturedAt)}</span>
+                                </div>
+                            )}
+                            {order.startedAt && order.manufacturedAt && (
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Длительность</span>
+                                    <span className="text-xs font-bold text-slate-700">{Math.round((new Date(order.manufacturedAt) - new Date(order.startedAt)) / 86400000)} дн.</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* ИСТОРИЯ ДЕЙСТВИЙ */}
                     {order.statusHistory && order.statusHistory.length > 0 && (
                         <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden bg-white/50">

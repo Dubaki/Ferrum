@@ -319,6 +319,24 @@ function ArchiveOrderRow({ order, products, resources, actions, userRole, supply
                 </div>
 
                 <div className="flex items-center gap-6 text-right w-full md:w-auto justify-between md:justify-end">
+                    {order.startedAt && (
+                        <div>
+                            <div className="text-[10px] text-gray-400 uppercase font-bold">Начало</div>
+                            <div className="font-bold text-emerald-700 text-sm">{new Date(order.startedAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' })}</div>
+                        </div>
+                    )}
+                    {order.manufacturedAt && (
+                        <div>
+                            <div className="text-[10px] text-gray-400 uppercase font-bold">Изготовлен</div>
+                            <div className="font-bold text-blue-700 text-sm">{new Date(order.manufacturedAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' })}</div>
+                        </div>
+                    )}
+                    {order.startedAt && order.manufacturedAt && (
+                        <div>
+                            <div className="text-[10px] text-gray-400 uppercase font-bold">Срок</div>
+                            <div className="font-bold text-slate-700 text-sm">{Math.round((new Date(order.manufacturedAt) - new Date(order.startedAt)) / 86400000)} дн.</div>
+                        </div>
+                    )}
                     <div>
                         <div className="text-[10px] text-gray-400 uppercase font-bold">Трудозатраты</div>
                         <div className="font-bold text-gray-700">{(orderTotalMinutes/60).toFixed(1)} ч</div>
