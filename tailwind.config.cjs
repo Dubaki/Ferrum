@@ -6,6 +6,16 @@ module.exports = {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'bg-sky-600',
+    'text-sky-700',
+    'bg-teal-500',
+    'text-teal-600',
+    'bg-sky-500',
+    'text-sky-600',
+    'bg-cyan-500',
+    'text-cyan-600',
+  ],
   theme: {
     extend: {
       colors: {
