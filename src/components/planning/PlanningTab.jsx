@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Plus, FolderOpen, Search, Package, DatabaseZap } from 'lucide-react';
+import { Plus, FolderOpen, Search, Package, Database } from 'lucide-react';
 
 import OrderCard from './OrderCard';
 import ProductCard from './ProductCard';
@@ -136,7 +136,7 @@ export default function PlanningTab({ products, resources, actions, ganttItems =
                     className="flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 px-3 py-2 rounded-lg hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all text-[10px] font-bold uppercase"
                     title="Миграция: проставить даты изготовления из истории заказов"
                  >
-                   <DatabaseZap size={13} /> Миграция дат
+                   <Database size={13} /> Миграция дат
                  </button>
              )}
              {(isAdmin || userRole === 'manager') && (
