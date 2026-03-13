@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Package, AlertTriangle, CheckCircle2, Clock, Inbox, Archive, AlertCircle, Truck, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
 import { getRequestsForRole, isRequestOverdue, getRoleLabel } from '../../utils/supplyRoles';
 import SupplyRequestCard from './SupplyRequestCard';
@@ -66,49 +66,72 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
   const [expandedMonths, setExpandedMonths] = useState({}); // { 'YYYY-MM': true }
   const [expandedDays, setExpandedDays] = useState({});     // { 'YYYY-MM-DD': true }
 
+  // 1. Сначала фильтруем по департаменту
   const departmentFilteredRequests = useMemo(() => supplyRequests.filter(r => 
     activeDepartment === 'Химмаш' ? r.department === 'Химмаш' || !r.department : r.department === activeDepartment
   ), [supplyRequests, activeDepartment]);
 
-  // Фильтрация по выбранному заказу
-  const orderFilteredRequests = useMemo(() => {
-    if (selectedOrderFilter === 'all') return departmentFilteredRequests;
-    if (selectedOrderFilter === 'workshop') {
-      return departmentFilteredRequests.filter(r => r.orders?.some(o => o.orderId === 'В цех'));
-    }
-    return departmentFilteredRequests.filter(r => r.orders?.some(o => o.orderId === selectedOrderFilter));
-  }, [departmentFilteredRequests, selectedOrderFilter]);
+  // 2. Группируем заявки по табам (НЕЗАВИСИМО от фильтра по заказу)
+  const tabGroups = useMemo(() => {
+    return {
+      all: departmentFilteredRequests.filter(r => r.status !== 'delivered' && r.status !== 'awaiting_delivery'),
+      my: getRequestsForRole(departmentFilteredRequests, userRole),
+      awaiting: departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery'),
+      overdue: departmentFilteredRequests.filter(r => r.status !== 'delivered' && (isRequestOverdue(r) || r.status === 'paid')),
+      archive: departmentFilteredRequests.filter(r => r.status === 'delivered')
+    };
+  }, [departmentFilteredRequests, userRole]);
 
-  const myRequests = useMemo(() => getRequestsForRole(orderFilteredRequests, userRole), [orderFilteredRequests, userRole]);
-  const allRequests = useMemo(() => orderFilteredRequests.filter(r => r.status !== 'delivered' && r.status !== 'awaiting_delivery'), [orderFilteredRequests]);
-  const overdueRequests = useMemo(() => orderFilteredRequests.filter(r =>
-    r.status !== 'delivered' && (isRequestOverdue(r) || r.status === 'paid')
-  ), [orderFilteredRequests]);
-  const awaitingRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'awaiting_delivery'), [orderFilteredRequests]);
-  const archivedRequests = useMemo(() => orderFilteredRequests.filter(r => r.status === 'delivered'), [orderFilteredRequests]);
-  const groupedArchivedRequests = useMemo(() => groupRequestsByDeliveredDate(archivedRequests), [archivedRequests]);
-
-  // Фильтруем активные заказы так же, как в PlanningTab
-  const activeOrders = useMemo(() => {
-    return orders.filter(o => o.status === 'active' && !o.inShipping && o.isProductOrder !== true);
-  }, [orders]);
-
-  // Извлекаем список активных заказов для фильтрации
+  // 3. Извлекаем список только тех заказов, которые есть в ТЕКУЩЕМ выбранном табе
   const requestsOrders = useMemo(() => {
-    return activeOrders
-      .map(o => ({ id: o.id, number: o.orderNumber }))
+    // Берем заявки текущего таба
+    const baseRequests = tabGroups[activeTab] || [];
+    const orderMap = new Map();
+    
+    baseRequests.forEach(r => {
+      // ИГНОРИРУЕМ ПУСТЫЕ ЗАЯВКИ (без позиций)
+      if (!r.items || r.items.length === 0) return;
+      
+      if (!r.orders || !Array.isArray(r.orders)) return;
+      r.orders.forEach(o => {
+        // Проверяем наличие и id, и номера, и исключаем "В цех"
+        if (o.orderId && o.orderNumber && o.orderId !== 'В цех') {
+          if (!orderMap.has(o.orderId)) {
+            orderMap.set(o.orderId, o.orderNumber);
+          }
+        }
+      });
+    });
+    
+    return Array.from(orderMap.entries())
+      .map(([id, number]) => ({ id, number }))
       .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
-  }, [activeOrders]);
+  }, [activeTab, tabGroups]);
 
-  const currentRequests = useMemo(() => {
-    let list;
-    switch (activeTab) {
-      case 'my': list = myRequests; break;
-      case 'awaiting': list = awaitingRequests; break;
-      case 'overdue': list = overdueRequests; break;
-      case 'archive': list = archivedRequests; break;
-      default: list = allRequests; break;
+  // Сбрасываем фильтр по заказу при переключении табов, если такого заказа больше нет в списке
+  useEffect(() => {
+    if (selectedOrderFilter !== 'all' && selectedOrderFilter !== 'workshop') {
+        const orderExists = requestsOrders.some(o => o.id === selectedOrderFilter);
+        if (!orderExists) {
+            setSelectedOrderFilter('all');
+        }
     }
+  }, [activeTab, requestsOrders, selectedOrderFilter]);
+
+  // 4. Фильтруем заявки текущего таба по выбранному заказу
+  const currentRequests = useMemo(() => {
+    let list = tabGroups[activeTab] || [];
+    
+    // Фильтр по заказу
+    if (selectedOrderFilter !== 'all') {
+      if (selectedOrderFilter === 'workshop') {
+        list = list.filter(r => r.orders?.some(o => o.orderId === 'В цех'));
+      } else {
+        list = list.filter(r => r.orders?.some(o => o.orderId === selectedOrderFilter));
+      }
+    }
+
+    // Фильтр по поиску
     if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
     return list.filter(r => 
@@ -116,41 +139,52 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       r.items?.some(item => item.title.toLowerCase().includes(query)) ||
       r.orders?.some(order => order.orderNumber.toLowerCase().includes(query))
     );
-  }, [activeTab, myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, searchQuery]);
+  }, [activeTab, tabGroups, selectedOrderFilter, searchQuery]);
 
+  const archivedRequests = tabGroups.archive;
+  const groupedArchivedRequests = useMemo(() => groupRequestsByDeliveredDate(archivedRequests), [archivedRequests]);
+
+  // Статистика для бейджей (всегда от departmentFilteredRequests)
   const stats = useMemo(() => ({
-    my: myRequests.length,
-    awaiting: awaitingRequests.length,
-    all: allRequests.length,
-    overdue: overdueRequests.length,
-    archive: archivedRequests.length,
-    inProgress: orderFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status)).length,
-    paid: orderFilteredRequests.filter(r => r.status === 'paid').length,
-    awaitingDelivery: orderFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
-  }), [myRequests, awaitingRequests, allRequests, overdueRequests, archivedRequests, orderFilteredRequests]);
+    all: tabGroups.all.length,
+    my: tabGroups.my.length,
+    awaiting: tabGroups.awaiting.length,
+    overdue: tabGroups.overdue.length,
+    archive: tabGroups.archive.length,
+    inProgress: departmentFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status)).length,
+    paid: departmentFilteredRequests.filter(r => r.status === 'paid').length,
+    awaitingDelivery: departmentFilteredRequests.filter(r => r.status === 'awaiting_delivery').length
+  }), [tabGroups, departmentFilteredRequests]);
 
-  // Суммы по счетам
+  // Суммы по счетам (от текущего списка заявок)
   const amountStats = useMemo(() => {
     const calcTotal = (list) => list.reduce((total, r) => {
       if (!r.orderAmounts) return total;
-      // Если выбран фильтр по заказу, берем только сумму этого заказа
       if (selectedOrderFilter !== 'all') {
         const filterId = selectedOrderFilter === 'workshop' ? 'В цех' : selectedOrderFilter;
         return total + (r.orderAmounts[filterId] || 0);
       }
-      // Иначе сумму всех заказов в заявке
       return total + Object.values(r.orderAmounts).reduce((s, v) => s + (v || 0), 0);
     }, 0);
 
-    const paidReqs = orderFilteredRequests.filter(r => ['paid', 'awaiting_delivery'].includes(r.status));
-    const inWorkReqs = orderFilteredRequests.filter(r => !['delivered', 'paid', 'awaiting_delivery'].includes(r.status));
+    const paidReqs = currentRequests.filter(r => ['paid', 'awaiting_delivery', 'delivered'].includes(r.status));
+    const inWorkReqs = currentRequests.filter(r => !['paid', 'awaiting_delivery', 'delivered'].includes(r.status));
 
     return {
       inWork: calcTotal(inWorkReqs),
       paid:   calcTotal(paidReqs),
-      total:  calcTotal(inWorkReqs), // только неоплаченные
+      total:  calcTotal(inWorkReqs), 
     };
-  }, [orderFilteredRequests, selectedOrderFilter]);
+  }, [currentRequests, selectedOrderFilter]);
+
+  // Фильтруем активные заказы (для модалки создания)
+  const activeOrders = useMemo(() => {
+    return orders.filter(o => o.status === 'active' && !o.inShipping && o.isProductOrder !== true);
+  }, [orders]);
+
+  const productOrders = useMemo(() => {
+    return orders.filter(o => o.status === 'active' && !o.inShipping && o.isProductOrder === true);
+  }, [orders]);
 
   // Всегда берём свежие данные из Firestore по ID
   const selectedRequest = useMemo(() => {
@@ -354,16 +388,6 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
         >
           Цех
         </button>
-        <div className="w-px h-6 bg-neutral-200 shrink-0 mx-1"></div>
-        {requestsOrders.map(order => (
-          <button
-            key={order.id}
-            onClick={() => setSelectedOrderFilter(order.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${selectedOrderFilter === order.id ? 'bg-cyan-600 border-cyan-600 text-white shadow-lg' : 'bg-white border-neutral-100 text-neutral-400 hover:border-neutral-200'}`}
-          >
-            {order.number}
-          </button>
-        ))}
       </div>
 
       {/* Filters & Search */}
@@ -387,7 +411,7 @@ export default function SupplyTab({ orders, supplyRequests, supplyActions, userR
       </div>
 
       {/* Modals */}
-      {showCreateModal && <CreateRequestModal orders={activeOrders} userRole={userRole} onClose={() => { setShowCreateModal(false); setEditingRequest(null); }} onCreate={handleCreateRequest} editData={editingRequest} onEdit={handleEditRequest} />}
+      {showCreateModal && <CreateRequestModal orders={activeOrders} productOrders={productOrders} supplyRequests={supplyRequests} userRole={userRole} onClose={() => { setShowCreateModal(false); setEditingRequest(null); }} onCreate={handleCreateRequest} editData={editingRequest} onEdit={handleEditRequest} />}
       {showDetailsModal && selectedRequest && <RequestDetailsModal request={selectedRequest} userRole={userRole} supplyActions={supplyActions} onClose={() => { setShowDetailsModal(false); setSelectedRequestId(null); }} onEditRequest={handleOpenEdit} />}
     </div>
   );

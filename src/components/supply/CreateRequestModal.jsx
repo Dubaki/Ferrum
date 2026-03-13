@@ -51,31 +51,48 @@ const ItemRow = memo(({ index, item, onUpdate, onRemove, showRemove }) => {
 });
 
 // --- МЕМОИЗИРОВАННЫЙ ВЫБОР ЗАКАЗА ---
-const OrderItem = memo(({ order, isSelected, onToggle }) => (
-  <label className={`flex items-center gap-3 p-3 cursor-pointer transition-all border-b border-slate-100 last:border-0 hover:bg-slate-50 ${isSelected ? 'bg-cyan-50/50' : ''}`}>
-    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-slate-300 bg-white'}`}>
-      {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
-    </div>
-    <input 
-      type="checkbox" 
-      checked={isSelected} 
-      onChange={() => onToggle(order)} 
-      className="hidden" 
-    />
-    <div className="flex flex-col min-w-0">
-      <span className={`text-sm font-black uppercase tracking-tight ${isSelected ? 'text-cyan-700' : 'text-slate-700'}`}>
-        {order.orderNumber}
-      </span>
-      {order.clientName && (
-        <span className="text-[10px] text-slate-400 font-bold uppercase truncate">
-          {order.clientName}
-        </span>
-      )}
-    </div>
-  </label>
-));
+const OrderItem = memo(({ order, isSelected, onToggle }) => {
+  const hasSupply = order.hasActiveSupply;
+  const hasNotes = order.hasNotes;
 
-export default function CreateRequestModal({ orders, userRole, onClose, onCreate, editData, onEdit }) {
+  return (
+    <label className={`flex items-center gap-3 p-2.5 cursor-pointer transition-all border-b border-slate-100 last:border-0 hover:bg-slate-50 ${isSelected ? 'bg-cyan-50/50' : ''}`}>
+      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-slate-300 bg-white'}`}>
+        {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
+      </div>
+      <input 
+        type="checkbox" 
+        checked={isSelected} 
+        onChange={() => onToggle(order)} 
+        className="hidden" 
+      />
+      <div className="flex flex-col min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-black uppercase tracking-tight truncate ${isSelected ? 'text-cyan-700' : 'text-slate-700'}`}>
+            {order.orderNumber}
+          </span>
+          
+          {/* Индикаторы */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {hasSupply && (
+              <span className="w-4 h-4 rounded bg-amber-500 text-white text-[9px] font-black flex items-center justify-center shadow-sm" title="Есть активное снабжение">С</span>
+            )}
+            {hasNotes && (
+              <MessageSquare size={10} className="text-slate-400 fill-slate-100" />
+            )}
+          </div>
+        </div>
+        {order.clientName && (
+          <span className="text-[10px] text-slate-400 font-bold uppercase truncate leading-tight">
+            {order.clientName}
+          </span>
+        )}
+      </div>
+    </label>
+  );
+});
+
+export default function CreateRequestModal({ orders, productOrders = [], userRole, onClose, onCreate, editData, onEdit, supplyRequests = [] }) {
   const isEditing = !!editData;
   const [items, setItems] = useState(
     isEditing && editData.items?.length > 0
@@ -92,7 +109,26 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   const [leadTimeCustomDays, setLeadTimeCustomDays] = useState(isEditing ? (editData.leadTimeCustomDays || '') : '');
   const [loading, setLoading] = useState(false);
 
-  // Стабильные коллбэки для предотвращения лишних ререндеров
+  // Оптимизация данных заказов (добавление индикаторов)
+  const enrichedOrders = useMemo(() => {
+    const enrich = (list) => list.map(o => ({
+      ...o,
+      hasActiveSupply: supplyRequests?.some(r => r.status !== 'delivered' && r.orders?.some(ro => ro.orderId === o.id)),
+      hasNotes: Array.isArray(o.notes) ? o.notes.length > 0 : !!o.notes
+    }));
+    return enrich(orders);
+  }, [orders, supplyRequests]);
+
+  const enrichedProductOrders = useMemo(() => {
+    const enrich = (list) => list.map(o => ({
+      ...o,
+      hasActiveSupply: supplyRequests?.some(r => r.status !== 'delivered' && r.orders?.some(ro => ro.orderId === o.id)),
+      hasNotes: Array.isArray(o.notes) ? o.notes.length > 0 : !!o.notes
+    }));
+    return enrich(productOrders);
+  }, [productOrders, supplyRequests]);
+
+  // Стабильные коллбэки
   const addItem = useCallback(() => {
     setItems(prev => [...prev, { title: '', quantity: '', unit: 'шт' }]);
   }, []);
@@ -104,6 +140,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
   const updateItem = useCallback((index, field, value) => {
     setItems(prev => {
       const next = [...prev];
+      if (next[index][field] === value) return prev;
       next[index] = { ...next[index], [field]: value };
       return next;
     });
@@ -121,7 +158,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
     });
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
     const validItems = items.filter(item => item.title.trim() && item.quantity);
@@ -167,7 +204,7 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
     } finally {
       setLoading(false);
     }
-  };
+  }, [items, selectedOrders, desiredDate, department, comment, leadTime, leadTimeCustomDays, userRole, isEditing, onEdit, onCreate]);
 
   const workshopOrder = useMemo(() => ({ orderNumber: 'В цех' }), []);
 
@@ -216,15 +253,16 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
           {/* ЗАКАЗЫ */}
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
-              <FileText size={12} className="inline mr-1 -mt-0.5" />Привязка к заказам
+              <FileText size={12} className="inline mr-1 -mt-0.5" />Привязка к работам
             </label>
-            <div className="border border-slate-100 rounded-2xl max-h-48 overflow-y-auto custom-scrollbar bg-slate-50/50 shadow-inner">
+            <div className="border border-slate-100 rounded-2xl max-h-56 overflow-y-auto custom-scrollbar bg-slate-50/50 shadow-inner">
+              <div className="p-2 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50">Заказы</div>
               <OrderItem 
                 order={workshopOrder} 
                 isSelected={!!selectedOrders.find(o => o.orderId === workshopOrder.orderNumber)} 
                 onToggle={toggleOrder} 
               />
-              {orders.map(order => (
+              {enrichedOrders.map(order => (
                 <OrderItem 
                   key={order.id} 
                   order={order} 
@@ -232,7 +270,22 @@ export default function CreateRequestModal({ orders, userRole, onClose, onCreate
                   onToggle={toggleOrder} 
                 />
               ))}
-              {orders.length === 0 && <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase">Нет активных заказов</div>}
+
+              {enrichedProductOrders.length > 0 && (
+                <>
+                  <div className="p-2 text-[9px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-50/50 border-t border-slate-100">Товары (Серийные)</div>
+                  {enrichedProductOrders.map(order => (
+                    <OrderItem 
+                      key={order.id} 
+                      order={order} 
+                      isSelected={!!selectedOrders.find(o => o.orderId === order.id)} 
+                      onToggle={toggleOrder} 
+                    />
+                  ))}
+                </>
+              )}
+
+              {enrichedOrders.length === 0 && enrichedProductOrders.length === 0 && <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase">Нет активных работ</div>}
             </div>
           </div>
 

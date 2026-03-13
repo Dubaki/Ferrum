@@ -47,7 +47,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.livekit.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:yandex.cloud)"
+      "WebFetch(domain:yandex.cloud)",
+      "WebFetch(domain:conductor.ru)"
     ]
   }
 }
