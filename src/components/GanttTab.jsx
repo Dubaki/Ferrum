@@ -1,246 +1,309 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useGanttData } from '../hooks/useGanttData';
-import { useShopResources } from '../hooks/useShopResources';
-import { useScheduler } from '../hooks/useScheduler';
 import GanttChart from './gantt/GanttChart';
-import SchedulerTab from './scheduler/SchedulerTab';
-import { X, Clock, Save, AlertTriangle, Calendar, Package, Wrench, Timer, Target, Loader, BarChart3 } from 'lucide-react';
+import { X, Save, AlertTriangle, Calendar, Loader, CheckCircle2, CheckCircle } from 'lucide-react';
 
-export default function GanttTab({ products, resources, orders, actions }) {
-    const { shopResources } = useShopResources();
-    const schedulerResults = useScheduler(orders, products, shopResources || []);
-    const { calendarDays, ganttRows, startDate } = useGanttData(orders, products, resources, schedulerResults);
-
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [newDateValue, setNewDateValue] = useState('');
-    const [expandedIds, setExpandedIds] = useState([]);
+// --- ОПТИМИЗИРОВАННЫЙ КОМПОНЕНТ МОДАЛКИ ---
+const GanttEditModal = React.memo(({ itemId, itemType, initialDates, products, orders, actions, onClose }) => {
     const [isSaving, setIsSaving] = useState(false);
-    const [showPlanner, setShowPlanner] = useState(false);
+    
+    const liveItem = useMemo(() => {
+        if (itemType === 'order') return orders.find(o => o.id === itemId);
+        return products.find(p => p.id === itemId);
+    }, [itemId, itemType, products, orders]);
 
-    // Фильтрация: Скрываем заказы, состоящие ТОЛЬКО из товаров перепродажи
-    const filteredGanttRows = useMemo(() => {
-        if (!ganttRows) return [];
-        return ganttRows.filter(row => {
-            if (row.type !== 'order') return true;
+    const [state, setState] = useState({
+        start: '',
+        end: '',
+        duration: 0
+    });
 
-            // Скрываем заказы, которые находятся в отгрузке
-            const order = orders.find(o => o.id === row.id);
-            if (order && order.inShipping) return false;
-
-            // Если у заказа есть дети, проверяем, все ли они resale
-            if (row.children && row.children.length > 0) {
-                const allResale = row.children.every(child => child.isResale);
-                return !allResale;
-            }
-            return true; // Пустые заказы оставляем (или можно скрыть return false)
-        });
-    }, [ganttRows, orders]);
-
-    // Проверка наличия actions при монтировании компонента
-    React.useEffect(() => {
-        if (!actions) {
-            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: actions не передан в GanttTab!');
-            console.error('Проверьте App.jsx - должно быть: <GanttTab actions={actions} ... />');
-        }
-    }, [actions]);
-
-
-
-    const toggleExpand = (id) => {
-        setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-    };
-
-    // Хелпер для форматирования даты в YYYY-MM-DD
     const formatDateForInput = (dateObj) => {
         if (!dateObj) return '';
-        
-        let date = dateObj;
-        if (typeof dateObj === 'string') {
-            date = new Date(dateObj);
-        }
-        
-        if (isNaN(date.getTime())) {
-            console.error('❌ Некорректная дата:', dateObj);
-            return '';
-        }
-        
+        let date = dateObj instanceof Date ? dateObj : new Date(dateObj);
+        if (isNaN(date.getTime())) return '';
+        // Важно: берем только дату без учета локального времени
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        
         return `${year}-${month}-${day}`;
     };
 
-    // Открытие модалки
-    const handleOpenModal = (item) => {
-        setSelectedItem(item);
-        const formattedDate = formatDateForInput(item.startDate || new Date());
-        setNewDateValue(formattedDate);
+    const calculateDuration = (start, end) => {
+        if (!start || !end) return 0;
+        const s = new Date(start + 'T00:00:00');
+        const e = new Date(end + 'T00:00:00');
+        const diff = e.getTime() - s.getTime();
+        return Math.max(1, Math.floor(diff / (1000 * 60 * 60 * 24)) + 1);
     };
 
-    // --- ГЛАВНАЯ ФУНКЦИЯ СОХРАНЕНИЯ ---
-    const handleSaveDate = async () => {
-        // Проверка наличия actions
-        if (!actions || !actions.updateProduct) {
-            console.error('❌ ОШИБКА: actions.updateProduct не существует');
-            alert('Ошибка: Функция обновления недоступна. Проверьте консоль.');
-            return;
-        }
+    const addDays = (dateStr, days) => {
+        const d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() + (days - 1));
+        return formatDateForInput(d);
+    };
 
-        if (!selectedItem || !newDateValue) {
-            return;
+    // Инициализация дат из переданных параметров
+    useEffect(() => {
+        if (initialDates) {
+            const s = formatDateForInput(initialDates.start);
+            const e = formatDateForInput(initialDates.end);
+            setState({
+                start: s,
+                end: e,
+                duration: calculateDuration(s, e)
+            });
         }
+    }, [itemId]);
 
+    const handleDateChange = (field, value) => {
+        setState(prev => {
+            let next = { ...prev, [field]: value };
+            if (field === 'start') {
+                next.end = addDays(value, prev.duration);
+            } else if (field === 'end') {
+                next.duration = calculateDuration(prev.start, value);
+            } else if (field === 'duration') {
+                const dur = parseInt(value) || 1;
+                next.duration = dur;
+                next.end = addDays(prev.start, dur);
+            }
+            return next;
+        });
+    };
+
+    const toggleProductDone = async (prodId, currentStatus) => {
+        try {
+            await actions.updateProduct(prodId, 'isCompleted', !currentStatus);
+        } catch (err) {
+            console.error('Ошибка переключения готовности:', err);
+        }
+    };
+
+    const handleSaveDates = async () => {
+        if (!actions?.updateProduct || !liveItem) return;
         setIsSaving(true);
 
         try {
-            // Парсим даты
-            const targetDate = new Date(newDateValue + 'T00:00:00');
-            const originalDate = new Date(selectedItem.startDate);
-            originalDate.setHours(0, 0, 0, 0);
-            targetDate.setHours(0, 0, 0, 0);
-
-            // Проверка корректности дат
-            if (isNaN(targetDate.getTime())) {
-                throw new Error('Некорректная целевая дата');
-            }
-            if (isNaN(originalDate.getTime())) {
-                throw new Error('Некорректная оригинальная дата');
-            }
-
-            // Вычисляем разницу
-            const diffMs = targetDate.getTime() - originalDate.getTime();
-            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-            if (diffDays === 0) {
-                setSelectedItem(null);
-                setIsSaving(false);
-                return;
-            }
-
-            if (selectedItem.type === 'order') {
-                // === ЛОГИКА ДЛЯ ЗАКАЗА ===
-                
-                const orderProducts = products.filter(p => p.orderId === selectedItem.id);
-
-                if (orderProducts.length === 0) {
-                    alert('В заказе нет изделий для обновления');
-                    setSelectedItem(null);
-                    setIsSaving(false);
-                    return;
-                }
-
-                // Обновляем каждое изделие последовательно
-                let successCount = 0;
-                const errors = [];
+            if (itemType === 'order') {
+                const orderProducts = products.filter(p => p.orderId === itemId);
+                const oldStartStr = formatDateForInput(initialDates.start);
+                const oldStart = new Date(oldStartStr + 'T00:00:00');
+                const newStart = new Date(state.start + 'T00:00:00');
+                const diffDays = Math.round((newStart - oldStart) / (1000 * 60 * 60 * 24));
 
                 for (const prod of orderProducts) {
-                    try {
-                        // Получаем текущую дату изделия
-                        const currentProdStart = prod.startDate 
-                            ? new Date(prod.startDate + 'T00:00:00') 
-                            : new Date(selectedItem.startDate);
-                        
-                        currentProdStart.setHours(0, 0, 0, 0);
-                        
-                        // Прибавляем разницу дней
-                        currentProdStart.setDate(currentProdStart.getDate() + diffDays);
-                        
-                        // Форматируем в строку YYYY-MM-DD
-                        const newProdDateStr = formatDateForInput(currentProdStart);
-                        
-                        // Обновляем через actions
-                        await actions.updateProduct(prod.id, 'startDate', newProdDateStr);
-                        successCount++;
-                        
-                        // Небольшая задержка для надёжности Firebase
-                        await new Promise(resolve => setTimeout(resolve, 150));
-                        
-                    } catch (error) {
-                        console.error(`      ❌ Ошибка обновления изделия ${prod.id}:`, error);
-                        errors.push({ name: prod.name, error: error.message });
-                    }
+                    const pS = new Date((prod.startDate || oldStartStr) + 'T00:00:00');
+                    const pE = new Date((prod.endDate || formatDateForInput(pS)) + 'T00:00:00');
+                    pS.setDate(pS.getDate() + diffDays);
+                    pE.setDate(pE.getDate() + diffDays);
+                    
+                    await actions.updateProduct(prod.id, 'startDate', formatDateForInput(pS));
+                    await actions.updateProduct(prod.id, 'endDate', formatDateForInput(pE));
                 }
-                
-                if (errors.length > 0) {
-                    console.error('❌ Ошибки при обновлении:', errors);
-                    alert(`⚠️ Обновлено: ${successCount} из ${orderProducts.length}\n\nОшибки:\n${errors.map(e => `- ${e.name}: ${e.error}`).join('\n')}`);
-                } else {
-                    alert(`✅ Успешно обновлено ${successCount} изделий!`);
-                }
-                
-            } else if (selectedItem.type === 'product') {
-                // === ЛОГИКА ДЛЯ ИЗДЕЛИЯ ===
-                
-                const productId = selectedItem.id || selectedItem.productId;
-                
-                if (!productId) {
-                    throw new Error('Не найден ID изделия');
-                }
-                
-                await actions.updateProduct(productId, 'startDate', newDateValue);
-                
-                alert('✅ Дата изделия успешно обновлена!');
+            } else {
+                await actions.updateProduct(itemId, 'startDate', state.start);
+                await actions.updateProduct(itemId, 'endDate', state.end);
             }
-
-            // Успешное завершение
-            setSelectedItem(null);
-            
+            onClose();
         } catch (error) {
-            console.error('❌ ОШИБКА при сохранении:', error);
-            alert(`❌ Ошибка: ${error.message}\n\nПроверьте консоль для деталей (F12)`);
+            console.error('Ошибка сохранения:', error);
+            alert('Ошибка при сохранении дат');
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Проверка загрузки данных
+    if (!liveItem) return null;
+
+    const isProductDone = liveItem.isCompleted || liveItem.status === 'completed';
+    const orderItems = itemType === 'order' ? products.filter(p => p.orderId === itemId) : [];
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
+                
+                <div className="bg-slate-50 border-b border-slate-200 p-6 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
+                            <Calendar size={24} />
+                        </div>
+                        <div>
+                            <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5 tracking-tighter">Сроки и готовность</div>
+                            <h3 className="text-xl font-black text-slate-800 truncate max-w-[300px] leading-none">
+                                {itemType === 'order' ? `Заказ ${liveItem.orderNumber}` : liveItem.name}
+                            </h3>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-xl transition-colors"><X size={24} /></button>
+                </div>
+                
+                <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                    
+                    {/* Статус "ГОТОВО" для отдельного изделия (МГНОВЕННОЕ) */}
+                    {itemType === 'product' && (
+                        <button 
+                            onClick={() => toggleProductDone(itemId, isProductDone)}
+                            className={`w-full p-4 rounded-2xl flex items-center justify-between border-2 transition-all duration-300 ${
+                                isProductDone 
+                                ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-md shadow-emerald-100' 
+                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <CheckCircle2 size={26} className={isProductDone ? 'text-emerald-500' : 'text-slate-300'} />
+                                <span className="font-black text-lg">ИЗДЕЛИЕ ГОТОВО</span>
+                            </div>
+                            <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isProductDone ? 'bg-emerald-500 border-emerald-500 text-white scale-110' : 'bg-white border-slate-300'
+                            }`}>
+                                {isProductDone && <CheckCircle size={22} />}
+                            </div>
+                        </button>
+                    )}
+
+                    {/* Поля дат */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Дата начала</label>
+                            <input 
+                                type="date" 
+                                value={state.start}
+                                onChange={(e) => handleDateChange('start', e.target.value)}
+                                className="w-full border-2 border-slate-100 bg-slate-50 rounded-xl p-3 font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Дата окончания</label>
+                            <input 
+                                type="date" 
+                                value={state.end}
+                                onChange={(e) => handleDateChange('end', e.target.value)}
+                                className="w-full border-2 border-slate-100 bg-slate-50 rounded-xl p-3 font-bold text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Длительность */}
+                    <div className="bg-blue-50/50 p-5 rounded-2xl flex items-center justify-between border border-blue-100/50">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-white shadow-sm border border-blue-100 rounded-xl flex items-center justify-center">
+                                <span className="font-black text-sm text-blue-500">📅</span>
+                            </div>
+                            <div>
+                                <div className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">Длительность</div>
+                                <div className="text-base font-black text-slate-700">Календарных дней</div>
+                            </div>
+                        </div>
+                        <input 
+                            type="number"
+                            min="1"
+                            value={state.duration}
+                            onChange={(e) => handleDateChange('duration', e.target.value)}
+                            className="w-20 bg-white border-2 border-blue-400 rounded-xl p-2 text-center text-xl font-black text-blue-600 shadow-sm focus:ring-4 focus:ring-blue-100 outline-none"
+                        />
+                    </div>
+
+                    {/* Состав заказа (МГНОВЕННОЕ СОХРАНЕНИЕ) */}
+                    {itemType === 'order' && orderItems.length > 0 && (
+                        <div className="space-y-3">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1 flex justify-between">
+                                <span>Состав заказа</span>
+                                <span className="text-blue-600">{orderItems.filter(p => p.isCompleted).length} / {orderItems.length} готов</span>
+                            </h4>
+                            <div className="grid gap-2">
+                                {orderItems.map(prod => {
+                                    const isDone = prod.isCompleted || prod.status === 'completed';
+                                    return (
+                                        <div key={prod.id} 
+                                            onClick={() => toggleProductDone(prod.id, isDone)}
+                                            className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                                isDone 
+                                                ? 'bg-emerald-50 border-emerald-200' 
+                                                : 'bg-white border-slate-100 hover:border-slate-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-1.5 rounded-lg transition-colors ${isDone ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                                    <CheckCircle2 size={16} />
+                                                </div>
+                                                <div>
+                                                    <div className={`text-sm font-bold transition-colors ${isDone ? 'text-emerald-700' : 'text-slate-700'}`}>{prod.name}</div>
+                                                    <div className="text-[10px] text-slate-400 font-medium">Кол-во: {prod.quantity} шт.</div>
+                                                </div>
+                                            </div>
+                                            {isDone && <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-lg uppercase tracking-tighter">Готово</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="pt-2 sticky bottom-0 bg-white pb-2">
+                        <button 
+                            onClick={handleSaveDates}
+                            disabled={isSaving}
+                            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3"
+                        >
+                            {isSaving ? <Loader size={20} className="animate-spin" /> : <Save size={22} />}
+                            {isSaving ? 'СОХРАНЕНИЕ...' : 'ПРИМЕНИТЬ ИЗМЕНЕНИЯ'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+export default function GanttTab({ products, resources, orders, actions }) {
+    const { calendarDays, ganttRows, startDate } = useGanttData(orders, products, resources);
+    const [selectedItemInfo, setSelectedItemInfo] = useState(null); // { id, type, start, end }
+    const [expandedIds, setExpandedIds] = useState([]);
+
+    // Фильтрация
+    const filteredGanttRows = useMemo(() => {
+        if (!ganttRows) return [];
+        return ganttRows.filter(row => {
+            if (row.type !== 'order') return true;
+            const order = orders.find(o => o.id === row.id);
+            if (order && order.inShipping) return false;
+            if (row.children && row.children.length > 0) {
+                const allResale = row.children.every(child => child.isResale);
+                return !allResale;
+            }
+            return true;
+        });
+    }, [ganttRows, orders]);
+
+    const toggleExpand = useCallback((id) => {
+        setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    }, []);
+
+    const handleOpenModal = useCallback((item) => {
+        setSelectedItemInfo({ 
+            id: item.id, 
+            type: item.type,
+            start: item.startDate,
+            end: item.endDate
+        });
+    }, []);
+
     if (!calendarDays || !ganttRows) {
         return (
-            <div className="flex items-center justify-center h-[calc(100vh-100px)] text-gray-500">
-                <div className="text-center">
-                    <Loader size={48} className="animate-spin mx-auto mb-4 text-blue-500" />
-                    <p className="font-medium">Загрузка данных графика...</p>
+            <div className="flex items-center justify-center h-[calc(100vh-140px)] text-gray-500 bg-white rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader size={48} className="animate-spin text-blue-500" />
+                    <span className="font-bold text-slate-400">Загрузка Ганта...</span>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-140px)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative fade-in"
-             style={{ background: showPlanner ? '#030712' : 'white', borderColor: showPlanner ? '#1e293b' : undefined }}>
-
-            {/* ── ПЕРЕКЛЮЧАТЕЛЬ ГАНТ / ПЛАНИРОВЩИК ── */}
-            <div className={`flex items-center gap-1 px-3 py-2 shrink-0 border-b ${showPlanner ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <button
-                    onClick={() => setShowPlanner(false)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200
-                        ${!showPlanner
-                            ? 'bg-white text-slate-800 shadow-sm border border-slate-200'
-                            : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                    <BarChart3 size={13} />
-                    Гант
-                </button>
-                <button
-                    onClick={() => setShowPlanner(true)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200
-                        ${showPlanner
-                            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
-                            : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                    <span className="font-black">X</span>
-                    Планировщик
-                </button>
-            </div>
-
-            {/* ── КОНТЕНТ ── */}
-            {showPlanner ? (
-                <div className="flex-1 overflow-hidden">
-                    <SchedulerTab products={products} resources={resources} orders={orders} />
-                </div>
-            ) : (
-            <div className="flex-1 bg-white overflow-hidden relative">
+        <div className="flex flex-col h-[calc(100vh-140px)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative bg-white">
+            
+            <div className="flex-1 overflow-hidden relative">
                 <GanttChart
                     calendarDays={calendarDays}
                     rows={filteredGanttRows}
@@ -251,162 +314,18 @@ export default function GanttTab({ products, resources, orders, actions }) {
                     onProductNameClick={handleOpenModal}
                 />
             </div>
-            )}
 
-            {/* --- МОДАЛКА РЕДАКТИРОВАНИЯ --- */}
-            {selectedItem && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                        
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white flex justify-between items-start">
-                            <div className="flex-1">
-                                <div className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
-                                    {selectedItem.type === 'order' ? '📦 Редактирование заказа' : '🔧 Редактирование изделия'}
-                                </div>
-                                <h3 className="text-2xl font-black mb-1 leading-tight">
-                                    {selectedItem.type === 'order' ? selectedItem.orderNumber : selectedItem.name}
-                                </h3>
-                                {selectedItem.clientName && (
-                                    <p className="text-sm text-slate-300 font-medium">{selectedItem.clientName}</p>
-                                )}
-                            </div>
-                            <button 
-                                onClick={() => setSelectedItem(null)} 
-                                className="p-2 hover:bg-white/10 rounded-xl transition-colors ml-4"
-                                disabled={isSaving}
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-                        
-                        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                            
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 border border-blue-200">
-                                    <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Трудоёмкость</div>
-                                    <div className="text-3xl font-black text-blue-900 flex items-center gap-2">
-                                        <Clock size={24} />
-                                        {selectedItem.totalHours}ч
-                                    </div>
-                                </div>
-                                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-4 border border-emerald-200">
-                                    <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Длительность</div>
-                                    <div className="text-3xl font-black text-emerald-900 flex items-center gap-2">
-                                        <Calendar size={24} />
-                                        {selectedItem.durationDays}д
-                                    </div>
-                                </div>
-                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 border border-purple-200">
-                                    <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2">
-                                        {selectedItem.type === 'order' ? 'Изделий' : 'Количество'}
-                                    </div>
-                                    <div className="text-3xl font-black text-purple-900 flex items-center gap-2">
-                                        <Package size={24} />
-                                        {selectedItem.type === 'order' ? selectedItem.children?.length || 0 : selectedItem.quantity}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Date Picker */}
-                            <div className="bg-slate-50 rounded-2xl p-6 border-2 border-slate-200">
-                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider flex items-center gap-2">
-                                    <Calendar size={16} className="text-blue-600" />
-                                    Новая дата начала производства
-                                </label>
-                                <input 
-                                    type="date" 
-                                    value={newDateValue}
-                                    onChange={(e) => setNewDateValue(e.target.value)}
-                                    className="w-full border-2 border-slate-300 bg-white rounded-xl p-4 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                                    disabled={isSaving}
-                                />
-                                
-                                {selectedItem.type === 'order' && (
-                                    <div className="mt-4 flex items-start gap-3 text-xs text-orange-700 bg-orange-50 p-4 rounded-xl border border-orange-200">
-                                        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-orange-600"/>
-                                        <p className="leading-relaxed">
-                                            <strong>Внимание!</strong> При изменении даты старта заказа все <strong>{selectedItem.children?.length || 0} изделий</strong> автоматически сдвинутся на такое же количество дней.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Products Info for Order */}
-                            {selectedItem.type === 'order' && selectedItem.children && selectedItem.children.length > 0 && (
-                                <div>
-                                    <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <Package size={16} />
-                                        Состав заказа ({selectedItem.children.length})
-                                    </h4>
-                                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                                        {selectedItem.children.map((child) => {
-                                            const product = products.find(p => p.id === child.id);
-                                            if (!product) return null;
-                                            
-                                            return (
-                                                <div key={child.id} className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div className="flex-1">
-                                                            <div className="font-bold text-slate-800 mb-1">{child.name}</div>
-                                                            <div className="flex items-center gap-4 text-xs text-slate-500">
-                                                                <span className="flex items-center gap-1">
-                                                                    <Target size={12} />
-                                                                    {child.quantity} шт
-                                                                </span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <Wrench size={12} />
-                                                                    {product.operations?.length || 0} операций
-                                                                </span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <Timer size={12} />
-                                                                    {child.totalHours} ч
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded mt-2">
-                                                        Текущая дата: {formatDateForInput(product.startDate) || 'не задана'}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="flex gap-3 pt-4">
-                                <button 
-                                    onClick={handleSaveDate}
-                                    disabled={isSaving || !actions}
-                                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <Loader size={20} className="animate-spin" />
-                                            Сохранение...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save size={20} />
-                                            {selectedItem.type === 'order' ? 'Перенести заказ' : 'Перенести изделие'}
-                                        </>
-                                    )}
-                                </button>
-                                <button 
-                                    onClick={() => setSelectedItem(null)}
-                                    disabled={isSaving}
-                                    className="px-6 py-4 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Отмена
-                                </button>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
+            {/* ВЫНЕСЕННАЯ МОДАЛКА (Оптимизирована и исправлена) */}
+            {selectedItemInfo && (
+                <GanttEditModal 
+                    itemId={selectedItemInfo.id} 
+                    itemType={selectedItemInfo.type}
+                    initialDates={{ start: selectedItemInfo.start, end: selectedItemInfo.end }}
+                    products={products} 
+                    orders={orders}
+                    actions={actions} 
+                    onClose={() => setSelectedItemInfo(null)} 
+                />
             )}
         </div>
     );
