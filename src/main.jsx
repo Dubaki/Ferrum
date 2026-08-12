@@ -6,7 +6,7 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import './index.css';
 
-// Автоматическая проверка и сброс устаревшего кэша при каждом закладочном входе
+// Автоматическая регистрация и проверка новой версии на сервере
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
@@ -14,6 +14,26 @@ const updateSW = registerSW({
   },
   onOfflineReady() {},
 });
+
+// 1. Автоматическая принудительная перезагрузка вкладки у пользователей при выкатке нового обновления
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+
+  // 2. Периодическая проверка наличия обновлений на сервере каждые 5 минут без участия пользователя
+  setInterval(() => {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (let registration of registrations) {
+        registration.update();
+      }
+    });
+  }, 5 * 60 * 1000);
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
