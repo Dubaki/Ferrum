@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Lock, Key, ShieldCheck, CreditCard } from 'lucide-react';
+import { AlertTriangle, Lock, Key, ShieldCheck, CreditCard, Phone } from 'lucide-react';
 
 export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock }) {
   const [inputPassword, setInputPassword] = useState('');
@@ -36,9 +36,11 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
     return (
       <div className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-white text-center select-none pointer-events-auto">
         <div className="max-w-lg w-full bg-slate-900 border-2 border-red-500/40 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-          {/* Декоративное свечение */}
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-red-500/20 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-orange-500/20 rounded-full blur-3xl"></div>
+          {/* Телефон по центру сверху блокировки */}
+          <div className="mb-6 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 font-bold text-sm">
+            <Phone className="w-4 h-4" />
+            <span>Телефон для связи: <a href="tel:+79221800911" className="underline hover:text-white">+7 922 18 00 911</a></span>
+          </div>
 
           <div className="w-20 h-20 bg-red-500/10 border-2 border-red-500/30 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner text-red-500">
             <Lock className="w-10 h-10 animate-pulse" />
@@ -87,63 +89,65 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs text-slate-500">
-            После перечисления оплаты обратитесь к администратору за паролем.
+          <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs text-slate-400">
+            Для получения пароля звоните: <a href="tel:+79221800911" className="text-orange-400 font-bold underline">+7 922 18 00 911</a>
           </div>
         </div>
       </div>
     );
   }
 
-  // 2. БАННЕР НА ПОЛ-ЭКРАНА (ПЕРЕКРЫВАЕТ И МЕШАЕТ РАБОТАТЬ!)
+  // 2. БАННЕР НА ПОЛ-ЭКРАНА (ПРОЗРАЧНЫЙ, НЕ МЕШАЕТ НАЖИМАТЬ КНОПКИ ПОД НИМ!)
   return (
     <>
       <div 
-        className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-auto h-[48vh] min-h-[360px] bg-slate-950/85 backdrop-blur-md border-t-4 border-orange-500 shadow-2xl transition-all duration-300"
+        className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none h-[45vh] min-h-[340px] bg-slate-950/45 backdrop-blur-[2px] border-t-2 border-orange-500/80 shadow-2xl transition-all duration-300"
       >
-        <div className="max-w-6xl mx-auto h-full px-6 py-6 flex flex-col justify-between text-white relative">
+        <div className="max-w-6xl mx-auto h-full px-6 py-4 flex flex-col justify-between text-white relative">
           
-          {/* Верхняя панель */}
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-orange-500 animate-ping" />
-              <span className="text-xs font-bold uppercase tracking-wider text-orange-400">
-                Бесплатный период завершается
-              </span>
+          {/* Телефон по центру сверху плашки */}
+          <div className="flex items-center justify-between border-b border-slate-800/40 pb-2">
+            <div className="flex-1 text-center pointer-events-auto">
+              <a 
+                href="tel:+79221800911" 
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-300 hover:text-white hover:bg-orange-500/30 transition text-xs sm:text-sm font-extrabold shadow-lg"
+              >
+                <Phone className="w-4 h-4 text-orange-400 animate-pulse" />
+                <span>Телефон для связи: <strong className="text-white">+7 922 18 00 911</strong></span>
+              </a>
             </div>
             
             <button
               onClick={() => setShowPasswordModal(true)}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-100 px-4 py-2 rounded-lg border border-slate-600 transition flex items-center gap-2 shadow-md font-semibold"
+              className="pointer-events-auto text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-100 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 shadow-md font-semibold shrink-0"
             >
-              <Key className="w-4 h-4 text-orange-400" />
+              <Key className="w-3.5 h-3.5 text-orange-400" />
               Ввести код-пароль
             </button>
           </div>
 
-          <div className="my-auto flex flex-col items-center text-center max-w-3xl mx-auto py-2">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-semibold mb-4">
-              <AlertTriangle className="w-4 h-4 text-orange-400" />
-              Внимание: ограниченный режим работы
+          <div className="my-auto flex flex-col items-center text-center max-w-3xl mx-auto py-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-semibold mb-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+              Бесплатный период использования
             </div>
 
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight mb-4 leading-tight drop-shadow-md">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight mb-2 leading-tight drop-shadow-lg">
               Бесплатная версия закончена, через{' '}
-              <span className="text-orange-500 underline underline-offset-4 decoration-orange-500">
+              <span className="text-orange-400 underline underline-offset-4 decoration-orange-500">
                 {daysLeft} {daysLeft === 1 ? 'день' : (daysLeft >= 2 && daysLeft <= 4 ? 'дня' : 'дней')}
               </span>{' '}
               приложение будет закрыто!
             </h2>
 
-            <p className="text-slate-200 text-sm sm:text-base mb-6 leading-relaxed max-w-2xl drop-shadow">
-              27 августа 2026 года доступ к системе будет автоматически полностью заблокирован.
-              Просьба перечислить оплату подписки и ввести пароль для разблокировки.
+            <p className="text-slate-200 text-xs sm:text-sm mb-4 leading-relaxed max-w-2xl drop-shadow">
+              27 августа 2026 года доступ к системе будет заблокирован. Вы можете продолжать пользоваться приложением прямо сейчас сквозь эту плашку. Для снятия ограничения оплатите подписку.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4 pointer-events-auto">
               <button
                 onClick={() => setShowPasswordModal(true)}
-                className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-xl hover:shadow-orange-500/30 transition flex items-center gap-2 text-sm"
+                className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-xl hover:shadow-orange-500/30 transition flex items-center gap-2 text-xs sm:text-sm"
               >
                 <CreditCard className="w-4 h-4" />
                 Оплатить подписку / Ввести пароль
@@ -151,8 +155,8 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
             </div>
           </div>
 
-          <div className="text-center text-[11px] text-slate-400 pt-2 border-t border-slate-800/40">
-            Окончательное закрытие программы: 27 августа 2026 г. Для разблокировки всех пользователей введите код после оплаты.
+          <div className="text-center text-[11px] text-slate-300 pt-1 border-t border-slate-800/30">
+            Телефон поддержки: <a href="tel:+79221800911" className="text-orange-400 font-bold underline pointer-events-auto">+7 922 18 00 911</a> | Окончательное закрытие: 27 августа 2026 г.
           </div>
         </div>
       </div>
@@ -178,7 +182,7 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
             </div>
 
             <p className="text-slate-300 text-xs mb-4">
-              Введите код доступа, полученный после оплаты подписки, для разблокировки всех пользователей.
+              Введите код доступа, полученный по телефону <strong className="text-orange-400">+7 922 18 00 911</strong> после оплаты подписки.
             </p>
 
             <form onSubmit={handleUnlockSubmit} className="space-y-4">
