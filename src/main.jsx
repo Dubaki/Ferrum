@@ -2,8 +2,18 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import './index.css';
+
+// Автоматическая проверка и сброс устаревшего кэша при каждом закладочном входе
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateSW(true);
+  },
+  onOfflineReady() {},
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
