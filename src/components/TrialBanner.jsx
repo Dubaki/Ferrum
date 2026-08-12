@@ -5,21 +5,29 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
   const [inputPassword, setInputPassword] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isUnlocked) {
     return null;
   }
 
-  const handleUnlockSubmit = (e) => {
+  const handleUnlockSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
-    const success = onUnlock(inputPassword);
-    if (!success) {
-      setErrorMsg('Неверный код доступа! Пароль для отмены: fer25_paid');
-    } else {
-      setInputPassword('');
-      setShowPasswordModal(false);
+    setIsSubmitting(true);
+    
+    try {
+      const success = await onUnlock(inputPassword);
+      if (!success) {
+        setErrorMsg('Неверный код доступа! Свяжитесь с администратором для получения пароля.');
+      } else {
+        setInputPassword('');
+        setShowPasswordModal(false);
+      }
+    } catch (err) {
+      setErrorMsg('Ошибка проверки кода доступа.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -41,21 +49,21 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
           </h1>
 
           <p className="text-slate-300 text-base mb-6 leading-relaxed">
-            Бесплатная версия закончена. 27 августа 15-дневный бесплатный период истек. 
-            Программа закрыта. Просьба ввести код-пароль оплаты для возобновления доступа.
+            Бесплатная версия закончена. 27 августа 15-дневный период использования истек. 
+            Работа программы остановлена. Просьба ввести код доступа после оплаты подписки.
           </p>
 
           <form onSubmit={handleUnlockSubmit} className="space-y-4">
             <div>
               <label className="block text-left text-xs font-semibold text-slate-400 mb-2">
-                Код-пароль оплаты:
+                Код разблокировки:
               </label>
               <div className="relative">
                 <input
                   type="password"
                   value={inputPassword}
                   onChange={(e) => setInputPassword(e.target.value)}
-                  placeholder="Введите пароль fer25_paid..."
+                  placeholder="Введите пароль доступа..."
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-red-500 transition shadow-inner font-mono text-sm"
                   autoFocus
                 />
@@ -71,106 +79,80 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg hover:shadow-red-500/25 transition-all duration-200 active:scale-98 flex items-center justify-center gap-2"
             >
               <ShieldCheck className="w-5 h-5" />
-              Снять блокировку
+              {isSubmitting ? 'Проверка...' : 'Снять блокировку'}
             </button>
           </form>
 
           <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs text-slate-500">
-            Для возобновления работы введите код <code className="text-orange-400 font-mono">fer25_paid</code>
+            После перечисления оплаты обратитесь к администратору за паролем.
           </div>
         </div>
       </div>
     );
   }
 
-  // 2. ПОЛУПРОЗРАЧНЫЙ БАННЕР НА ПОЛ-ЭКРАНА (ПРОПУСКАЕТ КЛИКИ В ПРИЛОЖЕНИЕ!)
+  // 2. БАННЕР НА ПОЛ-ЭКРАНА (ПЕРЕКРЫВАЕТ И МЕШАЕТ РАБОТАТЬ!)
   return (
     <>
       <div 
-        className={`fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none transition-all duration-500 ease-in-out ${
-          isMinimized ? 'h-16 bg-slate-950/80 border-t border-orange-500/40' : 'h-[48vh] min-h-[360px] bg-slate-950/70 backdrop-blur-sm border-t-4 border-orange-500/90 shadow-2xl'
-        }`}
+        className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-auto h-[48vh] min-h-[360px] bg-slate-950/85 backdrop-blur-md border-t-4 border-orange-500 shadow-2xl transition-all duration-300"
       >
-        <div className="max-w-6xl mx-auto h-full px-6 py-5 flex flex-col justify-between text-white relative">
+        <div className="max-w-6xl mx-auto h-full px-6 py-6 flex flex-col justify-between text-white relative">
           
-          {/* Верхняя панель переключателей (интерактивна через pointer-events-auto) */}
-          <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 pointer-events-auto">
+          {/* Верхняя панель */}
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-orange-500 animate-ping" />
               <span className="text-xs font-bold uppercase tracking-wider text-orange-400">
-                Бесплатный период активен
+                Бесплатный период завершается
               </span>
             </div>
             
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-100 px-4 py-2 rounded-lg border border-slate-600 transition flex items-center gap-2 shadow-md font-semibold"
+            >
+              <Key className="w-4 h-4 text-orange-400" />
+              Ввести код-пароль
+            </button>
+          </div>
+
+          <div className="my-auto flex flex-col items-center text-center max-w-3xl mx-auto py-2">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-semibold mb-4">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              Внимание: ограниченный режим работы
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight mb-4 leading-tight drop-shadow-md">
+              Бесплатная версия закончена, через{' '}
+              <span className="text-orange-500 underline underline-offset-4 decoration-orange-500">
+                {daysLeft} {daysLeft === 1 ? 'день' : (daysLeft >= 2 && daysLeft <= 4 ? 'дня' : 'дней')}
+              </span>{' '}
+              приложение будет закрыто!
+            </h2>
+
+            <p className="text-slate-200 text-sm sm:text-base mb-6 leading-relaxed max-w-2xl drop-shadow">
+              27 августа 2026 года доступ к системе будет автоматически полностью заблокирован.
+              Просьба перечислить оплату подписки и ввести пароль для разблокировки.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <button
                 onClick={() => setShowPasswordModal(true)}
-                className="text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-100 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5 shadow-md"
-                title="Ввести пароль fer25_paid"
+                className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-xl hover:shadow-orange-500/30 transition flex items-center gap-2 text-sm"
               >
-                <Key className="w-3.5 h-3.5 text-orange-400" />
-                Ввести код-пароль
-              </button>
-
-              <button
-                onClick={() => setIsMinimized(!isMinimized)}
-                className="text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-600 transition"
-              >
-                {isMinimized ? 'Развернуть ▲' : 'Свернуть ▼'}
+                <CreditCard className="w-4 h-4" />
+                Оплатить подписку / Ввести пароль
               </button>
             </div>
           </div>
 
-          {!isMinimized && (
-            <div className="my-auto flex flex-col items-center text-center max-w-3xl mx-auto py-2">
-              <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-semibold mb-3">
-                <AlertTriangle className="w-4 h-4 text-orange-400" />
-                Работа в приложении доступна через прозрачную надпись
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight mb-3 leading-tight drop-shadow-md">
-                Бесплатная версия закончена, через{' '}
-                <span className="text-orange-400 underline underline-offset-4 decoration-orange-500">
-                  {daysLeft} {daysLeft === 1 ? 'день' : (daysLeft >= 2 && daysLeft <= 4 ? 'дня' : 'дней')}
-                </span>{' '}
-                приложение будет закрыто!
-              </h2>
-
-              <p className="text-slate-200 text-sm sm:text-base mb-5 leading-relaxed max-w-2xl drop-shadow">
-                27 августа 2026 года доступ будет заблокирован. Вы можете продолжать пользоваться приложением прямо сейчас сквозь эту плашку. Для снятия ограничения введите код-пароль.
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-4 pointer-events-auto">
-                <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold px-6 py-3 rounded-xl shadow-xl hover:shadow-orange-500/30 transition flex items-center gap-2 text-sm"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  Оплатить подписку / Ввести пароль
-                </button>
-              </div>
-            </div>
-          )}
-
-          {isMinimized && (
-            <div className="flex items-center justify-between text-xs text-slate-200 pointer-events-auto">
-              <span className="font-semibold text-orange-400">
-                ⚠️ Бесплатная версия закончена, через {daysLeft} дн. приложение будет закрыто (27 августа). Можно работать сквозь прозрачную надпись.
-              </span>
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="text-orange-400 hover:underline font-bold"
-              >
-                Ввести код-пароль
-              </button>
-            </div>
-          )}
-
           <div className="text-center text-[11px] text-slate-400 pt-2 border-t border-slate-800/40">
-            Окончательное закрытие программы: 27 августа 2026 г. Пароль отмены: <code className="text-orange-400">fer25_paid</code>
+            Окончательное закрытие программы: 27 августа 2026 г. Для разблокировки всех пользователей введите код после оплаты.
           </div>
         </div>
       </div>
@@ -196,7 +178,7 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
             </div>
 
             <p className="text-slate-300 text-xs mb-4">
-              Введите код-пароль <code className="text-orange-400 font-mono">fer25_paid</code> для полного отключения надписи и снятия таймера.
+              Введите код доступа, полученный после оплаты подписки, для разблокировки всех пользователей.
             </p>
 
             <form onSubmit={handleUnlockSubmit} className="space-y-4">
@@ -204,7 +186,7 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
                 type="password"
                 value={inputPassword}
                 onChange={(e) => setInputPassword(e.target.value)}
-                placeholder="Введи fer25_paid..."
+                placeholder="Введите пароль..."
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 text-sm font-mono"
                 autoFocus
               />
@@ -228,9 +210,10 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-1/2 bg-orange-600 hover:bg-orange-500 text-white font-bold py-2.5 rounded-xl text-sm shadow-md"
                 >
-                  Подтвердить
+                  {isSubmitting ? '...' : 'Подтвердить'}
                 </button>
               </div>
             </form>
