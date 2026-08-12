@@ -101,7 +101,7 @@ export default function TrialBanner({ daysLeft, isExpired, isUnlocked, onUnlock 
   return (
     <>
       <div 
-        className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none h-[45vh] min-h-[340px] bg-slate-950/45 backdrop-blur-[2px] border-t-2 border-orange-500/80 shadow-2xl transition-all duration-300"
+        className="fixed bottom-0 left-0 right-0 z-[9999] pointer-events-none h-[45vh] min-h-[340px] bg-slate-950/35 border-t-2 border-orange-500/80 shadow-2xl transition-all duration-300"
       >
         <div className="max-w-6xl mx-auto h-full px-6 py-4 flex flex-col justify-between text-white relative">
           
