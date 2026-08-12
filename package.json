@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@supabase/supabase-js": "^2.89.0",
+    "@supabase/supabase-js": "^2.112.3",
     "firebase": "^12.6.0",
     "lucide-react": "^0.263.1",
     "pdfjs-dist": "^5.4.624",
