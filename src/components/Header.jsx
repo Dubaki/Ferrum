@@ -3,16 +3,18 @@ import { NavLink } from 'react-router-dom';
 import { Calendar, Users, BarChart3, FileText, Layers, Menu, X, Truck, Lock, Unlock, ShoppingBag, Package } from 'lucide-react';
 import { getRoleLabel } from '../utils/supplyRoles';
 
+// Основные активные вкладки навигации (Заказы, Товары, Отгрузки, Снабжение)
 const tabs = [
   { path: '/', label: 'Заказы', icon: Layers },
   { path: '/products', label: 'Товары', icon: ShoppingBag },
   { path: '/shipping', label: 'Отгрузки', icon: Truck },
   { path: '/supply', label: 'Снабжение', icon: Package },
-
-  { path: '/resources', label: 'Цех', icon: Users },
-  { path: '/gantt', label: 'Гант', icon: BarChart3 },
-  { path: '/reports', label: 'Финансы', icon: FileText },
 ];
+
+// Скрытые разделы (сохранены в коде, маршруты в App.jsx остаются рабочими):
+// { path: '/resources', label: 'Цех', icon: Users },
+// { path: '/reports', label: 'Финансы', icon: FileText },
+
 
 const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -72,8 +74,8 @@ const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth
             </div>
           </NavLink>
 
-          {/* DESKTOP NAVIGATION: Floating Tab Style */}
-          <nav className="hidden xl:flex items-center bg-slate-100/50 p-1 rounded-2xl border border-slate-200/30 gap-1 mx-8 shadow-inner">
+          {/* DESKTOP NAVIGATION: Balanced 4-Tab Floating Style */}
+          <nav className="hidden md:flex items-center bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/50 gap-1.5 shadow-inner">
             {tabs.map(tab => {
                 const isAlert = (tab.path === '/shipping' && hasUrgentShipping) || 
                                 (tab.path === '/supply' && hasSupplyAlert);
@@ -84,18 +86,18 @@ const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth
                         to={tab.path}
                         end={tab.path === '/'}
                         className={({ isActive }) =>
-                        `relative flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 group
+                        `relative flex items-center gap-2.5 px-6 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 group
                         ${isActive 
                             ? 'bg-white text-slate-900 shadow-md scale-[1.02]' 
-                            : 'text-slate-400 hover:text-slate-600 hover:bg-white/40'}`
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'}`
                         }
                     >
                         {({ isActive }) => (
                             <>
-                                <tab.icon size={16} strokeWidth={isActive ? 3 : 2} className={isActive ? 'text-orange-500' : 'text-slate-400 group-hover:text-slate-500'} />
+                                <tab.icon size={17} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-orange-500' : 'text-slate-400 group-hover:text-slate-600'} />
                                 <span>{tab.label}</span>
                                 {isAlert && (
-                                    <span className={`absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full ${isActive ? 'ring-2 ring-white' : ''} animate-pulse`}></span>
+                                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ${isActive ? 'ring-2 ring-white' : ''} animate-pulse`}></span>
                                 )}
                             </>
                         )}
@@ -126,7 +128,7 @@ const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth
             
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="xl:hidden w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 active:scale-90 transition-all"
+              className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 active:scale-90 transition-all"
             >
               {mobileMenuOpen ? <X size={22} strokeWidth={3} /> : <Menu size={22} strokeWidth={3} />}
             </button>
@@ -136,7 +138,7 @@ const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth
 
       {/* MOBILE NAVIGATION: Bottom Sheet Style Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden">
+        <div className="fixed inset-0 z-50 md:hidden">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md transition-opacity duration-500" onClick={() => setMobileMenuOpen(false)}></div>
             <div className="absolute top-0 right-0 w-4/5 max-w-sm h-full bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-6 animate-in slide-in-from-right duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
                 <div className="flex justify-between items-center mb-10">

@@ -70,33 +70,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Принудительное авто-обновление страницы у всех пользователей при выкатке нового билда (каждую минуту)
-  useEffect(() => {
-    let currentHash = null;
-    const checkServerBuild = async () => {
-      try {
-        const res = await fetch('/index.html?t=' + Date.now(), { cache: 'no-store' });
-        const html = await res.text();
-        const matches = html.match(/index-[a-zA-Z0-9]+\.js/g);
-        if (matches && matches.length > 0) {
-          const newHash = matches.join(',');
-          if (currentHash && currentHash !== newHash) {
-            console.log('Новый билд обнаружен! Перезагрузка приложения...');
-            window.location.reload();
-          } else {
-            currentHash = newHash;
-          }
-        }
-      } catch (e) {
-        // Игнорируем ошибки сети
-      }
-    };
-
-    checkServerBuild();
-    const buildInterval = setInterval(checkServerBuild, 60000); // Каждые 60 секунд
-    return () => clearInterval(buildInterval);
-  }, []);
-
   // Проверяем есть ли срочные отгрузки (на сегодня)
   const hasUrgentShipping = useMemo(() => {
     return orders.some(o => o.status === 'active' && o.inShipping && o.shippingToday);
