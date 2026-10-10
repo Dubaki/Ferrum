@@ -58,18 +58,16 @@ const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth
           <NavLink to="/" className="group flex items-center gap-3 shrink-0 outline-none">
             <div className="relative">
                 <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <img
-                  src="/pic/cropped-logo.png.webp"
-                  alt="Феррум"
-                  className="w-9 h-9 object-contain relative transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:scale-110 group-hover:rotate-[10deg]"
-                />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-orange-500/20 relative transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:scale-110 group-hover:rotate-[6deg]">
+                  P
+                </div>
             </div>
             <div className="flex flex-col">
                 <span className="font-black text-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tighter leading-none">
-                    ФЕРРУМ
+                    PLANNER
                 </span>
                 <span className="text-[8px] font-black text-orange-500 tracking-[0.4em] uppercase leading-none mt-1 opacity-80 group-hover:tracking-[0.5em] transition-all duration-700">
-                    Production
+                    Production ERP
                 </span>
             </div>
           </NavLink>
@@ -143,7 +141,7 @@ const Header = memo(({ hasUrgentShipping, hasSupplyAlert, userRole, onToggleAuth
             <div className="absolute top-0 right-0 w-4/5 max-w-sm h-full bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-6 animate-in slide-in-from-right duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
                 <div className="flex justify-between items-center mb-10">
                     <div className="flex flex-col">
-                        <span className="font-black text-2xl text-slate-900 tracking-tighter">ФЕРРУМ</span>
+                        <span className="font-black text-2xl text-slate-900 tracking-tighter">PLANNER</span>
                         <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Navigation</span>
                     </div>
                     <button onClick={() => setMobileMenuOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 active:rotate-90 transition-all duration-500">

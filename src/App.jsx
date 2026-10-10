@@ -5,7 +5,6 @@ import { useProductionData } from './hooks/useProductionData';
 import { useSupplyRequests } from './hooks/useSupplyRequests';
 import { useWarehouse } from './hooks/useWarehouse';
 import { getRoleLabel } from './utils/supplyRoles';
-import { useTrialTimer } from './hooks/useTrialTimer';
 
 // --- Компоненты ---
 import Header from './components/Header';
@@ -18,7 +17,6 @@ import PlanningTab from './components/planning/PlanningTab';
 import ProductsTab from './components/ProductsTab';
 import SupplyTab from './components/supply/SupplyTab';
 import RoleSelectionModal from './components/RoleSelectionModal';
-import TrialBanner from './components/TrialBanner';
 
 // Компонент загрузки
 function LoadingScreen() {
@@ -51,7 +49,6 @@ function AccessDenied({ navigate }) {
 
 export default function App() {
   const { resources, products, orders, reports, loading, actions } = useProductionData();
-  const { daysLeft, isExpired, isUnlocked, unlock } = useTrialTimer();
 
   const { requests: supplyRequests, hasSupplyAlert, actions: supplyActions } = useSupplyRequests();
   const { items: warehouseItems, actions: warehouseActions } = useWarehouse();
@@ -128,12 +125,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <TrialBanner 
-        daysLeft={daysLeft} 
-        isExpired={isExpired} 
-        isUnlocked={isUnlocked} 
-        onUnlock={unlock} 
-      />
       <Header
         hasUrgentShipping={hasUrgentShipping}
         hasSupplyAlert={hasSupplyAlert}

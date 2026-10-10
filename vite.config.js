@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
-        name: 'ФЕРРУМ - Планирование производства',
-        short_name: 'ФЕРРУМ',
-        description: 'Система управления производством металлоконструкций',
+        name: 'PLANNER - Планирование производства',
+        short_name: 'PLANNER',
+        description: 'Система управления производством',
         theme_color: '#d32f2f',
         background_color: '#1a1a1a',
         display: 'standalone',

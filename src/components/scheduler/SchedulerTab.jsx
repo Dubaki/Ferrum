@@ -110,7 +110,7 @@ export default function SchedulerTab({ products, orders }) {
         <div className="flex flex-col h-full bg-slate-950 text-white overflow-hidden font-sans">
             <div className="px-6 pt-5 pb-0 border-b border-slate-800 shrink-0">
                 <div className="text-[10px] font-black tracking-[0.3em] text-cyan-400 uppercase mb-1 flex items-center gap-2">
-                    ФЕРРУМ × ПЛАНИРОВАНИЕ
+                    ПРОИЗВОДСТВО × ПЛАНИРОВАНИЕ
                 </div>
                 <div className="flex items-end justify-between gap-4">
                     <h2 className="text-xl font-black text-white leading-tight pb-3">Производственный график</h2>
